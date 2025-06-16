@@ -1,0 +1,53 @@
+FROM php:8.2-apache
+
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+RUN apt update \
+    && apt install -y zlib1g-dev g++ git libicu-dev zip libzip-dev zip libpq-dev libgmp-dev libpng-dev \
+    && docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql \
+    && docker-php-ext-install intl opcache pdo pdo_pgsql \
+    && pecl install apcu \
+    && docker-php-ext-enable apcu \
+    && docker-php-ext-configure zip \
+    && docker-php-ext-install zip \
+    && docker-php-ext-install gmp \
+    && docker-php-ext-install gd \
+    && docker-php-ext-install mysqli pdo_mysql
+
+RUN a2enmod rewrite headers
+RUN mkdir -p /var/www/slimekit
+
+WORKDIR /var/www/slimekit
+
+RUN echo "ENVIRONMENT=PRODUCTION" > /var/www/slimekit/.env \
+    && echo "BASE_PATH=/" >> /var/www/slimekit/.env \
+    && echo "APP_NAME=SlimeKit" >> /var/www/slimekit/.env \
+    && echo "DB_HOST=" >> /var/www/slimekit/.env \
+    && echo "DB_PORT=" >> /var/www/slimekit/.env \
+    && echo "DB_USER=" >> /var/www/slimekit/.env \
+    && echo "DB_PASS=" >> /var/www/slimekit/.env \
+    && echo "DB_NAME=" >> /var/www/slimekit/.env \
+    && echo "DB_CLIENT=" >> /var/www/slimekit/.env \
+    && echo "CLOUDINARY_URL=" >> /var/www/slimekit/.env \
+    && echo "SYM_KEY=" >> /var/www/slimekit/.env \
+    && echo "SMTP_HOST=" >> /var/www/slimekit/.env \
+    && echo "SMTP_USER=" >> /var/www/slimekit/.env \
+    && echo "SMTP_PASS=" >> /var/www/slimekit/.env \
+    && echo "SMTP_PORT=" >> /var/www/slimekit/.env \
+    && echo "MAIL_FROM=" >> /var/www/slimekit/.env \
+    && echo "MAIL_FROM_NAME='SlimeKit'" >> /var/www/slimekit/.env
+
+COPY . /var/www/slimekit
+
+COPY assets/php/custom-php.ini /usr/local/etc/php/conf.d/custom-php.ini
+
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && composer install --no-dev --optimize-autoloader
+
+COPY assets/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY assets/apache/apache2.conf /etc/apache2/apache2.conf
+
+RUN composer dump-autoload -o
+
+EXPOSE 80
+CMD ["apache2-foreground"]

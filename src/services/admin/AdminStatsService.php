@@ -1,0 +1,160 @@
+<?php
+
+namespace App\Services\Admin;
+
+use Exception;
+use App\Lib\Database;
+use App\Helpers\General;
+use App\Lib\Cloudinary;
+
+class AdminStatsService
+{
+  private $db;
+  private $helper;
+  private $cloudinary;
+  private $tableLog = 'tb_log';
+
+  public function __construct()
+  {
+    $this->db = (new Database())->getConnection();
+    $this->helper = new General;
+    $this->cloudinary = new Cloudinary;
+  }
+
+  public function listLog(array $input)
+  {
+    $data = [];
+
+    $qb = $this->db->createQueryBuilder()
+      ->select([
+        $this->tableLog.'.table_name AS title',
+        $this->tableLog.'.action',
+        $this->tableLog.'.created_at AS time',
+        $this->tableLog.'.id_record',
+        'COALESCE(tb_user.name, :guest) AS user'
+      ])
+      ->from($this->tableLog)
+      ->leftJoin(
+        $this->tableLog,
+        'tb_user',
+        'tb_user',
+        'tb_user.id = '.$this->tableLog.'.id_user'
+      )
+      ->setParameter('guest', 'Guest')
+      ->orderBy($this->tableLog.'.created_at', 'DESC')
+      ->setMaxResults($input['limit']);
+
+    if (!empty($input['table'])) {
+      $qb->andWhere($this->tableLog.'.table_name = :table_name')
+        ->setParameter('table_name', $input['table']);
+    }
+    if (!empty($input['user'])) {
+      $qb->andWhere($this->tableLog.'.id_user = :id_user')
+        ->setParameter('id_user', $input['user']);
+    }
+    if (!empty($input['action'])) {
+      $qb->andWhere($this->tableLog.'.action = :action')
+        ->setParameter('action', $input['action']);
+    }
+
+    $query = $qb->executeQuery()->fetchAllAssociative();
+
+    if (!empty($query)) {
+      $actionMap = [
+        'INSERT' => 'create',
+        'UPDATE' => 'update',
+        'DELETE' => 'drop',
+      ];
+
+      $titleMap = [
+        'tb_content_gallery'      => ['title' => 'Content: Gallery', 'caption' => 'Image' ],
+        'tb_content_faq'          => ['title' => 'Content: FAQ', 'caption' => 'FAQ' ],
+        'tb_content_article'      => ['title' => 'Content: Article', 'caption' => 'Article' ],
+        'tb_content_team'         => ['title' => 'Content: Team', 'caption' => 'Team' ],
+        'tb_content_contact'      => ['title' => 'Content: Contact', 'caption' => 'Contact' ],
+        'tb_user'                 => ['title' => 'Setting: User Account', 'caption' => 'User' ],
+        'tb_user_role'            => ['title' => 'Setting: User Role', 'caption' => 'User Role' ],
+        'tb_payment_account'      => ['title' => 'Setting: Bank Payment', 'caption' => 'Bank Account' ],
+        'tb_event'                => ['title' => 'Event', 'caption' => 'Event' ],
+        'tb_event_category'       => ['title' => 'Event: Category', 'caption' => 'Event Category' ],
+        'tb_event_category_class' => ['title' => 'Event: Category Class', 'caption' => 'Event Category Class' ],
+        'tb_event_participant'    => ['title' => 'Event: Participant', 'caption' => 'Event Participant' ],
+        'tb_payment_confirm'      => ['title' => 'Payment Confirm', 'caption' => 'Payment' ],
+      ];
+
+      $contentMap = [
+        'tb_content_gallery'      => 'name',
+        'tb_content_faq'          => 'title',
+        'tb_content_article'      => 'title',
+        'tb_content_team'         => 'name',
+        'tb_content_contact'      => 'name',
+        'tb_user'                 => 'name',
+        'tb_user_role'            => 'label',
+        'tb_payment_account'      => 'bank',
+        'tb_event'                => 'name',
+        'tb_event_category'       => 'name',
+        'tb_event_category_class' => 'name',
+        'tb_event_participant'    => 'user_name',
+        'tb_payment_confirm'      => 'amount',
+      ];
+
+      $data = array_map(function ($log) use ($actionMap, $titleMap, $contentMap) {
+        $content = null;
+
+        if (!empty($log['title']) && isset($contentMap[$log['title']]) && !empty($log['id_record'])) {
+          $table = $log['title'];
+          $column = $contentMap[$table];
+
+          try {
+            $row = $this->db->createQueryBuilder()
+              ->select($column)
+              ->from($table)
+              ->where('id = :id')
+              ->setParameter('id', $log['id_record'])
+              ->executeQuery()
+              ->fetchAssociative();
+
+            if ($row && isset($row[$column])) {
+              $content = $row[$column];
+            }
+          } catch (\Exception $e) {
+            $content = null;
+          }
+        }
+
+        return [
+          'title'   => $titleMap[$log['title']]['title'] ?? $log['title'],
+          'caption' => $titleMap[$log['title']]['caption'] ?? null,
+          'user'    => $log['user'],
+          'action'  => $actionMap[$log['action']] ?? strtolower($log['action']),
+          'content' => $content,
+          'time'    => $log['time'],
+        ];
+      }, $query);
+    }
+
+    return $data;
+  }
+
+  public function dropLog(array $input)
+  {
+    $this->db->beginTransaction();
+    try {
+      //? DELETE table
+        $this->db->createQueryBuilder()
+          ->delete($this->tableLog)
+          ->where('id = :id')
+          ->setParameter('id', $input['id'])
+          ->executeStatement();
+      //? DELETE table
+
+      $this->db->commit();
+    }
+    catch (Exception $e) {
+      if ($this->db->isTransactionActive()) {
+        $this->db->rollBack();
+      }
+      throw $e;
+    }
+  }
+}

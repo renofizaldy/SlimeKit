@@ -99,6 +99,8 @@ composer migrate:generate
 To generate file in Controller, Service, and Validator:
 ```
 composer make:module NamaModule
+composer make:module:admin NamaModule
+composer make:module:client NamaModule
 ```
 
 ### 🔁 Refresh Autoload Namespace

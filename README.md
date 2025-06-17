@@ -67,12 +67,19 @@ DB_CLIENT=pgsql/mysql
 CLOUDINARY_URL=
 
 # MAILJET SECTION
-SMTP_HOST=
-SMTP_USER=
-SMTP_PASS=
-SMTP_PORT=
-MAIL_FROM=
+SMTP_HOST=mailjet-smtp-host
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-pass
+SMTP_PORT=587
+MAIL_FROM=your-mail@example.com
 MAIL_FROM_NAME="Slimekit"
+
+# CLOUDFLARE R2 SECTION
+R2_REGION=auto
+R2_ENDPOINT=https://xxxxxxxxxxxxxxxx.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=your-access-key-id
+R2_SECRET_ACCESS_KEY=your-secret-access-key
+R2_BUCKET=your-bucket-name
 ```
 
 ### ⚙️ Install Dependency

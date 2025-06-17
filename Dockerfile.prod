@@ -35,7 +35,12 @@ RUN echo "ENVIRONMENT=PRODUCTION" > /var/www/slimekit/.env \
     && echo "SMTP_PASS=" >> /var/www/slimekit/.env \
     && echo "SMTP_PORT=" >> /var/www/slimekit/.env \
     && echo "MAIL_FROM=" >> /var/www/slimekit/.env \
-    && echo "MAIL_FROM_NAME='SlimeKit'" >> /var/www/slimekit/.env
+    && echo "MAIL_FROM_NAME='SlimeKit'" >> /var/www/slimekit/.env \
+    && echo "R2_REGION=" >> /var/www/slimekit/.env \
+    && echo "R2_ENDPOINT=" >> /var/www/slimekit/.env \
+    && echo "R2_ACCESS_KEY_ID=" >> /var/www/slimekit/.env \
+    && echo "R2_SECRET_ACCESS_KEY=" >> /var/www/slimekit/.env \
+    && echo "R2_BUCKET=" >> /var/www/slimekit/.env
 
 COPY . /var/www/slimekit
 

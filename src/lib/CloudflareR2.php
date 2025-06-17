@@ -2,6 +2,7 @@
 
 namespace App\Lib;
 
+use Dotenv\Dotenv;
 use Aws\S3\S3Client;
 use Aws\Exception\AwsException;
 use Symfony\Component\Mime\MimeTypes;

@@ -49,5 +49,7 @@ COPY assets/apache/apache2.conf /etc/apache2/apache2.conf
 
 RUN composer dump-autoload -o
 
+RUN composer migrate
+
 EXPOSE 80
 CMD ["apache2-foreground"]

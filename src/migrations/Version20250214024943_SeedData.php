@@ -24,11 +24,11 @@ final class Version20250214024943_SeedData extends AbstractMigration
             VALUES
                 (
                     'Admin',
-                    '[\"dashboard:view\", \"dashboard:crud\", \"recent_activity:view\", \"content_article:view\", \"content_article:crud\", \"content_gallery:view\", \"content_gallery:crud\", \"content_faq:view\", \"content_faq:crud\", \"content_contact:view\", \"content_contact:crud\", \"setting_bank:view\", \"setting_bank:crud\", \"setting_user:view\", \"setting_user:crud\", \"setting_option:view\", \"setting_option:crud\"]'
+                    '["dashboard:view","dashboard:crud","recent_activity:view","content_article:view","content_article:crud","content_gallery:view","content_gallery:crud","content_faq:view","content_faq:crud","content_contact:view","content_contact:crud","setting_bank:view","setting_bank:crud","setting_user:view","setting_user:crud","setting_option:view","setting_option:crud"]'::json
                 ),
                 (
                     'Moderator',
-                    '[\"dashboard:view\", \"recent_activity:view\", \"content_article:view\", \"content_article:crud\", \"content_gallery:view\", \"content_gallery:crud\", \"content_faq:view\", \"content_faq:crud\", \"content_contact:view\", \"content_contact:crud\"]'
+                    '["dashboard:view","recent_activity:view","content_article:view","content_article:crud","content_gallery:view","content_gallery:crud","content_faq:view","content_faq:crud","content_contact:view","content_contact:crud"]'::json
                 );
         SQL);
 

@@ -36,7 +36,7 @@ final class Version20240513170203_CreateTables extends AbstractMigration
       email VARCHAR(250),
       username VARCHAR(250),
       password TEXT,
-      status INT,
+      status status_enum,
       last_login TIMESTAMP,
       id_user_role BIGINT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

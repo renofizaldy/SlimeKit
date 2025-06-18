@@ -40,7 +40,12 @@ RUN echo "ENVIRONMENT=DEVELOPMENT" > /var/www/slimekit/.env \
     && echo "R2_ENDPOINT=" >> /var/www/slimekit/.env \
     && echo "R2_ACCESS_KEY_ID=" >> /var/www/slimekit/.env \
     && echo "R2_SECRET_ACCESS_KEY=" >> /var/www/slimekit/.env \
-    && echo "R2_BUCKET=" >> /var/www/slimekit/.env
+    && echo "R2_BUCKET=" >> /var/www/slimekit/.env \
+    && echo "VALKEY_SCHEME=tls" >> /var/www/slimekit/.env \
+    && echo "VALKEY_HOST=" >> /var/www/slimekit/.env \
+    && echo "VALKEY_PORT=" >> /var/www/slimekit/.env \
+    && echo "VALKEY_USERNAME=" >> /var/www/slimekit/.env \
+    && echo "VALKEY_PASSWORD=" >> /var/www/slimekit/.env
 
 COPY . /var/www/slimekit
 

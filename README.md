@@ -84,6 +84,13 @@ R2_ENDPOINT=https://xxxxxxxxxxxxxxxx.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=your-access-key-id
 R2_SECRET_ACCESS_KEY=your-secret-access-key
 R2_BUCKET=your-bucket-name
+
+# VALKEY SECTION
+VALKEY_SCHEME=
+VALKEY_HOST=
+VALKEY_PORT=
+VALKEY_USERNAME=
+VALKEY_PASSWORD=
 ```
 
 ### ⚙️ Install Dependency

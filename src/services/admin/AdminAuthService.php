@@ -36,8 +36,9 @@ class AdminAuthService
           'tb_user.id_user_role = tb_user_role.id'
         )
         ->where('username = :username')
-        ->andWhere('status = 1')
-        ->setParameter('username', $username);
+        ->andWhere('status = :status')
+        ->setParameter('username', $username)
+        ->setParameter('status', 'active');
       $getData = $query->executeQuery()->fetchAssociative();
       if (!$getData || !password_verify($password, $getData['password'])) {
         throw new Exception('Username atau password salah', 401);
@@ -90,8 +91,9 @@ class AdminAuthService
         'tb_user.id_user_role = tb_user_role.id'
       )
       ->where('tb_user.id = :staff_id')
-      ->andWhere('tb_user.status = 1')
+      ->andWhere('tb_user.status = :status')
       ->setParameter('staff_id', $input['user_id'])
+      ->setParameter('status', 'active')
       ->executeQuery()
       ->fetchAssociative();
     if (!$users) {

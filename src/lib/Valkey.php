@@ -15,12 +15,12 @@ class Valkey
   {
     try {
       $this->client = new Client([
-        'scheme'   => $_ENV['REDIS_SCHEME'] ?? 'tcp', // tcp or tls (if SSL)
-        'host'     => $_ENV['REDIS_HOST'],
-        'port'     => $_ENV['REDIS_PORT'],
-        'username' => $_ENV['REDIS_USERNAME'] ?? null,
-        'password' => $_ENV['REDIS_PASSWORD'] ?? null,
-        'ssl'      => ($_ENV['REDIS_SCHEME'] === 'tls') ? ['verify_peer' => false] : null,
+        'scheme'   => $_ENV['VALKEY_SCHEME'] ?? 'tcp', // tcp or tls (if SSL)
+        'host'     => $_ENV['VALKEY_HOST'],
+        'port'     => $_ENV['VALKEY_PORT'],
+        'username' => $_ENV['VALKEY_USERNAME'] ?? null,
+        'password' => $_ENV['VALKEY_PASSWORD'] ?? null,
+        'ssl'      => ($_ENV['VALKEY_SCHEME'] === 'tls') ? ['verify_peer' => false] : null,
       ]);
 
       $this->client->connect();

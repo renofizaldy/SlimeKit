@@ -49,7 +49,7 @@ final class Version20250214024943_SeedData extends AbstractMigration
                 'demo@gmail.com',
                 'demo',
                 '\$2y\$10\$TTQNEVnH1ZN33uBxNqw69.TQl1Mwmk7vca3fYSpkGEr/fPIcpZ3vi',
-                1,
+                'active',
                 1,
                 '2025-02-05 08:10:49.22271'
             );

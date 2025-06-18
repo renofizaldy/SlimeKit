@@ -1,3 +1,5 @@
+![](https://res.cloudinary.com/enterz/image/upload/f_auto,q_auto/logo_nbw_sxjvux.png)
+
 # SlimeKit
 💚 Not the monster you think. Just a better Slim.
 
@@ -9,6 +11,8 @@ With a modular approach —covering routes, controllers, services, validators, a
 Slim Framework + Clear Structure + Developer Happiness = SlimeKit 🚀
 
 ----
+
+There is only a little bit information that i can provide below for a while, full documentation will come soon
 
 Based on [Slim Framework 4](https://www.slimframework.com/docs/v4/) and [Doctrine DBAL](https://www.doctrine-project.org/projects/dbal.html) for Query Builder
 

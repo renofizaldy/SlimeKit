@@ -13,6 +13,9 @@ class Valkey
 
   public function __construct()
   {
+    $dotenv = Dotenv::createImmutable(__DIR__.'/../../');
+    $dotenv->safeLoad();
+
     try {
       $this->client = new Client([
         'scheme'   => $_ENV['VALKEY_SCHEME'] ?? 'tcp', // tcp or tls (if SSL)

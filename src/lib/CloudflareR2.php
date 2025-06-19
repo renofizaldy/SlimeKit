@@ -18,6 +18,9 @@ class CloudflareR2
    */
   public function __construct()
   {
+    $dotenv = Dotenv::createImmutable(__DIR__.'/../../');
+    $dotenv->safeLoad();
+
     $this->client = new S3Client([
       'region'      => $_ENV['R2_REGION'],
       'version'     => 'latest',

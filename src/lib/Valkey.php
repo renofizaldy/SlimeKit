@@ -88,6 +88,57 @@ class Valkey
   }
 
   /**
+   * Delete all keys matching a prefix pattern.
+   *
+   * This will safely scan Redis using non-blocking SCAN command
+   * and delete all keys that start with given prefix.
+   * 
+   * @param string $prefix Prefix string (without wildcard)
+   * @return bool True if success, False if failed or Redis not connected
+   */
+  public function deleteByPrefix($prefix)
+  {
+    if (!$this->isConnected) return false;
+
+    $cursor = 0;
+    $pattern = $prefix . '*';
+
+    try {
+      do {
+        $result = $this->client->scan($cursor, ['match' => $pattern, 'count' => 100]);
+        $cursor = $result[0];
+        $keys = $result[1];
+
+        if (!empty($keys)) {
+          $this->client->del($keys);
+        }
+      } while ($cursor != 0);
+
+      return true;
+    } catch (Exception $e) {
+      // Optional: log error here
+      return false;
+    }
+  }
+
+  /**
+   * Delete All key
+   *
+   * @return boolean true/false
+   */
+  public function deleteAll()
+  {
+    if (!$this->isConnected) return false;
+
+    try {
+      $this->client->flushdb();
+      return true;
+    } catch (Exception $e) {
+      return false;
+    }
+  }
+
+  /**
    * Check if key exists
    * 
    * @param string $key

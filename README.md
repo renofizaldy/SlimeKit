@@ -1,4 +1,4 @@
-![](https://res.cloudinary.com/enterz/image/upload/f_auto,q_auto/logo_nbw_sxjvux.png)
+![](https://res.cloudinary.com/enterz/image/upload/w_550/f_auto,q_auto/logo_nbw_sxjvux.png)
 
 # SlimeKit
 💚 Not the monster you think. Just a better Slim.

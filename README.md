@@ -1,4 +1,6 @@
-![](https://res.cloudinary.com/enterz/image/upload/w_550/f_auto,q_auto/logo_nbw_sxjvux.png)
+<p align="center">
+  <img src="https://res.cloudinary.com/enterz/image/upload/w_550/f_auto,q_auto/logo_nbw_sxjvux.png" alt="SlimeKit Logo"/>
+</p>
 
 # SlimeKit
 💚 Not the monster you think. Just a better Slim.

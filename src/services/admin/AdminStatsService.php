@@ -74,12 +74,6 @@ class AdminStatsService
         'tb_content_contact'      => ['title' => 'Content: Contact', 'caption' => 'Contact' ],
         'tb_user'                 => ['title' => 'Setting: User Account', 'caption' => 'User' ],
         'tb_user_role'            => ['title' => 'Setting: User Role', 'caption' => 'User Role' ],
-        'tb_payment_account'      => ['title' => 'Setting: Bank Payment', 'caption' => 'Bank Account' ],
-        'tb_event'                => ['title' => 'Event', 'caption' => 'Event' ],
-        'tb_event_category'       => ['title' => 'Event: Category', 'caption' => 'Event Category' ],
-        'tb_event_category_class' => ['title' => 'Event: Category Class', 'caption' => 'Event Category Class' ],
-        'tb_event_participant'    => ['title' => 'Event: Participant', 'caption' => 'Event Participant' ],
-        'tb_payment_confirm'      => ['title' => 'Payment Confirm', 'caption' => 'Payment' ],
       ];
 
       $contentMap = [
@@ -90,12 +84,6 @@ class AdminStatsService
         'tb_content_contact'      => 'name',
         'tb_user'                 => 'name',
         'tb_user_role'            => 'label',
-        'tb_payment_account'      => 'bank',
-        'tb_event'                => 'name',
-        'tb_event_category'       => 'name',
-        'tb_event_category_class' => 'name',
-        'tb_event_participant'    => 'user_name',
-        'tb_payment_confirm'      => 'amount',
       ];
 
       $data = array_map(function ($log) use ($actionMap, $titleMap, $contentMap) {

@@ -248,6 +248,31 @@ class CloudflareR2
   }
 
   /**
+   * Generate presigned URL for direct upload (PUT).
+   *
+   * @param string $key File key.
+   * @param string $contentType MIME type of file.
+   * @param int $expiresIn Expiration time in seconds.
+   * @return string Presigned URL.
+   * @throws \Exception
+   */
+  public function generatePresignedUploadUrl($key, $contentType, $expiresIn = 3600)
+  {
+    try {
+      $cmd = $this->client->getCommand('PutObject', [
+        'Bucket'      => $this->bucket,
+        'Key'         => $key,
+        'ContentType' => $contentType
+      ]);
+      $request = $this->client->createPresignedRequest($cmd, '+' . $expiresIn . ' seconds');
+      return (string) $request->getUri();
+    }
+    catch (AwsException $e) {
+      throw new \Exception("Presigned upload URL failed: " . $e->getMessage());
+    }
+  }
+
+  /**
    * Check if file exists in bucket.
    *
    * @param string $key File key.

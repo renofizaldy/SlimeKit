@@ -80,6 +80,54 @@ class General
     return $db->lastInsertId();
   }
 
+  public function validateByRules(array $input, array $rules)
+  {
+    foreach ($rules as $field => $ruleString) {
+      $rulesArray = explode('|', $ruleString);
+
+      foreach ($rulesArray as $rule) {
+        switch ($rule) {
+          case 'required':
+            if (!array_key_exists($field, $input)) {
+              throw new \Exception("Field '{$field}' is required.", 400);
+            }
+            break;
+
+          case 'not_empty':
+            if (
+              !isset($input[$field]) ||
+              (is_string($input[$field]) && trim($input[$field]) === '') ||
+              (is_array($input[$field]) && count($input[$field]) === 0)
+            ) {
+              throw new \Exception("Field '{$field}' cannot be empty.", 400);
+            }
+            break;
+
+          case 'string':
+            if (isset($input[$field]) && !is_string($input[$field])) {
+              throw new \Exception("Field '{$field}' must be a string.", 400);
+            }
+            break;
+
+          case 'integer':
+            if (isset($input[$field]) && !filter_var($input[$field], FILTER_VALIDATE_INT)) {
+              throw new \Exception("Field '{$field}' must be an integer.", 400);
+            }
+            break;
+
+          case 'date':
+            if (isset($input[$field]) && strtotime($input[$field]) === false) {
+              throw new \Exception("Field '{$field}' must be a valid date.", 400);
+            }
+            break;
+
+          default:
+            throw new \Exception("Unknown validation rule '{$rule}' for field '{$field}'", 500);
+        }
+      }
+    }
+  }
+
   public function normalizeHttpStatus($code)
   {
     return (is_int($code) && $code >= 100 && $code <= 599) ? $code : 500;

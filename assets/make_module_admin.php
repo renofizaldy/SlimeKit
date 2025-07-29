@@ -419,9 +419,17 @@ if (!file_exists($validatorPath)) {
   namespace App\Validators\Admin;
 
   use Exception;
+  use App\Helpers\General;
 
   class {$moduleName}Validator
   {
+    private \$helper;
+
+    public function __construct()
+    {
+      \$this->helper = new General;
+    }
+
     public function validate(string \$type, array \$input)
     {
       switch (\$type) {
@@ -456,7 +464,7 @@ if (!file_exists($validatorPath)) {
           throw new Exception('Can\\'t validate some field', 400);
         break;
       }
-      \$this->validateByRules($input, $rules);
+      \$this->helper->validateByRules(\$input, \$rules);
       return true;
     }
 

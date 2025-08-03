@@ -435,29 +435,29 @@ if (!file_exists($validatorPath)) {
       switch (\$type) {
         case 'list':
           \$rules = [
-            'field',
+            'field' => 'required|string|not_empty',
           ];
         break;
         case 'detail':
           \$rules = [
-            'id',
-            'field',
+            'id' => 'required|integer|not_empty',
+            'field' => 'required|string|not_empty',
           ];
         break;
         case 'add':
           \$rules = [
-            'field',
+            'field' => 'required|string|not_empty',
           ];
         break;
         case 'edit':
           \$rules = [
-            'id',
-            'field',
+            'id' => 'required|integer|not_empty',
+            'field' => 'required|string|not_empty',
           ];
         break;
         case 'drop':
           \$rules = [
-            'id'
+            'id' => 'required|integer|not_empty'
           ];
         break;
         default:
@@ -466,54 +466,6 @@ if (!file_exists($validatorPath)) {
       }
       \$this->helper->validateByRules(\$input, \$rules);
       return true;
-    }
-
-    private function validateByRules(array \$input, array \$rules)
-    {
-      foreach (\$rules as \$field => \$ruleString) {
-        \$rulesArray = explode('|', \$ruleString);
-
-        foreach (\$rulesArray as \$rule) {
-          switch (\$rule) {
-            case 'required':
-              if (!array_key_exists(\$field, \$input)) {
-                throw new \Exception("Field '{\$field}' is required.", 400);
-              }
-              break;
-
-            case 'not_empty':
-              if (
-                !isset(\$input[\$field]) ||
-                (is_string(\$input[\$field]) && trim(\$input[\$field]) === '') ||
-                (is_array(\$input[\$field]) && count(\$input[\$field]) === 0)
-              ) {
-                throw new \Exception("Field '{\$field}' cannot be empty.", 400);
-              }
-              break;
-
-            case 'string':
-              if (isset(\$input[\$field]) && !is_string(\$input[\$field])) {
-                throw new \Exception("Field '{\$field}' must be a string.", 400);
-              }
-              break;
-
-            case 'integer':
-              if (isset(\$input[\$field]) && !filter_var(\$input[\$field], FILTER_VALIDATE_INT)) {
-                throw new \Exception("Field '{\$field}' must be an integer.", 400);
-              }
-              break;
-
-            case 'date':
-              if (isset(\$input[\$field]) && strtotime(\$input[\$field]) === false) {
-                throw new \Exception("Field '{\$field}' must be a valid date.", 400);
-              }
-              break;
-
-            default:
-              throw new \Exception("Unknown validation rule '{\$rule}' for field '{\$field}'", 500);
-          }
-        }
-      }
     }
   }
   EOD;

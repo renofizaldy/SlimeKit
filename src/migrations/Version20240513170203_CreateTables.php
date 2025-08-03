@@ -73,6 +73,20 @@ final class Version20240513170203_CreateTables extends AbstractMigration
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");
 
+    $this->addSql("CREATE TABLE tb_seo_meta (
+      id BIGSERIAL PRIMARY KEY,
+      id_parent BIGINT,
+      type VARCHAR(250),
+      meta_title TEXT,
+      meta_description TEXT,
+      meta_robots VARCHAR(50),
+      seo_keyphrase VARCHAR(250),
+      seo_analysis INT,
+      seo_readability INT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )");
+
     $this->addSql("CREATE TABLE tb_content_gallery (
       id BIGSERIAL PRIMARY KEY,
       id_picture BIGINT,
@@ -86,19 +100,6 @@ final class Version20240513170203_CreateTables extends AbstractMigration
       id BIGSERIAL PRIMARY KEY,
       name VARCHAR(250),
       value TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )");
-
-    $this->addSql("CREATE TABLE tb_content_article (
-      id BIGSERIAL PRIMARY KEY,
-      id_picture BIGINT,
-      status status_enum,
-      slug VARCHAR(250),
-      title VARCHAR(250),
-      description TEXT,
-      author VARCHAR(50),
-      publish TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");
@@ -121,6 +122,35 @@ final class Version20240513170203_CreateTables extends AbstractMigration
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");
+
+    $this->addSql("CREATE TABLE tb_article (
+      id BIGSERIAL PRIMARY KEY,
+      id_picture BIGINT,
+      id_category BIGINT,
+      status status_enum,
+      slug VARCHAR(250),
+      title TEXT,
+      content TEXT,
+      excerpt VARCHAR(250),
+      author VARCHAR(50),
+      publish TIMESTAMP,
+      featured TEXT[],
+      read_time INTEGER,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    $this->addSql("CREATE TABLE tb_article_category (
+      id BIGSERIAL PRIMARY KEY,
+      id_picture BIGINT,
+      id_parent BIGINT,
+      status status_enum,
+      slug VARCHAR(250),
+      title TEXT,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )");
   }
 
   public function down(Schema $schema): void
@@ -133,8 +163,9 @@ final class Version20240513170203_CreateTables extends AbstractMigration
     $this->addSql('DROP TABLE tb_log');
     $this->addSql('DROP TABLE tb_content_gallery');
     $this->addSql('DROP TABLE tb_content_contact');
-    $this->addSql('DROP TABLE tb_content_article');
     $this->addSql('DROP TABLE tb_content_faq');
     $this->addSql('DROP TABLE tb_content_team');
+    $this->addSql('DROP TABLE tb_article');
+    $this->addSql('DROP TABLE tb_article_category');
   }
 }

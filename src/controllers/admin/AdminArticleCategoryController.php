@@ -6,10 +6,10 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Exception;
 use App\Helpers\General;
-use App\Services\Admin\AdminContentArticleService;
-use App\Validators\Admin\AdminContentArticleValidator;
+use App\Services\Admin\AdminArticleCategoryService;
+use App\Validators\Admin\AdminArticleCategoryValidator;
 
-class AdminContentArticleController
+class AdminArticleCategoryController
 {
   private $helper;
   private $service;
@@ -18,8 +18,8 @@ class AdminContentArticleController
   public function __construct()
   {
     $this->helper = new General;
-    $this->service = new AdminContentArticleService;
-    $this->validator = new AdminContentArticleValidator;
+    $this->service = new AdminArticleCategoryService;
+    $this->validator = new AdminArticleCategoryValidator;
   }
 
   public function list(Request $request, Response $response)
@@ -36,7 +36,8 @@ class AdminContentArticleController
         'message' => 'Ok',
         'status'  => 200
       ];
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
       $result = [
         'message' => 'Error: ' . $e->getMessage(),
         'status'  => $this->helper->normalizeHttpStatus($e->getCode())
@@ -63,7 +64,8 @@ class AdminContentArticleController
         'message' => 'Ok',
         'status'  => 200
       ];
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
       $result = [
         'message' => 'Error: ' . $e->getMessage(),
         'status'  => $this->helper->normalizeHttpStatus($e->getCode())
@@ -95,7 +97,8 @@ class AdminContentArticleController
         'message' => 'Ok',
         'status'  => 200
       ];
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
       $result = [
         'message' => 'Error: ' . $e->getMessage(),
         'status'  => $this->helper->normalizeHttpStatus($e->getCode())
@@ -127,7 +130,8 @@ class AdminContentArticleController
         'message' => 'Ok',
         'status'  => 200
       ];
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
       $result = [
         'message' => 'Error: ' . $e->getMessage(),
         'status'  => $this->helper->normalizeHttpStatus($e->getCode())
@@ -159,7 +163,41 @@ class AdminContentArticleController
         'message' => 'Ok',
         'status'  => 200
       ];
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
+      $result = [
+        'message' => 'Error: ' . $e->getMessage(),
+        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
+      ];
+    }
+
+    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
+    return $response
+      ->withHeader('Content-type', 'application/json')
+      ->withStatus($result['status']);
+  }
+
+  public function checkSlug(Request $request, Response $response)
+  {
+    $input = $request->getParsedBody();
+    $user  = [
+      'user'       => $request->getAttribute('user'),
+      'user_agent' => $request->getHeaderLine('User-Agent'),
+      'ip_address' => $this->helper->getClientIp($request),
+    ];
+    try {
+      //* VALIDATION
+      $this->validator->validate('check_slug', $input);
+      //* SERVICES
+      $data = $this->service->checkSlug($input, $user);
+
+      $result = [
+        'data'    => $data,
+        'message' => 'Ok',
+        'status'  => 200
+      ];
+    }
+    catch (Exception $e) {
       $result = [
         'message' => 'Error: ' . $e->getMessage(),
         'status'  => $this->helper->normalizeHttpStatus($e->getCode())

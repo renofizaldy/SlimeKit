@@ -11,7 +11,8 @@ use Middlewares\GzipEncoder;
 
 //* ADMIN
 use App\Controllers\Admin\AdminAuthController;
-use App\Controllers\Admin\AdminContentArticleController;
+use App\Controllers\Admin\AdminArticleController;
+use App\Controllers\Admin\AdminArticleCategoryController;
 use App\Controllers\Admin\AdminContentGalleryController;
 use App\Controllers\Admin\AdminContentFAQController;
 use App\Controllers\Admin\AdminContentContactController;
@@ -20,7 +21,8 @@ use App\Controllers\Admin\AdminSettingUserController;
 use App\Controllers\Admin\AdminStatsController;
 
 //* CLIENT
-use App\Controllers\Client\ClientContentArticleController;
+use App\Controllers\Client\ClientArticleController;
+use App\Controllers\Client\ClientArticleCategoryController;
 use App\Controllers\Client\ClientContentContactController;
 use App\Controllers\Client\ClientContentFAQController;
 use App\Controllers\Client\ClientContentGalleryController;
@@ -38,15 +40,29 @@ return function ($app) {
       $group->post('/login', [$controller, 'login']);
     });
 
-    //! Content - Article
-    $groupAdmin->group('/content_article', function(RouteCollectorProxy $group) {
-      $controller = new AdminContentArticleController;
+    //! Article
+    $groupAdmin->group('/article', function(RouteCollectorProxy $group) {
+      $controller = new AdminArticleController;
 
-      $group->get('/list', [$controller, 'list'])->add(new AuthMiddleware('admin', 'content_article:view'));
-      $group->get('/detail', [$controller, 'detail'])->add(new AuthMiddleware('admin', 'content_article:view'));
-      $group->post('/add', [$controller, 'add'])->add(new AuthMiddleware('admin', 'content_article:crud'))->add(new GzipDecoderMiddleware());
-      $group->post('/edit', [$controller, 'edit'])->add(new AuthMiddleware('admin', 'content_article:crud'))->add(new GzipDecoderMiddleware());
-      $group->post('/drop', [$controller, 'drop'])->add(new AuthMiddleware('admin', 'content_article:crud'));
+      $group->get('/list', [$controller, 'list'])->add(new AuthMiddleware('admin', 'article:view'));
+      $group->get('/detail', [$controller, 'detail'])->add(new AuthMiddleware('admin', 'article:view'));
+      $group->post('/add', [$controller, 'add'])->add(new AuthMiddleware('admin', 'article:crud'))->add(new GzipDecoderMiddleware());
+      $group->post('/edit', [$controller, 'edit'])->add(new AuthMiddleware('admin', 'article:crud'))->add(new GzipDecoderMiddleware());
+      $group->post('/drop', [$controller, 'drop'])->add(new AuthMiddleware('admin', 'article:crud'));
+      $group->post('/check_slug', [$controller, 'checkSlug'])->add(new AuthMiddleware('admin', 'article:crud'));
+      $group->post('/add_picture', [$controller, 'addPicture'])->add(new AuthMiddleware('admin', 'article:crud'))->add(new GzipDecoderMiddleware());
+    })->add(new TokenMiddleware());
+
+    //! Article - Category
+    $groupAdmin->group('/article_category', function(RouteCollectorProxy $group) {
+      $controller = new AdminArticleCategoryController;
+
+      $group->get('/list', [$controller, 'list'])->add(new AuthMiddleware('admin', 'article:view'));
+      $group->get('/detail', [$controller, 'detail'])->add(new AuthMiddleware('admin', 'article:view'));
+      $group->post('/add', [$controller, 'add'])->add(new AuthMiddleware('admin', 'article:crud'))->add(new GzipDecoderMiddleware());
+      $group->post('/edit', [$controller, 'edit'])->add(new AuthMiddleware('admin', 'article:crud'))->add(new GzipDecoderMiddleware());
+      $group->post('/drop', [$controller, 'drop'])->add(new AuthMiddleware('admin', 'article:crud'));
+      $group->post('/check_slug', [$controller, 'checkSlug'])->add(new AuthMiddleware('admin', 'article:crud'));
     })->add(new TokenMiddleware());
 
     //! Content - Gallery
@@ -123,12 +139,19 @@ return function ($app) {
   //* CLIENT
   $app->group('/client', function(RouteCollectorProxy $groupAdmin) {
 
-    //! Content - Article
-    $groupAdmin->group('/content_article', function(RouteCollectorProxy $group) {
-      $controller = new ClientContentArticleController;
+    //! Article
+    $groupAdmin->group('/article', function(RouteCollectorProxy $group) {
+      $controller = new ClientArticleController;
 
       $group->get('/list', [$controller, 'list']);
-      $group->get('/newest', [$controller, 'newest']);
+      $group->get('/detail', [$controller, 'detail']);
+    });
+
+    //! Article Category
+    $groupAdmin->group('/article_category', function(RouteCollectorProxy $group) {
+      $controller = new ClientArticleCategoryController;
+
+      $group->get('/list', [$controller, 'list']);
       $group->get('/detail', [$controller, 'detail']);
     });
 

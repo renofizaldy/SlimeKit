@@ -42,7 +42,7 @@ class General
       ->executeStatement();
   }
 
-  public function pictureUpload(Connection $db, Cloudinary $cloudinary, $file): ?int
+  public function pictureUpload(Connection $db, Cloudinary $cloudinary, $file, $caption=null): ?array
   {
     if (empty($file)) {
       return null;
@@ -69,15 +69,20 @@ class General
         'id_cloud'   => ':id_cloud',
         'original'   => ':original',
         'thumbnail'  => ':thumbnail',
+        'caption'    => ':caption',
         'created_at' => ':created_at'
       ])
       ->setParameter('id_cloud', $upload['public_id'])
       ->setParameter('original', $upload['secure_url'])
       ->setParameter('thumbnail', $thumbnail)
+      ->setParameter('caption', $caption)
       ->setParameter('created_at', date('Y-m-d H:i:s'))
       ->executeStatement();
 
-    return $db->lastInsertId();
+    return [
+      'id'  => $db->lastInsertId(),
+      'url' => $upload['secure_url']
+    ];
   }
 
   public function validateByRules(array $input, array $rules)

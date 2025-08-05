@@ -67,23 +67,27 @@ class AdminStatsService
       ];
 
       $titleMap = [
-        'tb_content_gallery'      => ['title' => 'Content: Gallery', 'caption' => 'Image' ],
-        'tb_content_faq'          => ['title' => 'Content: FAQ', 'caption' => 'FAQ' ],
-        'tb_content_article'      => ['title' => 'Content: Article', 'caption' => 'Article' ],
-        'tb_content_team'         => ['title' => 'Content: Team', 'caption' => 'Team' ],
-        'tb_content_contact'      => ['title' => 'Content: Contact', 'caption' => 'Contact' ],
-        'tb_user'                 => ['title' => 'Setting: User Account', 'caption' => 'User' ],
-        'tb_user_role'            => ['title' => 'Setting: User Role', 'caption' => 'User Role' ],
+        'tb_article'          => ['title' => 'Article', 'caption' => 'Article' ],
+        'tb_article_category' => ['title' => 'Article Category', 'caption' => 'Category' ],
+        'tb_seo_meta'         => ['title' => 'SEO Meta', 'caption' => 'Meta Tags' ],
+        'tb_content_gallery'  => ['title' => 'Content: Gallery', 'caption' => 'Image' ],
+        'tb_content_faq'      => ['title' => 'Content: FAQ', 'caption' => 'FAQ' ],
+        'tb_content_team'     => ['title' => 'Content: Team', 'caption' => 'Team' ],
+        'tb_content_contact'  => ['title' => 'Content: Contact', 'caption' => 'Contact' ],
+        'tb_user'             => ['title' => 'Setting: User Account', 'caption' => 'User' ],
+        'tb_user_role'        => ['title' => 'Setting: User Role', 'caption' => 'User Role' ],
       ];
 
       $contentMap = [
-        'tb_content_gallery'      => 'name',
-        'tb_content_faq'          => 'title',
-        'tb_content_article'      => 'title',
-        'tb_content_team'         => 'name',
-        'tb_content_contact'      => 'name',
-        'tb_user'                 => 'name',
-        'tb_user_role'            => 'label',
+        'tb_article'          => 'title',
+        'tb_article_category' => 'title',
+        'tb_seo_meta'         => 'meta_title',
+        'tb_content_gallery'  => 'name',
+        'tb_content_faq'      => 'title',
+        'tb_content_team'     => 'name',
+        'tb_content_contact'  => 'name',
+        'tb_user'             => 'name',
+        'tb_user_role'        => 'label',
       ];
 
       $data = array_map(function ($log) use ($actionMap, $titleMap, $contentMap) {

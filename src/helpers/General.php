@@ -57,7 +57,7 @@ class General
     // Generate thumbnail URL
     $thumbnail = substr_replace(
       $upload['secure_url'],
-      "c_thumb,w_300,g_face/",
+      "c_thumb,w_600/",
       strpos($upload['secure_url'], "/v") + 1,
       0
     );

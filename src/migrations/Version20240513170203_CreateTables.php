@@ -48,6 +48,7 @@ final class Version20240513170203_CreateTables extends AbstractMigration
       id_cloud TEXT,
       original TEXT,
       thumbnail TEXT,
+      caption TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");

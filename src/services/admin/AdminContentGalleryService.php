@@ -83,7 +83,7 @@ class AdminContentGalleryService
           ->setValue('updated_at', ':updated_at')
           ->setParameter('name', $input['title'])
           ->setParameter('description', $input['description'])
-          ->setParameter('id_picture', $picture_id)
+          ->setParameter('id_picture', $picture_id['id'])
           ->setParameter('created_at', date('Y-m-d H:i:s'))
           ->setParameter('updated_at', date('Y-m-d H:i:s'))
           ->executeStatement();
@@ -123,7 +123,7 @@ class AdminContentGalleryService
           ->setParameter('updated_at', date('Y-m-d H:i:s'))
           ->setParameter('id', (int) $input['id']);
         if (!empty($picture_id)) {
-          $update->set('id_picture', ':id_picture')->setParameter('id_picture', $picture_id);
+          $update->set('id_picture', ':id_picture')->setParameter('id_picture', $picture_id['id']);
         }
         $update->executeStatement();
       //? UPDATE ON table

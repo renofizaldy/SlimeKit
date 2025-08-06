@@ -80,7 +80,7 @@ class AdminContentTeamService
             'link'       => ':link',
           ])
           ->setParameters([
-            'id_picture' => $picture_id,
+            'id_picture' => $picture_id['id'],
             'name'       => $input['name'],
             'title'      => $input['title'],
             'link'       => null,
@@ -126,7 +126,7 @@ class AdminContentTeamService
             'updated_at' => date('Y-m-d H:i:s')
           ]);
         if (!empty($picture_id)) {
-          $update->set('id_picture', ':id_picture')->setParameter('id_picture', $picture_id);
+          $update->set('id_picture', ':id_picture')->setParameter('id_picture', $picture_id['id']);
         }
         $update->executeStatement();
       //? UPDATE ON table

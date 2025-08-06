@@ -3,70 +3,45 @@
 namespace App\Validators\Admin;
 
 use Exception;
+use App\Helpers\General;
 
 class AdminContentGalleryValidator
 {
+  private $helper;
+
+  public function __construct()
+  {
+    $this->helper = new General;
+  }
+
   public function validate(string $type, array $input)
   {
     switch ($type) {
       case 'add':
-        $requiredFields = [
-          'title',
-          'picture',
-          'description'
+        $rules = [
+          'title'       => 'required|not_empty',
+          'picture'     => 'required|not_empty',
+          'description' => 'required'
         ];
-        $this->validateRequiredFields($input, $requiredFields);
-
-        $emptyFields = [
-          'title',
-          'picture'
-        ];
-        $this->validateEmptyFields($input, $emptyFields);
       break;
       case 'edit':
-        $requiredFields = [
-          'title',
-          'picture',
-          'description'
+        $rules = [
+          'id'          => 'required',
+          'title'       => 'required',
+          'picture'     => 'required|not_empty',
+          'description' => 'required|not_empty'
         ];
-        $this->validateRequiredFields($input, $requiredFields);
-
-        $emptyFields = [
-          'id',
-          'title'
-        ];
-        $this->validateEmptyFields($input, $emptyFields);
       break;
       case 'drop':
-        $requiredFields = [
-          'id'
+        $rules = [
+          'id' => 'required|not_empty'
         ];
-        $this->validateRequiredFields($input, $requiredFields);
-        $this->validateEmptyFields($input, $requiredFields);
       break;
       default:
         throw new Exception('Can\'t validate some field', 400);
       break;
     }
-
+    $this->helper->validateByRules($input, $rules);
     return true;
-  }
-
-  private function validateRequiredFields(array $input, array $requiredFields)
-  {
-    foreach ($requiredFields as $field) {
-      if (!isset($input[$field])) {
-        throw new Exception("Missing required field: {$field}", 400);
-      }
-    }
-  }
-
-  private function validateEmptyFields(array $input, array $requiredFields)
-  {
-    foreach ($requiredFields as $field) {
-      if (empty($input[$field])) {
-        throw new Exception("Some field can't be empty: {$field}", 400);
-      }
-    }
   }
 }

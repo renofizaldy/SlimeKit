@@ -321,6 +321,10 @@ class AdminArticleService
       //? DELETE CACHE
 
       $this->db->commit();
+
+      return [
+        'id' => $lastTableMainId
+      ];
     }
     catch (Exception $e) {
       if ($this->db->isTransactionActive()) {

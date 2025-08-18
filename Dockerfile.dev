@@ -47,7 +47,8 @@ RUN echo "ENVIRONMENT=DEVELOPMENT" > /var/www/slimekit/.env \
     && echo "VALKEY_USERNAME=" >> /var/www/slimekit/.env \
     && echo "VALKEY_PASSWORD=" >> /var/www/slimekit/.env \
     && echo "CRONHOOKS_API_KEY=" >> /var/www/slimekit/.env \
-    && echo "CRONHOOKS_BASE_URL=" >> /var/www/slimekit/.env
+    && echo "CRONHOOKS_BASE_URL=" >> /var/www/slimekit/.env \
+    && echo "CRONHOOKS_CALLBACK=" >> /var/www/slimekit/.env
 
 COPY . /var/www/slimekit
 

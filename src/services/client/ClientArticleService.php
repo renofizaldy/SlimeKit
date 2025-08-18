@@ -29,6 +29,31 @@ class ClientArticleService
     $this->valkey = new Valkey;
   }
 
+  private function checkExist(array $input)
+  {
+    $check = $this->db->createQueryBuilder()
+      ->select(
+        "{$this->tableMain}.*",
+        "{$this->tableCronhooks}.id_cronhooks as id_cronhooks"
+      )
+      ->from($this->tableMain)
+      ->leftJoin(
+        $this->tableMain,
+        $this->tableCronhooks,
+        $this->tableCronhooks,
+        "{$this->tableCronhooks}.id_parent = {$this->tableMain}.id AND {$this->tableCronhooks}.type = 'article'"
+      )
+      ->where($this->tableMain.'.slug = :slug')
+      ->setParameters([
+        'slug' => $input['slug']
+      ])
+      ->fetchAssociative();
+    if (!$check) {
+      throw new Exception('Not Found', 404);
+    }
+    return $check;
+  }
+
   public function list(array $input)
   {
     //* INIT
@@ -364,7 +389,7 @@ class ClientArticleService
       //? DELETE SCHEDULE
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
@@ -384,14 +409,12 @@ class ClientArticleService
             "{$this->tableCronhooks}.id_parent = {$this->tableMain}.id AND {$this->tableCronhooks}.type = 'article'"
           )
           ->where("{$this->tableMain}.status = :status")
-          ->andWhere("{$this->tableMain}.site = :site")
           ->andWhere("{$this->tableMain}.publish > NOW()")
           ->andWhere("{$this->tableCronhooks}.id IS NULL")
           ->orderBy("{$this->tableMain}.publish", "ASC")
           ->setMaxResults(1)
           ->setParameters([
-            'status' => 'inactive',
-            'site'   => $input['site']
+            'status' => 'inactive'
           ])
           ->fetchAssociative();
 

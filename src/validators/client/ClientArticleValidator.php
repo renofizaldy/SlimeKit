@@ -35,7 +35,6 @@ class ClientArticleValidator
       break;
       case 'publish':
         $rules = [
-          'site' => 'required|string|not_empty',
           'slug' => 'required|string|not_empty',
         ];
       break;

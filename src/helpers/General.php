@@ -88,12 +88,6 @@ class General
 
   public function handleCronjob(Connection $db, Cronhooks $cronhooks, int $articleId, string $slug, string $publish, ?string $existingCronId = null): bool
   {
-    // Hanya buat cron kalau publish time di masa depan
-    $publishTime = date('Y-m-d H:i:s', strtotime($publish));
-    if (strtotime($publishTime) <= time()) {
-      return false;
-    }
-
     try {
       // Hapus cron lama kalau ada
       if (!empty($existingCronId)) {
@@ -117,33 +111,39 @@ class General
         }
       }
 
-      // Buat cron baru
-      $cron = $cronhooks->createSchedule(
-        $publish,
-        [
-          'title'    => 'Publish Artikel #'.$articleId,
-          'timezone' => 'Asia/Jakarta',
-          'method'   => 'POST',
-          'payload'  => [
-            'slug' => $slug
-          ],
-        ]
-      );
+      // Hanya buat cron kalau publish time di masa depan
+      $publishTime = date('Y-m-d H:i:s', strtotime($publish));
+      if (strtotime($publishTime) > time()) {
+        // Buat cron baru
+        $cron = $cronhooks->createSchedule(
+          $publish,
+          [
+            'title'    => 'Publish Artikel #'.$articleId,
+            'timezone' => 'Asia/Jakarta',
+            'method'   => 'POST',
+            'payload'  => [
+              'slug' => $slug
+            ],
+          ]
+        );
 
-      // Simpan ke DB
-      $db->createQueryBuilder()
-        ->insert('tb_cronhooks')
-        ->values([
-          'id_parent'    => ':id_parent',
-          'type'         => ':type',
-          'id_cronhooks' => ':id_cronhooks',
-        ])
-        ->setParameters([
-          'id_parent'    => $articleId,
-          'type'         => 'article',
-          'id_cronhooks' => $cron['id'] ?? null,
-        ])
-        ->executeStatement();
+        if (!empty($cron['id'])) {
+          // Simpan ke DB
+          $db->createQueryBuilder()
+            ->insert('tb_cronhooks')
+            ->values([
+              'id_parent'    => ':id_parent',
+              'type'         => ':type',
+              'id_cronhooks' => ':id_cronhooks',
+            ])
+            ->setParameters([
+              'id_parent'    => $articleId,
+              'type'         => 'article',
+              'id_cronhooks' => $cron['id']
+            ])
+            ->executeStatement();
+        }
+      }
 
       return true;
     }

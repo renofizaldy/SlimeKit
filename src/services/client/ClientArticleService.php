@@ -328,4 +328,89 @@ class ClientArticleService
     $data['source'] = 'db';
     return $data;
   }
+
+  public function publish(array $input)
+  {
+    //? CHECK ARTICLE
+    $check = $this->checkExist($input);
+
+    $this->db->beginTransaction();
+    try {
+      //? UPDATE STATUS
+        $this->db->createQueryBuilder()
+          ->update($this->tableMain)
+          ->set('status', ':status')
+          ->where('id = :id')
+          ->setParameters([
+            'id'         => $check['id'],
+            'status'     => 'active',
+            'updated_at' => date('Y-m-d H:i:s')
+          ])
+          ->executeStatement();
+      //? UPDATE STATUS
+
+      //? DELETE SCHEDULE
+        if (!empty($check['id_cronhooks'])) {
+          //! DELETE CRONHOOKS SCHEDULE
+            $this->cronhooks->deleteSchedule($check['id_cronhooks']);
+          //! DELETE CRONHOOKS ID
+            $this->db->createQueryBuilder()
+              ->delete($this->tableCronhooks)
+              ->where('id_cronhooks = :id_cronhooks')
+              ->setParameter('id_cronhooks', $check['id_cronhooks'])
+              ->executeStatement();
+        }
+      //? DELETE SCHEDULE
+
+      //? DELETE CACHE
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
+      //? DELETE CACHE
+
+      $this->db->commit();
+
+      //? NEXT ARTICLE
+        $nextArticle = $this->db->createQueryBuilder()
+          ->select(
+            "{$this->tableMain}.*",
+            "{$this->tableCronhooks}.id_cronhooks as id_cronhooks"
+          )
+          ->from($this->tableMain)
+          ->leftJoin(
+            $this->tableMain,
+            $this->tableCronhooks,
+            $this->tableCronhooks,
+            "{$this->tableCronhooks}.id_parent = {$this->tableMain}.id AND {$this->tableCronhooks}.type = 'article'"
+          )
+          ->where("{$this->tableMain}.status = :status")
+          ->andWhere("{$this->tableMain}.site = :site")
+          ->andWhere("{$this->tableMain}.publish > NOW()")
+          ->andWhere("{$this->tableCronhooks}.id IS NULL")
+          ->orderBy("{$this->tableMain}.publish", "ASC")
+          ->setMaxResults(1)
+          ->setParameters([
+            'status' => 'inactive',
+            'site'   => $input['site']
+          ])
+          ->fetchAssociative();
+
+        if ($nextArticle) {
+          $publishTime = date('Y-m-d H:i:s', strtotime($nextArticle['publish']));
+          $this->helper->handleCronjob(
+            $this->db,
+            $this->cronhooks,
+            $nextArticle['id'],
+            $nextArticle['slug'],
+            $publishTime
+          );
+        }
+      //? NEXT ARTICLE
+    }
+    catch (Exception $e) {
+      if ($this->db->isTransactionActive()) {
+        $this->db->rollBack();
+      }
+      throw $e;
+    }
+  }
 }

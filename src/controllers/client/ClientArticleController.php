@@ -85,7 +85,7 @@ class ClientArticleController
       //* VALIDATOR
       $this->validator->validate('publish', $input);
       //* SERVICES
-      // $data = $this->service->publish($input);
+      $data = $this->service->publish($input);
 
       $result = [
         'data'    => $data,

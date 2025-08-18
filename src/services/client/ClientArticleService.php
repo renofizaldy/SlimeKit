@@ -340,6 +340,7 @@ class ClientArticleService
         $this->db->createQueryBuilder()
           ->update($this->tableMain)
           ->set('status', ':status')
+          ->set('updated_at', ':updated_at')
           ->where('id = :id')
           ->setParameters([
             'id'         => $check['id'],

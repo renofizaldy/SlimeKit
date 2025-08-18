@@ -116,7 +116,7 @@ class General
       if (strtotime($publishTime) > time()) {
         // Buat cron baru
         $cron = $cronhooks->createSchedule(
-          $publish,
+          $publishTime,
           [
             'title'    => 'Publish Artikel #'.$articleId,
             'timezone' => 'Asia/Jakarta',

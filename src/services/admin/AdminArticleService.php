@@ -7,6 +7,7 @@ use App\Lib\Database;
 use App\Helpers\General;
 use App\Lib\Cloudinary;
 use App\Lib\Valkey;
+use App\Lib\Cronhooks;
 
 class AdminArticleService
 {
@@ -14,10 +15,12 @@ class AdminArticleService
   private $helper;
   private $cloudinary;
   private $valkey;
+  private $cronhooks;
   private $tableMain = 'tb_article';
   private $tableCategory = 'tb_article_category';
   private $tableSeoMeta = 'tb_seo_meta';
   private $tablePicture = 'tb_picture';
+  private $tableCronhooks = 'tb_cronhooks';
   private $cacheKey = 'article';
   private $cacheExpired = (60 * 30); // 30 minutes
 
@@ -32,9 +35,18 @@ class AdminArticleService
   private function checkExist(array $input)
   {
     $check = $this->db->createQueryBuilder()
-      ->select('*')
+      ->select(
+        "{$this->tableMain}.*",
+        "{$this->tableCronhooks}.id_cronhooks as id_cronhooks"
+      )
       ->from($this->tableMain)
-      ->where('id = :id')
+      ->leftJoin(
+        $this->tableMain,
+        $this->tableCronhooks,
+        $this->tableCronhooks,
+        "{$this->tableCronhooks}.id_parent = {$this->tableMain}.id AND {$this->tableCronhooks}.type = 'article'"
+      )
+      ->where($this->tableMain.'.id = :id')
       ->setParameter('id', (int) $input['id'])
       ->fetchAssociative();
     if (!$check) {
@@ -134,7 +146,7 @@ class AdminArticleService
           'seo_keyphrase'   => $row['seo_keyphrase'],
           'seo_analysis'    => $row['seo_analysis'],
           'seo_readability' => $row['seo_readability'],
-          'publish'         => date('Y-m-d H:i:s', strtotime($row['publish']))
+          'publish'         => $row['publish'] ? date('Y-m-d H:i:s', strtotime($row['publish'])) : null
         ];
       }
     }
@@ -199,7 +211,7 @@ class AdminArticleService
           'excerpt'     => $query['excerpt'],
           'content'     => $query['content'],
           'author'      => $query['author'],
-          'publish'     => date('Y-m-d H:i:s', strtotime($query['publish'])),
+          'publish'     => $query['publish'] ? date('Y-m-d H:i:s', strtotime($query['publish'])) : null,
           'status'      => $query['status'],
           'featured'    => !empty($query['featured']) ? explode(',', trim($query['featured'], '{}')) : [],
           'read_time'   => $query['read_time'] ?? 0,
@@ -320,6 +332,18 @@ class AdminArticleService
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
+      //? CREATE CRONJOB
+        if (!empty($input['publish']) && $input['status'] === 'inactive') {
+          $this->helper->handleCronjob(
+            $this->db,
+            $this->cronhooks,
+            $lastTableMainId,
+            $input['slug'],
+            $input['publish']
+          );
+        }
+      //? CREATE CRONJOB
+
       $this->db->commit();
 
       return [
@@ -432,6 +456,19 @@ class AdminArticleService
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
+
+      //? CREATE CRONJOB
+        if (!empty($input['publish']) && $input['status'] === 'inactive') {
+          $this->helper->handleCronjob(
+            $this->db,
+            $this->cronhooks,
+            (int) $input['id'],
+            $input['slug'],
+            $input['publish'],
+            $check['id_cronhooks'] ?? null
+          );
+        }
+      //? CREATE CRONJOB
 
       $this->db->commit();
     }

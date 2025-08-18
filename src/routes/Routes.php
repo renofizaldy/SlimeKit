@@ -145,6 +145,7 @@ return function ($app) {
 
       $group->get('/list', [$controller, 'list']);
       $group->get('/detail', [$controller, 'detail']);
+      $group->post('/publish', [$controller, 'publish']);
     });
 
     //! Article Category

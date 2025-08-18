@@ -77,4 +77,32 @@ class ClientArticleController
       ->withHeader('Content-type', 'application/json')
       ->withStatus($result['status']);
   }
+
+  public function publish(Request $request, Response $response)
+  {
+    $input = $request->getParsedBody();
+    try {
+      //* VALIDATOR
+      $this->validator->validate('publish', $input);
+      //* SERVICES
+      $data = $this->service->publish($input);
+
+      $result = [
+        'data'    => $data,
+        'message' => 'Ok',
+        'status'  => 200
+      ];
+    }
+    catch (Exception $e) {
+      $result = [
+        'message' => 'Error: ' . $e->getMessage(),
+        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
+      ];
+    }
+
+    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
+    return $response
+      ->withHeader('Content-type', 'application/json')
+      ->withStatus($result['status']);
+  }
 }

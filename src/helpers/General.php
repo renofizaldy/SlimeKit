@@ -7,6 +7,7 @@ use DateTime;
 use Doctrine\DBAL\Connection;
 use App\Lib\Cloudinary;
 use App\Lib\Mailer;
+use App\Lib\Cronhooks;
 
 class General
 {
@@ -83,6 +84,73 @@ class General
       'id'  => $db->lastInsertId(),
       'url' => $upload['secure_url']
     ];
+  }
+
+  public function handleCronjob(Connection $db, Cronhooks $cronhooks, int $articleId, string $slug, string $publish, ?string $existingCronId = null): bool
+  {
+    // Hanya buat cron kalau publish time di masa depan
+    $publishTime = date('Y-m-d H:i:s', strtotime($publish));
+    if (strtotime($publishTime) <= time()) {
+      return false;
+    }
+
+    try {
+      // Hapus cron lama kalau ada
+      if (!empty($existingCronId)) {
+        try {
+          // hapus dari Cronhooks
+          $cronhooks->deleteSchedule($existingCronId);
+
+          // hapus dari database
+          $db->createQueryBuilder()
+            ->delete('tb_cronhooks')
+            ->where('id_parent = :id_parent')
+            ->andWhere('type = :type')
+            ->setParameters([
+              'id_parent' => $articleId,
+              'type'      => 'article'
+            ])
+            ->executeStatement();
+        }
+        catch (\Throwable $e) {
+          // diamkan saja, biar tidak ganggu flow
+        }
+      }
+
+      // Buat cron baru
+      $cron = $cronhooks->createSchedule(
+        $publish,
+        [
+          'title'    => 'Publish Artikel #'.$articleId,
+          'timezone' => 'Asia/Jakarta',
+          'method'   => 'POST',
+          'payload'  => [
+            'slug' => $slug
+          ],
+        ]
+      );
+
+      // Simpan ke DB
+      $db->createQueryBuilder()
+        ->insert('tb_cronhooks')
+        ->values([
+          'id_parent'    => ':id_parent',
+          'type'         => ':type',
+          'id_cronhooks' => ':id_cronhooks',
+        ])
+        ->setParameters([
+          'id_parent'    => $articleId,
+          'type'         => 'article',
+          'id_cronhooks' => $cron['id'] ?? null,
+        ])
+        ->executeStatement();
+
+      return true;
+    }
+    catch (\Throwable $e) {
+      // diamkan juga
+      return false;
+    }
   }
 
   public function validateByRules(array $input, array $rules)

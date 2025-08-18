@@ -14,7 +14,8 @@
         "phpmailer/phpmailer": "^6.10",
         "symfony/mime": "^7.3.0",
         "aws/aws-sdk-php": "^3.344.7",
-        "predis/predis": "^3.0"
+        "predis/predis": "^3.0",
+        "guzzlehttp/guzzle": "^7.9"
     },
     "autoload": {
         "psr-4": {

@@ -152,6 +152,15 @@ final class Version20240513170203_CreateTables extends AbstractMigration
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");
+
+    $this->addSql("CREATE TABLE tb_cronhooks (
+      id BIGSERIAL PRIMARY KEY,
+      id_parent BIGINT,
+      type VARCHAR(250),
+      id_cronhooks TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )");
   }
 
   public function down(Schema $schema): void

@@ -33,6 +33,12 @@ class ClientArticleValidator
           'slug' => 'required|string|not_empty',
         ];
       break;
+      case 'publish':
+        $rules = [
+          'site' => 'required|string|not_empty',
+          'slug' => 'required|string|not_empty',
+        ];
+      break;
       default:
         throw new Exception('Can\'t validate some field', 400);
       break;

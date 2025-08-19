@@ -504,6 +504,19 @@ class AdminArticleService
         ->executeStatement();
       //? DELETE tableSeoMeta
 
+      //? DELETE CRONHOOKS
+        if (!empty($check['id_cronhooks'])) {
+          //! DELETE CRONHOOKS SCHEDULE
+            $this->cronhooks->deleteSchedule($check['id_cronhooks']);
+          //! DELETE CRONHOOKS ID
+            $this->db->createQueryBuilder()
+              ->delete($this->tableCronhooks)
+              ->where('id_cronhooks = :id_cronhooks')
+              ->setParameter('id_cronhooks', $check['id_cronhooks'])
+              ->executeStatement();
+        }
+      //? DELETE CRONHOOKS
+
       //? DELETE picture
         if (!empty($check['id_picture'])) {
           //! GET PICTURE ID

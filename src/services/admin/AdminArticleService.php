@@ -30,6 +30,7 @@ class AdminArticleService
     $this->helper = new General;
     $this->cloudinary = new Cloudinary;
     $this->valkey = new Valkey;
+    $this->cronhooks = new Cronhooks;
   }
 
   private function checkExist(array $input)

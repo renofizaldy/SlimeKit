@@ -81,11 +81,16 @@ class ClientArticleController
   public function publish(Request $request, Response $response)
   {
     $input = $request->getParsedBody();
+    $user  = [
+      'user'       => null,
+      'user_agent' => $request->getHeaderLine('User-Agent'),
+      'ip_address' => $this->helper->getClientIp($request),
+    ];
     try {
       //* VALIDATOR
       $this->validator->validate('publish', $input);
       //* SERVICES
-      $data = $this->service->publish($input);
+      $data = $this->service->publish($input, $user);
 
       $result = [
         'data'    => $data,

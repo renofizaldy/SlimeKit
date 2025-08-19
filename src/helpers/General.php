@@ -30,7 +30,7 @@ class General
         'updated_at' => ':updated_at'
       ])
       ->setParameters([
-        'id_user'    => $user['user']->id,
+        'id_user'    => $user['user']->id ?? null,
         'table_name' => $table_name,
         'id_record'  => $id_record,
         'action'     => $action,

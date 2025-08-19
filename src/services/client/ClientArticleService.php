@@ -354,7 +354,7 @@ class ClientArticleService
     return $data;
   }
 
-  public function publish(array $input)
+  public function publish(array $input, array $user)
   {
     //? CHECK ARTICLE
     $check = $this->checkExist($input);
@@ -374,6 +374,10 @@ class ClientArticleService
           ])
           ->executeStatement();
       //? UPDATE STATUS
+
+      //? LOG Record
+        $this->helper->addLog($this->db, $user, $this->tableMain, $check['id'], 'UPDATE');
+      //? LOG Record
 
       //? DELETE SCHEDULE
         if (!empty($check['id_cronhooks'])) {

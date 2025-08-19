@@ -324,7 +324,6 @@ class AdminArticleService
 
       //? LOG Record
         $this->helper->addLog($this->db, $user, $this->tableMain, $lastTableMainId, 'INSERT');
-        $this->helper->addLog($this->db, $user, $this->tableSeoMeta, $lastTableSeoMetaId, 'INSERT');
       //? LOG Record
 
       //? DELETE CACHE

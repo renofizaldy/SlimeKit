@@ -143,6 +143,7 @@ class AdminArticleService
           'category'        => $row['category_title'],
           'featured'        => !empty($row['featured']) ? explode(',', trim($row['featured'], '{}')) : [],
           'status'          => $row['status'],
+          'slug'            => $row['slug'],
           'author'          => $row['author'],
           'seo_keyphrase'   => $row['seo_keyphrase'],
           'seo_analysis'    => $row['seo_analysis'],

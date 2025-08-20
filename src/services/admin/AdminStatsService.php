@@ -13,6 +13,8 @@ class AdminStatsService
   private $helper;
   private $cloudinary;
   private $tableLog = 'tb_log';
+  private $tableArticle = 'tb_article';
+  private $tableCronhooks = 'tb_cronhooks';
 
   public function __construct()
   {

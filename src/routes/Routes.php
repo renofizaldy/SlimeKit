@@ -126,10 +126,7 @@ return function ($app) {
       $controller = new AdminStatsController;
 
       $group->get('/log', [$controller, 'listLog'])->add(new AuthMiddleware('admin', 'dashboard:view'));
-      $group->get('/upcoming_event', [$controller, 'upcomingEvent'])->add(new AuthMiddleware('admin', 'dashboard:view'));
-      $group->get('/upcoming_participant', [$controller, 'upcomingParticipant'])->add(new AuthMiddleware('admin', 'dashboard:view'));
-      $group->get('/pending_participant', [$controller, 'pendingParticipant'])->add(new AuthMiddleware('admin', 'dashboard:view'));
-      $group->get('/confirm_payment', [$controller, 'confirmPayment'])->add(new AuthMiddleware('admin', 'dashboard:view'));
+      $group->get('/cron', [$controller, 'listCronArticle'])->add(new AuthMiddleware('admin', 'dashboard:view'));
     })->add(new TokenMiddleware());
 
   })

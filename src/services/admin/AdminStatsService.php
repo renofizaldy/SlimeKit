@@ -149,4 +149,26 @@ class AdminStatsService
       throw $e;
     }
   }
+
+  public function listCronArticle(array $input)
+  {
+    $queryBuilder = $this->db->createQueryBuilder()
+      ->select(
+        "{$this->tableArticle}.*",
+        "{$this->tableCronhooks}.id_cronhooks"
+      )
+      ->from($this->tableArticle)
+      ->leftJoin(
+        $this->tableArticle,
+        $this->tableCronhooks,
+        $this->tableCronhooks,
+        "{$this->tableArticle}.id = {$this->tableCronhooks}.id_parent AND {$this->tableCronhooks}.type = 'article'"
+      )
+      ->where("{$this->tableArticle}.status = 'inactive'")
+      ->andWhere("{$this->tableArticle}.publish > NOW()")
+      ->orderBy("{$this->tableArticle}.publish", "ASC");
+    $query = $queryBuilder->executeQuery()->fetchAllAssociative();
+    $data  = (!empty($query)) ? $query : [];
+    return $data;
+  }
 }

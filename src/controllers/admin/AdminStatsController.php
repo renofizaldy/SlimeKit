@@ -77,4 +77,30 @@ class AdminStatsController
       ->withHeader('Content-type', 'application/json')
       ->withStatus($result['status']);
   }
+
+  public function listCronArticle(Request $request, Response $response)
+  {
+    $input = $request->getQueryParams();
+    try {
+      //* SERVICES
+      $data = $this->service->listCronArticle($input);
+
+      $result = [
+        'data'    => $data,
+        'message' => 'Ok',
+        'status'  => 200
+      ];
+    }
+    catch (Exception $e) {
+      $result = [
+        'message' => 'Error: ' . $e->getMessage(),
+        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
+      ];
+    }
+
+    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
+    return $response
+      ->withHeader('Content-type', 'application/json')
+      ->withStatus($result['status']);
+  }
 }

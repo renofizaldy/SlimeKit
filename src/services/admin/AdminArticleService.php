@@ -457,18 +457,33 @@ class AdminArticleService
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
-      //? CREATE CRONJOB
-        if (!empty($input['publish']) && $input['status'] === 'inactive') {
-          $this->helper->handleCronjob(
-            $this->db,
-            $this->cronhooks,
-            (int) $input['id'],
-            $input['slug'],
-            $input['publish'],
-            $check['id_cronhooks'] ?? null
-          );
-        }
-      //? CREATE CRONJOB
+      //? CHANGE CRONJOB
+        //* CREATE CRONHOOKS
+          if (!empty($input['publish']) && $input['status'] === 'inactive') {
+            $this->helper->handleCronjob(
+              $this->db,
+              $this->cronhooks,
+              (int) $input['id'],
+              $input['slug'],
+              $input['publish'],
+              $check['id_cronhooks'] ?? null
+            );
+          }
+        //* CREATE CRONHOOKS
+
+        //* DELETE CRONHOOKS
+          if (($input['status'] === 'active') && !empty($check['id_cronhooks'])) {
+            //! DELETE CRONHOOKS SCHEDULE
+            $this->cronhooks->deleteSchedule($check['id_cronhooks']);
+            //! DELETE CRONHOOKS ID
+            $this->db->createQueryBuilder()
+              ->delete($this->tableCronhooks)
+              ->where('id_cronhooks = :id_cronhooks')
+              ->setParameter('id_cronhooks', $check['id_cronhooks'])
+              ->executeStatement();
+          }
+        //* DELETE CRONHOOKS
+      //? CHANGE CRONJOB
 
       $this->db->commit();
     }
@@ -546,6 +561,80 @@ class AdminArticleService
       //? DELETE CACHE
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
+      //? DELETE CACHE
+
+      $this->db->commit();
+    }
+    catch (Exception $e) {
+      if ($this->db->isTransactionActive()) {
+        $this->db->rollBack();
+      }
+      throw $e;
+    }
+  }
+
+  public function statusChange(array $input, array $user)
+  {
+    //! IF ACTIVE
+      if ($input['status'] == 'active') {
+        $checkMain = $this->checkExist($input);
+        $checkMeta = $this->checkMeta($input);
+        if (
+          empty($checkMain['excerpt']) ||
+          empty($checkMain['content']) ||
+          empty($checkMain['id_picture']) ||
+          empty($checkMain['site']) ||
+          empty($checkMain['id_category']) ||
+          empty($checkMain['author']) ||
+          empty($checkMain['publish']) ||
+          empty($checkMain['read_time']) ||
+          empty($checkMeta['meta_title']) ||
+          empty($checkMeta['meta_description']) ||
+          empty($checkMeta['meta_robots'])
+        )
+        {
+          throw new Exception('Lengkapi beberapa field dulu', 400);
+        }
+      }
+    //! IF ACTIVE
+
+    $this->db->beginTransaction();
+    try {
+      //? UPDATE ON tableMain
+        $update = $this->db->createQueryBuilder()
+          ->update($this->tableMain)
+          ->set('status', ':status')
+          ->set('updated_at', ':updated_at')
+          ->where('id = :id')
+          ->setParameters([
+            'id'          => (int) $input['id'],
+            'status'      => $input['status'],
+            'updated_at'  => date('Y-m-d H:i:s'),
+          ]);
+        $update->executeStatement();
+      //? UPDATE ON tableMain
+
+      //? DELETE CRONHOOKS
+        if (($input['status'] === 'active') && !empty($checkMain['id_cronhooks'])) {
+          //! DELETE CRONHOOKS SCHEDULE
+          $this->cronhooks->deleteSchedule($checkMain['id_cronhooks']);
+          //! DELETE CRONHOOKS ID
+          $this->db->createQueryBuilder()
+            ->delete($this->tableCronhooks)
+            ->where('id_cronhooks = :id_cronhooks')
+            ->setParameter('id_cronhooks', $checkMain['id_cronhooks'])
+            ->executeStatement();
+        }
+      //? DELETE CRONHOOKS
+
+      //? LOG Record
+        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $input['id'], 'UPDATE', ['Status' => $input['status']]);
+      //? LOG Record
+
+      //? DELETE CACHE
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 

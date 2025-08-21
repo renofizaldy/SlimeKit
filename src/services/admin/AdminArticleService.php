@@ -38,6 +38,7 @@ class AdminArticleService
     $check = $this->db->createQueryBuilder()
       ->select(
         "{$this->tableMain}.*",
+        "{$this->tableCronhooks}.id as id_cron",
         "{$this->tableCronhooks}.id_cronhooks as id_cronhooks"
       )
       ->from($this->tableMain)
@@ -473,15 +474,19 @@ class AdminArticleService
         //* CREATE CRONHOOKS
 
         //* DELETE CRONHOOKS
-          if (($input['status'] === 'active') && !empty($check['id_cronhooks'])) {
-            //! DELETE CRONHOOKS SCHEDULE
-            $this->cronhooks->deleteSchedule($check['id_cronhooks']);
-            //! DELETE CRONHOOKS ID
-            $this->db->createQueryBuilder()
-              ->delete($this->tableCronhooks)
-              ->where('id_cronhooks = :id_cronhooks')
-              ->setParameter('id_cronhooks', $check['id_cronhooks'])
-              ->executeStatement();
+          if (($input['status'] === 'active')) {
+            //! DELETE SCHEDULE
+            if(!empty($check['id_cronhooks'])) {
+              $this->cronhooks->deleteSchedule($check['id_cronhooks']);
+            }
+            //! DELETE FROM DATABASE
+            if (!empty($check['id_cron'])) {
+              $this->db->createQueryBuilder()
+                ->delete($this->tableCronhooks)
+                ->where('id = :id_cron')
+                ->setParameter('id_cron', $check['id_cron'])
+                ->executeStatement();
+            }
           }
         //* DELETE CRONHOOKS
       //? CHANGE CRONJOB
@@ -523,13 +528,15 @@ class AdminArticleService
       //? DELETE CRONHOOKS
         if (!empty($check['id_cronhooks'])) {
           //! DELETE CRONHOOKS SCHEDULE
-            $this->cronhooks->deleteSchedule($check['id_cronhooks']);
+          $this->cronhooks->deleteSchedule($check['id_cronhooks']);
+        }
+        if (!empty($check['id_cron'])) {
           //! DELETE CRONHOOKS ID
-            $this->db->createQueryBuilder()
-              ->delete($this->tableCronhooks)
-              ->where('id_cronhooks = :id_cronhooks')
-              ->setParameter('id_cronhooks', $check['id_cronhooks'])
-              ->executeStatement();
+          $this->db->createQueryBuilder()
+            ->delete($this->tableCronhooks)
+            ->where('id = :id_cron')
+            ->setParameter('id_cron', $check['id_cron'])
+            ->executeStatement();
         }
       //? DELETE CRONHOOKS
 
@@ -617,15 +624,19 @@ class AdminArticleService
       //? UPDATE ON tableMain
 
       //? DELETE CRONHOOKS
-        if (($input['status'] === 'active') && !empty($checkMain['id_cronhooks'])) {
-          //! DELETE CRONHOOKS SCHEDULE
-          $this->cronhooks->deleteSchedule($checkMain['id_cronhooks']);
-          //! DELETE CRONHOOKS ID
-          $this->db->createQueryBuilder()
-            ->delete($this->tableCronhooks)
-            ->where('id_cronhooks = :id_cronhooks')
-            ->setParameter('id_cronhooks', $checkMain['id_cronhooks'])
-            ->executeStatement();
+        if (($input['status'] === 'active')) {
+          //! DELETE SCHEDULE
+          if(!empty($checkMain['id_cronhooks'])) {
+            $this->cronhooks->deleteSchedule($checkMain['id_cronhooks']);
+          }
+          //! DELETE FROM DATABASE
+          if (!empty($checkMain['id_cron'])) {
+            $this->db->createQueryBuilder()
+              ->delete($this->tableCronhooks)
+              ->where('id = :id_cron')
+              ->setParameter('id_cron', $checkMain['id_cron'])
+              ->executeStatement();
+          }
         }
       //? DELETE CRONHOOKS
 

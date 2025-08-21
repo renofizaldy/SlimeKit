@@ -34,6 +34,7 @@ class ClientArticleService
     $check = $this->db->createQueryBuilder()
       ->select(
         "{$this->tableMain}.*",
+        "{$this->tableCronhooks}.id as id_cron",
         "{$this->tableCronhooks}.id_cronhooks as id_cronhooks"
       )
       ->from($this->tableMain)
@@ -383,11 +384,13 @@ class ClientArticleService
         if (!empty($check['id_cronhooks'])) {
           //! DELETE CRONHOOKS SCHEDULE
             $this->cronhooks->deleteSchedule($check['id_cronhooks']);
+        }
+        if (!empty($check['id_cron'])) {
           //! DELETE CRONHOOKS ID
             $this->db->createQueryBuilder()
               ->delete($this->tableCronhooks)
-              ->where('id_cronhooks = :id_cronhooks')
-              ->setParameter('id_cronhooks', $check['id_cronhooks'])
+              ->where('id = :id_cron')
+              ->setParameter('id_cron', $check['id_cron'])
               ->executeStatement();
         }
       //? DELETE SCHEDULE

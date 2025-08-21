@@ -32,22 +32,10 @@ class ClientArticleService
   private function checkExist(array $input)
   {
     $check = $this->db->createQueryBuilder()
-      ->select(
-        "{$this->tableMain}.*",
-        "{$this->tableCronhooks}.id as id_cron",
-        "{$this->tableCronhooks}.id_cronhooks as id_cronhooks"
-      )
+      ->select('*')
       ->from($this->tableMain)
-      ->leftJoin(
-        $this->tableMain,
-        $this->tableCronhooks,
-        $this->tableCronhooks,
-        "{$this->tableCronhooks}.id_parent = {$this->tableMain}.id AND {$this->tableCronhooks}.type = 'article'"
-      )
       ->where($this->tableMain.'.slug = :slug')
-      ->setParameters([
-        'slug' => $input['slug']
-      ])
+      ->setParameter('slug', $input['slug'])
       ->fetchAssociative();
     if (!$check) {
       throw new Exception('Not Found', 404);
@@ -380,21 +368,6 @@ class ClientArticleService
         $this->helper->addLog($this->db, $user, $this->tableMain, $check['id'], 'UPDATE');
       //? LOG Record
 
-      //? DELETE SCHEDULE
-        if (!empty($check['id_cronhooks'])) {
-          //! DELETE CRONHOOKS SCHEDULE
-            $this->cronhooks->deleteSchedule($check['id_cronhooks']);
-        }
-        if (!empty($check['id_cron'])) {
-          //! DELETE CRONHOOKS ID
-            $this->db->createQueryBuilder()
-              ->delete($this->tableCronhooks)
-              ->where('id = :id_cron')
-              ->setParameter('id_cron', $check['id_cron'])
-              ->executeStatement();
-        }
-      //? DELETE SCHEDULE
-
       //? DELETE CACHE
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
@@ -402,40 +375,9 @@ class ClientArticleService
 
       $this->db->commit();
 
-      //? NEXT ARTICLE
-        $nextArticle = $this->db->createQueryBuilder()
-          ->select(
-            "{$this->tableMain}.*",
-            "{$this->tableCronhooks}.id_cronhooks as id_cronhooks"
-          )
-          ->from($this->tableMain)
-          ->leftJoin(
-            $this->tableMain,
-            $this->tableCronhooks,
-            $this->tableCronhooks,
-            "{$this->tableCronhooks}.id_parent = {$this->tableMain}.id AND {$this->tableCronhooks}.type = 'article'"
-          )
-          ->where("{$this->tableMain}.status = :status")
-          ->andWhere("{$this->tableMain}.publish > NOW()")
-          ->andWhere("{$this->tableCronhooks}.id IS NULL")
-          ->orderBy("{$this->tableMain}.publish", "ASC")
-          ->setMaxResults(1)
-          ->setParameters([
-            'status' => 'inactive'
-          ])
-          ->fetchAssociative();
-
-        if ($nextArticle) {
-          $publishTime = date('Y-m-d H:i:s', strtotime($nextArticle['publish']));
-          $this->helper->handleCronjob(
-            $this->db,
-            $this->cronhooks,
-            $nextArticle['id'],
-            $nextArticle['slug'],
-            $publishTime
-          );
-        }
-      //? NEXT ARTICLE
+      //? CHANGE CRONJOB
+        $this->helper->recomputeCron($this->db, $this->cronhooks);
+      //? CHANGE CRONJOB
     }
     catch (Exception $e) {
       if ($this->db->isTransactionActive()) {

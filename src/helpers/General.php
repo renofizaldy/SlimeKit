@@ -86,6 +86,117 @@ class General
     ];
   }
 
+  public function recomputeCron(Connection $db, Cronhooks $cronhooks): bool
+  {
+    try {
+      $maxSlots     = 5;
+      $tb_article   = 'tb_article';
+      $tb_cronhooks = 'tb_cronhooks';
+
+      //* EMPTY CRONJOB
+        //? Pilih semua data di tb_cronhooks yang terkait dengan artikel di site ini
+        $qryCronToDrop =  $db->createQueryBuilder()
+          ->select('*')
+          ->from($tb_cronhooks)
+          ->innerJoin(
+            $tb_cronhooks,
+            $tb_article,
+            $tb_article,
+            $tb_article.'.id = '.$tb_cronhooks.'.id_parent'
+          )
+          ->where($tb_cronhooks.'.type = :type')
+          ->setParameters([
+            'type' => 'article',
+          ])
+          ->executeQuery()
+          ->fetchAllAssociative();
+        if (!empty($qryCronToDrop)) {
+          foreach ($qryCronToDrop as $cron) {
+            //? Hapus dari Cronhooks
+            if (!empty($cron['id_cronhooks'])) {
+              try {
+                $cronhooks->deleteSchedule($cron['id_cronhooks']);
+              } catch (\Throwable $e) {
+                error_log("recomputeCron: failed to delete cron " . $cron['id_cronhooks'] . ": " . $e->getMessage());
+              }
+            }
+            //? Hapus dari database
+            $dropCron = $db->createQueryBuilder()
+              ->delete($tb_cronhooks)
+              ->where($tb_cronhooks.'.id = :id')
+              ->setParameter('id', $cron['id'])
+              ->executeStatement();
+            if (!$dropCron) {
+              error_log("recomputeCron: failed to drop cron " . $cron['id_cronhooks']);
+            }
+          }
+        }
+      //* EMPTY CRONJOB
+
+      //* RESCHEDULE ARTICLE
+        //? Ambil artikel yang belum ada cron dan publish > NOW()
+        $qryArticleNext = $db->createQueryBuilder()
+          ->select('*')
+          ->from($tb_article)
+          ->where($tb_article.'.publish > :now')
+          ->andWhere($tb_article.'.status = :status')
+          ->orderBy($tb_article.'.publish', 'ASC')
+          ->setParameters([
+            'now'    => date('Y-m-d H:i:s'),
+            'status' => 'inactive'
+          ])
+          ->executeQuery()
+          ->fetchAllAssociative();
+        if (!empty($qryArticleNext)) {
+          $count = 0;
+          foreach ($qryArticleNext as $article) {
+            $cronId = null;
+            //? Buat cron hanya untuk slot terbatas
+            if ($count < $maxSlots) {
+              $cron = $cronhooks->createSchedule(
+                $article['publish'],
+                [
+                  'title'    => 'Publish Artikel #' . $article['id'],
+                  'timezone' => 'Asia/Jakarta',
+                  'method'   => 'POST',
+                  'payload'  => [
+                    'slug' => $article['slug']
+                  ]
+                ]
+              );
+              $cronId = $cron ? $cron['id'] : null;
+            }
+            //? Simpan semua ke tb_cronhooks
+            $qrySaveToCron = $db->createQueryBuilder()
+              ->insert($tb_cronhooks)
+              ->values([
+                'id_parent'    => ':id_parent',
+                'type'         => ':type',
+                'id_cronhooks' => ':id_cronhooks'
+              ])
+              ->setParameters([
+                'id_parent'    => $article['id'],
+                'type'         => 'article',
+                'id_cronhooks' => $cronId
+              ])
+              ->executeStatement();
+            if (!$qrySaveToCron) {
+              error_log("recomputeCron: failed to save cron for article #" . $article['id']);
+              continue;
+            }
+            $count++;
+          }
+        }
+      //* RESCHEDULE ARTICLE
+
+      return true;
+    }
+    catch (\Throwable $e) {
+      error_log("recomputeCronjobs fatal: " . $e->getMessage());
+      return true;
+    }
+  }
+
   public function handleCronjob(Connection $db, Cronhooks $cronhooks, int $articleId, string $slug, string $publish, ?string $existingCronId = null): bool
   {
     try {

@@ -36,18 +36,8 @@ class AdminArticleService
   private function checkExist(array $input)
   {
     $check = $this->db->createQueryBuilder()
-      ->select(
-        "{$this->tableMain}.*",
-        "{$this->tableCronhooks}.id as id_cron",
-        "{$this->tableCronhooks}.id_cronhooks as id_cronhooks"
-      )
+      ->select('*')
       ->from($this->tableMain)
-      ->leftJoin(
-        $this->tableMain,
-        $this->tableCronhooks,
-        $this->tableCronhooks,
-        "{$this->tableCronhooks}.id_parent = {$this->tableMain}.id AND {$this->tableCronhooks}.type = 'article'"
-      )
       ->where($this->tableMain.'.id = :id')
       ->setParameter('id', (int) $input['id'])
       ->fetchAssociative();
@@ -334,19 +324,13 @@ class AdminArticleService
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
-      //? CREATE CRONJOB
-        if (!empty($input['publish']) && $input['status'] === 'inactive') {
-          $this->helper->handleCronjob(
-            $this->db,
-            $this->cronhooks,
-            $lastTableMainId,
-            $input['slug'],
-            $input['publish']
-          );
-        }
-      //? CREATE CRONJOB
-
       $this->db->commit();
+
+      //? CHANGE CRONJOB
+        if (!empty($input['publish'])) {
+          $this->helper->recomputeCron($this->db, $this->cronhooks);
+        }
+      //? CHANGE CRONJOB
 
       return [
         'id' => $lastTableMainId
@@ -459,39 +443,13 @@ class AdminArticleService
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
-      //? CHANGE CRONJOB
-        //* CREATE CRONHOOKS
-          if (!empty($input['publish']) && $input['status'] === 'inactive') {
-            $this->helper->handleCronjob(
-              $this->db,
-              $this->cronhooks,
-              (int) $input['id'],
-              $input['slug'],
-              $input['publish'],
-              $check['id_cronhooks'] ?? null
-            );
-          }
-        //* CREATE CRONHOOKS
-
-        //* DELETE CRONHOOKS
-          if (($input['status'] === 'active')) {
-            //! DELETE SCHEDULE
-            if(!empty($check['id_cronhooks'])) {
-              $this->cronhooks->deleteSchedule($check['id_cronhooks']);
-            }
-            //! DELETE FROM DATABASE
-            if (!empty($check['id_cron'])) {
-              $this->db->createQueryBuilder()
-                ->delete($this->tableCronhooks)
-                ->where('id = :id_cron')
-                ->setParameter('id_cron', $check['id_cron'])
-                ->executeStatement();
-            }
-          }
-        //* DELETE CRONHOOKS
-      //? CHANGE CRONJOB
-
       $this->db->commit();
+
+      //? CHANGE CRONJOB
+        if (!empty($input['publish'])) {
+          $this->helper->recomputeCron($this->db, $this->cronhooks);
+        }
+      //? CHANGE CRONJOB
     }
     catch (Exception $e) {
       if ($this->db->isTransactionActive()) {
@@ -508,37 +466,22 @@ class AdminArticleService
     $this->db->beginTransaction();
     try {
       //? DELETE tableMain
-      $this->db->createQueryBuilder()
-        ->delete($this->tableMain)
-        ->where('id = :id')
-        ->setParameter('id', $check['id'])
-        ->executeStatement();
+        $this->db->createQueryBuilder()
+          ->delete($this->tableMain)
+          ->where('id = :id')
+          ->setParameter('id', $check['id'])
+          ->executeStatement();
       //? DELETE tableMain
 
       //? DELETE tableSeoMeta
-      $this->db->createQueryBuilder()
-        ->delete($this->tableSeoMeta)
-        ->where('id_parent = :id_parent')
-        ->andWhere('type = :type')
-        ->setParameter('id_parent', $check['id'])
-        ->setParameter('type', 'article')
-        ->executeStatement();
+        $this->db->createQueryBuilder()
+          ->delete($this->tableSeoMeta)
+          ->where('id_parent = :id_parent')
+          ->andWhere('type = :type')
+          ->setParameter('id_parent', $check['id'])
+          ->setParameter('type', 'article')
+          ->executeStatement();
       //? DELETE tableSeoMeta
-
-      //? DELETE CRONHOOKS
-        if (!empty($check['id_cronhooks'])) {
-          //! DELETE CRONHOOKS SCHEDULE
-          $this->cronhooks->deleteSchedule($check['id_cronhooks']);
-        }
-        if (!empty($check['id_cron'])) {
-          //! DELETE CRONHOOKS ID
-          $this->db->createQueryBuilder()
-            ->delete($this->tableCronhooks)
-            ->where('id = :id_cron')
-            ->setParameter('id_cron', $check['id_cron'])
-            ->executeStatement();
-        }
-      //? DELETE CRONHOOKS
 
       //? DELETE picture
         if (!empty($check['id_picture'])) {
@@ -573,6 +516,12 @@ class AdminArticleService
       //? DELETE CACHE
 
       $this->db->commit();
+
+      //? CHANGE CRONJOB
+        if ($check['publish'] > date('Y-m-d H:i:s')) {
+          $this->helper->recomputeCron($this->db, $this->cronhooks);
+        }
+      //? CHANGE CRONJOB
     }
     catch (Exception $e) {
       if ($this->db->isTransactionActive()) {
@@ -623,23 +572,6 @@ class AdminArticleService
         $update->executeStatement();
       //? UPDATE ON tableMain
 
-      //? DELETE CRONHOOKS
-        if (($input['status'] === 'active')) {
-          //! DELETE SCHEDULE
-          if(!empty($checkMain['id_cronhooks'])) {
-            $this->cronhooks->deleteSchedule($checkMain['id_cronhooks']);
-          }
-          //! DELETE FROM DATABASE
-          if (!empty($checkMain['id_cron'])) {
-            $this->db->createQueryBuilder()
-              ->delete($this->tableCronhooks)
-              ->where('id = :id_cron')
-              ->setParameter('id_cron', $checkMain['id_cron'])
-              ->executeStatement();
-          }
-        }
-      //? DELETE CRONHOOKS
-
       //? LOG Record
         $this->helper->addLog($this->db, $user, $this->tableMain, (int) $input['id'], 'UPDATE', ['Status' => $input['status']]);
       //? LOG Record
@@ -651,6 +583,12 @@ class AdminArticleService
       //? DELETE CACHE
 
       $this->db->commit();
+
+      //? CHANGE CRONJOB
+        if (!empty($checkMain['publish'])) {
+          $this->helper->recomputeCron($this->db, $this->cronhooks);
+        }
+      //? CHANGE CRONJOB
     }
     catch (Exception $e) {
       if ($this->db->isTransactionActive()) {

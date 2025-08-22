@@ -327,7 +327,7 @@ class AdminArticleService
       $this->db->commit();
 
       //? CHANGE CRONJOB
-        if (!empty($input['publish'])) {
+        if (!empty($input['publish']) && $input['publish'] > date('Y-m-d H:i:s')) {
           $this->helper->recomputeCron($this->db, $this->cronhooks);
         }
       //? CHANGE CRONJOB

@@ -447,7 +447,32 @@ class AdminArticleService
 
       //? CHANGE CRONJOB
         if (!empty($input['publish'])) {
-          $this->helper->recomputeCron($this->db, $this->cronhooks);
+          $now = date('Y-m-d H:i:s');
+          //! Case 1: Skip kalau status & publish sama persis
+          if (
+            ($input['status'] == $check['status'])
+            && ($input['publish'] == $check['publish'])
+          ) {
+            return true; //! SKIP
+          }
+          //! Case 2: Kalau status berubah → recompute (selama publish belum lewat semua)
+          if (
+            $input['status'] !== $check['status']
+            && ($input['publish'] > $now || $check['publish'] > $now)
+          )
+          {
+            $this->helper->recomputeCron($this->db, $this->cronhooks, $input['site']);
+            return true;
+          }
+          //! Case 3: Kalau publish berubah → recompute (selama salah satu masih future)
+          if (
+            $input['publish'] !== $check['publish']
+            && ($input['publish'] > $now || $check['publish'] > $now)
+          )
+          {
+            $this->helper->recomputeCron($this->db, $this->cronhooks, $input['site']);
+            return true;
+          }
         }
       //? CHANGE CRONJOB
     }

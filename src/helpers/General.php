@@ -96,7 +96,7 @@ class General
       //* EMPTY CRONJOB
         //? Pilih semua data di tb_cronhooks yang terkait dengan artikel di site ini
         $qryCronToDrop =  $db->createQueryBuilder()
-          ->select('*')
+          ->select($tb_cronhooks.'.*')
           ->from($tb_cronhooks)
           ->innerJoin(
             $tb_cronhooks,

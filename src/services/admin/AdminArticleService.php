@@ -611,7 +611,16 @@ class AdminArticleService
 
       //? CHANGE CRONJOB
         if (!empty($checkMain['publish'])) {
-          $this->helper->recomputeCron($this->db, $this->cronhooks);
+          $now = date('Y-m-d H:i:s');
+          //! Case 2: Kalau status berubah → recompute (selama publish belum lewat semua)
+          if (
+            $input['status'] !== $checkMain['status']
+            && ($checkMain['publish'] > $now)
+          )
+          {
+            $this->helper->recomputeCron($this->db, $this->cronhooks, $input['site']);
+            return true;
+          }
         }
       //? CHANGE CRONJOB
     }

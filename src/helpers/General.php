@@ -142,7 +142,7 @@ class General
           ->andWhere($tb_article.'.status = :status')
           ->orderBy($tb_article.'.publish', 'ASC')
           ->setParameters([
-            'now'    => date('Y-m-d H:i:s'),
+            'now'    => date('Y-m-d H:i:s', strtotime('+1 minute')),
             'status' => 'inactive'
           ])
           ->executeQuery()

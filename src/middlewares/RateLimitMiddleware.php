@@ -21,7 +21,17 @@ class RateLimitMiddleware implements MiddlewareInterface
 
   public function process(Request $request, Handler $handler): Response
   {
-    $ip = $request->getServerParams()['REMOTE_ADDR'] ?? 'unknown';
+    $serverParams = $request->getServerParams();
+
+    // Prioritaskan IP asli user (Cloudflare > Proxy > Direct)
+    if (isset($serverParams['HTTP_CF_CONNECTING_IP'])) {
+      $ip = $serverParams['HTTP_CF_CONNECTING_IP'];
+    } elseif (isset($serverParams['HTTP_X_FORWARDED_FOR'])) {
+      $ip = explode(',', $serverParams['HTTP_X_FORWARDED_FOR'])[0];
+    } else {
+      $ip = $serverParams['REMOTE_ADDR'] ?? 'unknown';
+    }
+
     $key = 'rate_limit_' . md5($ip);
     $cacheFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $key;
 

@@ -8,6 +8,7 @@ use App\Helpers\General;
 use App\Lib\Cloudinary;
 use App\Lib\Valkey;
 use App\Lib\Cronhooks;
+use App\Models\Article;
 
 class AdminArticleService
 {

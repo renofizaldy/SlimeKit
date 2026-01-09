@@ -6,16 +6,15 @@
         "cloudinary/cloudinary_php": "^2.11",
         "firebase/php-jwt": "^6.8",
         "uma/dic": "3.0",
-        "doctrine/migrations": "^3.7",
-        "doctrine/orm": "^2.17",
-        "doctrine/dbal": "^3.8",
         "google/cloud-storage": "^1.39",
         "middlewares/encoder": "^2.2",
         "phpmailer/phpmailer": "^6.10",
         "symfony/mime": "^7.3.0",
         "aws/aws-sdk-php": "^3.344.7",
         "predis/predis": "^3.0",
-        "guzzlehttp/guzzle": "^7.9"
+        "guzzlehttp/guzzle": "^7.9",
+        "illuminate/database": "^12.46",
+        "robmorgan/phinx": "^0.16.10"
     },
     "autoload": {
         "psr-4": {
@@ -29,6 +28,7 @@
             "App\\Validators\\Admin\\": "src/validators/admin/",
             "App\\Validators\\Client\\": "src/validators/client/",
             "App\\Helpers\\": "src/helpers/",
+            "App\\Models\\": "src/models/",
             "App\\Services\\": "src/services/",
             "App\\Services\\Admin\\": "src/services/admin/",
             "App\\Services\\Client\\": "src/services/client/"

@@ -15,6 +15,8 @@ use Dotenv\Dotenv;
     $displayErrorDetails = false;
   }
   date_default_timezone_set("Asia/Jakarta");
+
+  new App\Lib\Database();
 //* INIT
 
 //* DEFINE APP

@@ -220,186 +220,46 @@ if (!file_exists($servicePath)) {
   namespace App\Services\Admin;
 
   use Exception;
-  use App\Lib\Database;
+  use App\Models\\{$moduleName};
   use App\Helpers\General;
   use App\Lib\Cloudinary;
 
   class {$moduleName}Service
   {
-    private \$db;
     private \$helper;
     private \$cloudinary;
-    private \$tableMain = 'table';
 
     public function __construct()
     {
-      \$this->db = (new Database())->getConnection();
       \$this->helper = new General;
       \$this->cloudinary = new Cloudinary;
     }
 
-    private function checkExist(array \$input)
-    {
-      \$check = \$this->db->createQueryBuilder()
-        ->select('*')
-        ->from(\$this->tableMain)
-        ->where('id = :id')
-        ->setParameter('id', (int) \$input['id'])
-        ->fetchAssociative();
-      if (!\$check) {
-        throw new Exception('Not Found', 404);
-      }
-      return \$check;
-    }
-
     public function list(array \$input)
     {
-      \$data = [];
-
-      \$query = \$this->db->createQueryBuilder()
-        ->select('*')
-        ->from(\$this->tableMain)
-        ->where('id = :id')
-        ->setParameter('id', (int) \$input['id'])
-        ->executeQuery()
-        ->fetchAllAssociative();
-
-      if (!empty(\$query)) {
-        foreach (\$query as \$row) {
-          \$data[] = [
-            'field' => \$row['column']
-          ];
-        }
-      }
-
-      return \$data;
+      return {$moduleName}::orderBy('id', 'desc')->get()->toArray();
     }
 
     public function detail(array \$input)
     {
-      \$data = [];
-      \$event = \$this->checkExist(\$input);
-
-      \$query = \$this->db->createQueryBuilder()
-        ->select('*')
-        ->from(\$this->tableMain)
-        ->leftJoin(
-          \$this->tableMain,
-          'table_to_join',
-          'table_to_join',
-          \$this->tableMain.'.id = table_to_join.id'
-        )
-        ->where('id = :id')
-        ->setParameter('id', (int) \$input['id'])
-        ->executeQuery()
-        ->fetchAssociative();
-
-      if (!empty(\$query)) {
-        \$data = \$query;
-      }
-
-      return \$data;
+      return {$moduleName}::find(\$param['id']);
     }
 
     public function add(array \$input, array \$user)
     {
-      \$this->db->beginTransaction();
-      try {
-        //? PICTURE UPLOAD
-          \$picture_id = \$this->helper->pictureUpload(\$this->db, \$this->cloudinary, \$input['picture'] ?? null);
-        //? PICTURE UPLOAD
-
-        //? INSERT TO table
-          \$this->db->createQueryBuilder()
-            ->insert(\$this->tableMain)
-            ->values([
-              'id_picture' => ':id_picture',
-              'column'     => ':field',
-            ])
-            ->setParameters([
-              'id_picture' => \$picture_id,
-              'field' => (int) \$input['field'],
-            ]);
-            ->executeStatement();
-        //? INSERT TO table
-
-        //? LOG Record
-          \$this->helper->addLog(\$this->db, \$user, \$this->tableMain, \$this->db->lastInsertId(), 'INSERT');
-        //? LOG Record
-
-        \$this->db->commit();
-      }
-      catch (Exception \$e) {
-        if (\$this->db->isTransactionActive()) {
-          \$this->db->rollBack();
-        }
-        throw \$e;
-      }
+      return {$moduleName}::create(\$data);
     }
 
     public function edit(array \$input, array \$user)
     {
-      \$this->db->beginTransaction();
-      try {
-        //? PICTURE UPLOAD
-          \$picture_id = \$this->helper->pictureUpload(\$this->db, \$this->cloudinary, \$input['picture'] ?? null);
-        //? PICTURE UPLOAD
-
-        //? UPDATE ON table
-          \$update = \$this->db->createQueryBuilder()
-            ->update(\$this->tableMain)
-            ->set('column', ':field')
-            ->where('id = :id')
-            ->setParameters([
-              'id'    => (int) \$input['id'],
-              'field' => (int) \$input['field'],
-            ]);
-          if (!empty(\$picture_id)) {
-            \$update->set('id_picture', ':id_picture')->setParameter('id_picture', \$picture_id);
-          }
-          \$update->executeStatement();
-        //? UPDATE ON table
-
-        //? LOG Record
-          \$this->helper->addLog(\$this->db, \$user, \$this->tableMain, (int) \$input['id'], 'UPDATE');
-        //? LOG Record
-
-        \$this->db->commit();
-      }
-      catch (Exception \$e) {
-        if (\$this->db->isTransactionActive()) {
-          \$this->db->rollBack();
-        }
-        throw \$e;
-      }
+      \$item = {$moduleName}::find(\$data['id']);
+      \$item->update(\$data);
+      return \$item;
     }
 
     public function drop(array \$input, array \$user)
     {
-      \$check = \$this->checkExist(\$input);
-
-      \$this->db->beginTransaction();
-      try {
-        //? DELETE table
-          \$this->db->createQueryBuilder()
-            ->delete(\$this->tableMain)
-            ->where('id = :id')
-            ->setParameter('id', \$check['id'])
-            ->executeStatement();
-        //? DELETE table
-
-        //? LOG Record
-          \$this->helper->addLog(\$this->db, \$user, \$this->tableMain, (int) \$check['id'], 'DELETE');
-        //? LOG Record
-
-        \$this->db->commit();
-      }
-      catch (Exception \$e) {
-        if (\$this->db->isTransactionActive()) {
-          \$this->db->rollBack();
-        }
-        throw \$e;
-      }
+      return {$moduleName}::destroy(\$param['id']);
     }
   }
   EOD;

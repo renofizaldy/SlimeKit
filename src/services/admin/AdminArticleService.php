@@ -3,7 +3,6 @@
 namespace App\Services\Admin;
 
 use Exception;
-use App\Lib\Database;
 use App\Helpers\General;
 use App\Lib\Cloudinary;
 use App\Lib\Valkey;
@@ -12,22 +11,22 @@ use App\Models\Article;
 
 class AdminArticleService
 {
-  private $db;
   private $helper;
   private $cloudinary;
   private $valkey;
   private $cronhooks;
+
   private $tableMain = 'tb_article';
   private $tableCategory = 'tb_article_category';
   private $tableSeoMeta = 'tb_seo_meta';
   private $tablePicture = 'tb_picture';
   private $tableCronhooks = 'tb_cronhooks';
+
   private $cacheKey = 'article';
   private $cacheExpired = (60 * 30); // 30 minutes
 
   public function __construct()
   {
-    $this->db = (new Database())->getConnection();
     $this->helper = new General;
     $this->cloudinary = new Cloudinary;
     $this->valkey = new Valkey;
@@ -36,12 +35,7 @@ class AdminArticleService
 
   private function checkExist(array $input)
   {
-    $check = $this->db->createQueryBuilder()
-      ->select('*')
-      ->from($this->tableMain)
-      ->where($this->tableMain.'.id = :id')
-      ->setParameter('id', (int) $input['id'])
-      ->fetchAssociative();
+    $check = Article::find($input['id']);
     if (!$check) {
       throw new Exception('Not Found', 404);
     }

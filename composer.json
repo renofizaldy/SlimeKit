@@ -36,9 +36,12 @@
     },
     "scripts": {
         "start": "php -S localhost:8787 -t ./src/public",
-        "migrate": "vendor/bin/doctrine-migrations migrate",
-        "migrate:generate": "vendor/bin/doctrine-migrations generate",
-        "migrate:rollback": "vendor/bin/doctrine-migrations migrate prev",
+        "migrate": "vendor/bin/phinx migrate",
+        "migrate:rollback": "vendor/bin/phinx rollback",
+        "migrate:status": "vendor/bin/phinx status",
+        "make:migration": "vendor/bin/phinx create",
+        "make:seed": "vendor/bin/phinx seed:create",
+        "seed": "vendor/bin/phinx seed:run",
         "make:module:admin": "php assets/make_module_admin.php",
         "make:module:client": "php assets/make_module_client.php"
     }

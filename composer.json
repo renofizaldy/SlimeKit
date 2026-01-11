@@ -42,6 +42,7 @@
         "make:migration": "vendor/bin/phinx create",
         "make:seed": "vendor/bin/phinx seed:create",
         "seed": "vendor/bin/phinx seed:run",
+        "make:model": "php assets/make_model.php",
         "make:module:admin": "php assets/make_module_admin.php",
         "make:module:client": "php assets/make_module_client.php"
     }

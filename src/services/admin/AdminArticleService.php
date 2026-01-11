@@ -3,11 +3,16 @@
 namespace App\Services\Admin;
 
 use Exception;
+use Illuminate\Database\Capsule\Manager as DB;
 use App\Helpers\General;
 use App\Lib\Cloudinary;
 use App\Lib\Valkey;
 use App\Lib\Cronhooks;
+
 use App\Models\Article;
+use App\Models\ArticleCategory;
+use App\Models\Picture;
+use App\Models\SeoMeta;
 
 class AdminArticleService
 {
@@ -15,12 +20,6 @@ class AdminArticleService
   private $cloudinary;
   private $valkey;
   private $cronhooks;
-
-  private $tableMain = 'tb_article';
-  private $tableCategory = 'tb_article_category';
-  private $tableSeoMeta = 'tb_seo_meta';
-  private $tablePicture = 'tb_picture';
-  private $tableCronhooks = 'tb_cronhooks';
 
   private $cacheKey = 'article';
   private $cacheExpired = (60 * 30); // 30 minutes
@@ -44,22 +43,12 @@ class AdminArticleService
 
   public function checkSlug(array $input)
   {
-    $check = $this->db->createQueryBuilder()
-      ->select('id')
-      ->from($this->tableMain)
-      ->where('slug = :slug')
-      ->setParameter('slug', $input['slug']);
-
+    $query = Article::where('slug', $input['slug']);
     if (!empty($input['id'])) {
-      $query = $check->fetchAssociative();
-      if ($query && (int) $query['id'] !== (int) $input['id']) {
-        throw new Exception('Slug already exists', 409);
-      }
-      return true;
+      $query->where('id', '!=', $input['id']);
     }
-
-    if ($check->fetchOne()) {
-      throw new Exception('Slug already exists', 409);
+    if ($query->exists()) {
+      throw new Exception('Slug already exists', 400);
     }
     return true;
   }
@@ -77,66 +66,40 @@ class AdminArticleService
     );
     $cachedData = $this->valkey->get($cacheKey);
     if ($cachedData) {
-      $data = json_decode($cachedData, true);
-      return $data;
+      return json_decode($cachedData, true);
     }
 
-    $queryBuilder = $this->db->createQueryBuilder()
-      ->select(
-        "{$this->tableMain}.*",
-        "{$this->tableCategory}.title AS category_title",
-        "{$this->tableSeoMeta}.seo_keyphrase AS seo_keyphrase",
-        "{$this->tableSeoMeta}.seo_analysis AS seo_analysis",
-        "{$this->tableSeoMeta}.seo_readability AS seo_readability"
-      )
-      ->from($this->tableMain)
-      ->leftJoin(
-        $this->tableMain,
-        $this->tableCategory,
-        $this->tableCategory,
-        "{$this->tableMain}.id_category = {$this->tableCategory}.id"
-      )
-      ->leftJoin(
-        $this->tableMain,
-        $this->tableSeoMeta,
-        $this->tableSeoMeta,
-        "{$this->tableMain}.id = {$this->tableSeoMeta}.id_parent AND {$this->tableSeoMeta}.type = 'article'"
-      );
-
+    //* BUILD QUERY
+    $query = Article::with(['category', 'seoMeta']);
     //? IF FILTER: STATUS
     if ($input['status'] !== 'all') {
-      $queryBuilder->where($this->tableMain.'.status = :status')
-        ->setParameter('status', $input['status']);
+      $query->where('status', $input['status']);
     }
     //? IF FILTER: FEATURED
     if ($input['featured'] !== 'all') {
-      $queryBuilder
-        ->andWhere(":featured = ANY(".$this->tableMain.".featured)")
-        ->setParameter('featured', $input['featured']);
+      $query->whereJsonContains('featured', $input['featured']);
     }
     //? IF FILTER: CATEGORY
     if ($input['category'] !== 'all' && !empty($input['category'])) {
-      $queryBuilder->andWhere($this->tableMain.'.id_category = :category')
-        ->setParameter('category', (int) $input['category']);
+      $query->where('id_category', (int) $input['category']);
     }
-    $query = $queryBuilder->executeQuery()->fetchAllAssociative();
-
-    if (!empty($query)) {
-      foreach ($query as $row) {
-        $data[] = [
-          'id'              => $row['id'],
-          'title'           => $row['title'],
-          'category'        => $row['category_title'],
-          'featured'        => !empty($row['featured']) ? explode(',', trim($row['featured'], '{}')) : [],
-          'status'          => $row['status'],
-          'slug'            => $row['slug'],
-          'author'          => $row['author'],
-          'seo_keyphrase'   => $row['seo_keyphrase'],
-          'seo_analysis'    => $row['seo_analysis'],
-          'seo_readability' => $row['seo_readability'],
-          'publish'         => $row['publish'] ? date('Y-m-d H:i:s', strtotime($row['publish'])) : null
+    $results = $query->orderBy('id', 'desc')->get();
+    if ($results->isNotEmpty()) {
+      $data = $results->map(function ($row) {
+        return [
+          'id'              => $row->id,
+          'title'           => $row->title,
+          'category'        => $row->category ? $row->category->title : null,
+          'featured'        => $row->featured ?? [],
+          'status'          => $row->status,
+          'slug'            => $row->slug,
+          'author'          => $row->author,
+          'seo_keyphrase'   => $row->seoMeta ? $row->seoMeta->seo_keyphrase : null,
+          'seo_analysis'    => $row->seoMeta ? $row->seoMeta->seo_analysis : null,
+          'seo_readability' => $row->seoMeta ? $row->seoMeta->seo_readability : null,
+          'publish'         => $row->publish ? date('Y-m-d H:i:s', strtotime($row->publish)) : null
         ];
-      }
+      })->toArray();
     }
 
     //* SAVE TO CACHE

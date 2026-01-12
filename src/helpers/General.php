@@ -67,7 +67,6 @@ class General
     try {
       $maxSlots     = 5;
 
-      //* NEW
       //* EMPTY CRONJOB
         $crons = CronhooksModel::where('type', 'article')->get();
         foreach ($crons as $cron) {
@@ -128,7 +127,6 @@ class General
       error_log("recomputeCronjobs fatal: " . $e->getMessage());
       return true;
     }
-    //* NEW
   }
 
   public function handleCronjob(Cronhooks $cronhooks, int $articleId, string $slug, string $publish, ?string $existingCronId = null): bool

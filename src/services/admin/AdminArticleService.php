@@ -20,7 +20,6 @@ class AdminArticleService
   private $cloudinary;
   private $valkey;
   private $cronhooks;
-
   private $cacheKey = 'article';
   private $cacheExpired = (60 * 30); // 30 minutes
 
@@ -58,16 +57,17 @@ class AdminArticleService
     $data = [];
 
     //* GENERATE CACHE KEY
-    $cacheKey   = sprintf(
-      "{$this->cacheKey}:admin:list:status=%s:featured=%s:category=%s",
-      $input['status'],
-      $input['featured'],
-      $input['category']
-    );
-    $cachedData = $this->valkey->get($cacheKey);
-    if ($cachedData) {
-      return json_decode($cachedData, true);
-    }
+      $cacheKey   = sprintf(
+        "{$this->cacheKey}:admin:list:status=%s:featured=%s:category=%s",
+        $input['status'],
+        $input['featured'],
+        $input['category']
+      );
+      $cachedData = $this->valkey->get($cacheKey);
+      if ($cachedData) {
+        return json_decode($cachedData, true);
+      }
+    //* GENERATE CACHE KEY
 
     //* BUILD QUERY
     $query = Article::with(['category', 'seoMeta']);

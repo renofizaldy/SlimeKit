@@ -110,87 +110,45 @@ class AdminArticleService
 
   public function detail(array $input)
   {
-    $data = [];
-    $detail = $this->checkExist($input);
+    $article = $this->checkExist($input);
+    $article->load(['category', 'seoMeta', 'picture']);
 
-    $query = $this->db->createQueryBuilder()
-      ->select(
-        $this->tableMain.'.*',
-        $this->tableCategory.'.title AS category_title',
-        $this->tableSeoMeta.'.meta_title',
-        $this->tableSeoMeta.'.meta_description',
-        $this->tableSeoMeta.'.meta_robots',
-        $this->tableSeoMeta.'.seo_keyphrase',
-        $this->tableSeoMeta.'.seo_analysis',
-        $this->tableSeoMeta.'.seo_readability',
-        $this->tablePicture.'.original AS picture_original',
-        $this->tablePicture.'.thumbnail AS picture_thumbnail',
-        $this->tablePicture.'.caption AS picture_caption',
-      )
-      ->from($this->tableMain)
-      ->leftJoin(
-        $this->tableMain,
-        $this->tableCategory,
-        $this->tableCategory,
-        $this->tableMain.'.id_category = '.$this->tableCategory.'.id'
-      )
-      ->leftJoin(
-        $this->tableMain,
-        $this->tableSeoMeta,
-        $this->tableSeoMeta,
-        $this->tableMain.'.id = '.$this->tableSeoMeta.'.id_parent'
-      )
-      ->leftJoin(
-        $this->tableMain,
-        $this->tablePicture,
-        $this->tablePicture,
-        $this->tableMain.'.id_picture = '.$this->tablePicture.'.id'
-      )
-      ->where($this->tableMain.'.id = :id')
-      ->andWhere($this->tableSeoMeta.'.type = :type')
-      ->setParameter('type', 'article')
-      ->setParameter('id', (int) $detail['id'])
-      ->executeQuery()
-      ->fetchAssociative();
-
-    if (!empty($query)) {
-      $data = [
-        'article' => [
-          'id'          => $query['id'],
-          'title'       => $query['title'],
-          'slug'        => $query['slug'],
-          'excerpt'     => $query['excerpt'],
-          'content'     => $query['content'],
-          'author'      => $query['author'],
-          'publish'     => $query['publish'] ? date('Y-m-d H:i:s', strtotime($query['publish'])) : null,
-          'status'      => $query['status'],
-          'featured'    => !empty($query['featured']) ? explode(',', trim($query['featured'], '{}')) : [],
-          'read_time'   => $query['read_time'] ?? 0,
-          'created_at'  => date('Y-m-d H:i:s', strtotime($query['created_at'])),
-          'updated_at'  => date('Y-m-d H:i:s', strtotime($query['updated_at'])),
-        ],
-        'category' => [
-          'id'          => $query['id_category'],
-          'title'       => $query['category_title'],
-        ],
-        'seo' => [
-          'keyphrase'   => $query['seo_keyphrase'],
-          'analysis'    => $query['seo_analysis'],
-          'readability' => $query['seo_readability'],
-        ],
-        'meta' => [
-          'title'       => $query['meta_title'],
-          'description' => $query['meta_description'],
-          'robots'      => $query['meta_robots'],
-        ],
-        'picture' => [
-          'id'          => $query['id_picture'],
-          'original'    => $query['picture_original'],
-          'thumbnail'   => $query['picture_thumbnail'],
-          'caption'     => $query['picture_caption'],
-        ]
-      ];
-    }
+    $data = [
+      'article' => [
+        'id'            => $article->id,
+        'title'         => $article->title,
+        'slug'          => $article->slug,
+        'excerpt'       => $article->excerpt,
+        'content'       => $article->content,
+        'author'        => $article->author,
+        'publish'       => $article->publish ? date('Y-m-d H:i:s', strtotime($article->publish)) : null,
+        'status'        => $article->status,
+        'featured'      => $article->featured ?? [],
+        'read_time'     => $article->read_time ?? 0,
+        'created_at'    => $article->created_at ? $article->created_at->format('Y-m-d H:i:s') : null,
+        'updated_at'    => $article->updated_at ? $article->updated_at->format('Y-m-d H:i:s') : null,
+      ],
+      'category' => [
+        'id'            => $article->id_category,
+        'title'         => $article->category->title ?? null,
+      ],
+      'seo' => [
+        'keyphrase'     => $article->seoMeta->seo_keyphrase ?? null,
+        'analysis'      => $article->seoMeta->seo_analysis ?? null,
+        'readability'   => $article->seoMeta->seo_readability ?? null,
+      ],
+      'meta' => [
+        'title'         => $article->seoMeta->meta_title ?? null,
+        'description'   => $article->seoMeta->meta_description ?? null,
+        'robots'        => $article->seoMeta->meta_robots ?? null,
+      ],
+      'picture' => [
+        'id'            => $article->id_picture,
+        'original'      => $article->picture->original ?? null,
+        'thumbnail'     => $article->picture->thumbnail ?? null,
+        'caption'       => $article->picture->caption ?? null,
+      ]
+    ];
 
     return $data;
   }
@@ -199,105 +157,58 @@ class AdminArticleService
   {
     $this->checkSlug($input);
 
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? PICTURE UPLOAD
-        $picture_id = $this->helper->pictureUpload($this->db, $this->cloudinary, $input['picture'] ?? null, $input['picture_caption'] ?? null);
-      //? PICTURE UPLOAD
+      $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null, $input['picture_caption'] ?? null);
 
-      //? INSERT TO tableMain
-        $this->db->createQueryBuilder()
-          ->insert($this->tableMain)
-          ->values([
-            'title'       => ':title',
-            'slug'        => ':slug',
-            'excerpt'     => ':excerpt',
-            'content'     => ':content',
-            'id_picture'  => ':id_picture',
-            'id_category' => ':id_category',
-            'author'      => ':author',
-            'publish'     => ':publish',
-            'status'      => ':status',
-            'featured'    => ':featured',
-            'read_time'   => ':read_time',
-            'created_at'  => ':created_at',
-            'updated_at'  => ':updated_at'
-          ])
-          ->setParameters([
-            'title'       => $input['title'],
-            'slug'        => $input['slug'],
-            'excerpt'     => $input['excerpt'] ?? null,
-            'content'     => $input['content'] ?? null,
-            'id_picture'  => $picture_id['id'] ?? null,
-            'id_category' => !empty($input['category']) ? (int)$input['category'] : null,
-            'author'      => $input['author'] ?? null,
-            'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
-            'status'      => $input['status'],
-            'featured'    => !empty($input['featured']) ? '{' . implode(',', $input['featured']) . '}' : null,
-            'read_time'   => $input['read_time'] ?? 0,
-            'created_at'  => date('Y-m-d H:i:s'),
-            'updated_at'  => date('Y-m-d H:i:s')
-          ])
-          ->executeStatement();
-        $lastTableMainId = $this->db->lastInsertId();
-      //? INSERT TO tableMain
+      //? INSERT TO tableMain (Article)
+      $article = Article::create([
+        'title'       => $input['title'],
+        'slug'        => $input['slug'],
+        'excerpt'     => $input['excerpt'] ?? null,
+        'content'     => $input['content'] ?? null,
+        'id_picture'  => $picture_id['id'] ?? null,
+        'id_category' => !empty($input['category']) ? (int)$input['category'] : null,
+        'author'      => $input['author'] ?? null,
+        'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
+        'status'      => $input['status'],
+        'featured'    => $input['featured'] ?? [],
+        'read_time'   => $input['read_time'] ?? 0,
+      ]);
 
       //? INSERT TO tableSeoMeta
-        $this->db->createQueryBuilder()
-          ->insert($this->tableSeoMeta)
-          ->values([
-            'id_parent'        => ':id_parent',
-            'type'             => ':type',
-            'meta_title'       => ':meta_title',
-            'meta_description' => ':meta_description',
-            'meta_robots'      => ':meta_robots',
-            'seo_keyphrase'    => ':seo_keyphrase',
-            'seo_analysis'     => ':seo_analysis',
-            'seo_readability'  => ':seo_readability',
-            'created_at'       => ':created_at',
-            'updated_at'       => ':updated_at'
-          ])
-          ->setParameters([
-            'id_parent'        => $lastTableMainId,
-            'type'             => 'article',
-            'meta_title'       => $input['meta_title'] ?? null,
-            'meta_description' => $input['meta_description'] ?? null,
-            'meta_robots'      => $input['meta_robots'] ?? null,
-            'seo_keyphrase'    => $input['seo_keyphrase'] ?? null,
-            'seo_analysis'     => $input['seo_analysis'] ?? null,
-            'seo_readability'  => $input['seo_readability'] ?? null,
-            'created_at'       => date('Y-m-d H:i:s'),
-            'updated_at'       => date('Y-m-d H:i:s')
-          ])
-          ->executeStatement();
-        $lastTableSeoMetaId = $this->db->lastInsertId();
-      //? INSERT TO tableSeoMeta
+      SeoMeta::create([
+        'id_parent'        => $article->id,
+        'type'             => 'article',
+        'meta_title'       => $input['meta_title'] ?? null,
+        'meta_description' => $input['meta_description'] ?? null,
+        'meta_robots'      => $input['meta_robots'] ?? null,
+        'seo_keyphrase'    => $input['seo_keyphrase'] ?? null,
+        'seo_analysis'     => $input['seo_analysis'] ?? null,
+        'seo_readability'  => $input['seo_readability'] ?? null,
+      ]);
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, $lastTableMainId, 'INSERT');
-      //? LOG Record
+      $this->helper->addLog($user, 'tb_article', $article->id, 'INSERT');
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
-      //? DELETE CACHE
+      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
+      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
 
-      $this->db->commit();
+      DB::commit();
 
       //? CHANGE CRONJOB
-        if (!empty($input['publish']) && $input['publish'] > date('Y-m-d H:i:s')) {
-          $this->helper->recomputeCron($this->db, $this->cronhooks);
-        }
-      //? CHANGE CRONJOB
+      if (!empty($input['publish']) && $input['publish'] > date('Y-m-d H:i:s')) {
+        $this->helper->recomputeCron($this->cronhooks);
+      }
 
       return [
-        'id' => $lastTableMainId
+        'id' => $article->id
       ];
-    }
-    catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+
+    } catch (Exception $e) {
+      DB::rollBack();
       throw $e;
     }
   }

@@ -31,7 +31,7 @@ if (!file_exists($modelPath)) {
   class {$moduleName} extends Model {
     protected \$table = 'table_name';
     protected \$guarded = ['id'];
-    public \$timestamps = true; // If created_at & updated_at
+    public \$timestamps = true;
   }
   EOD;
 

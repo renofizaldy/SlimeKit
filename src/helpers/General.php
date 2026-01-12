@@ -4,58 +4,44 @@ namespace App\Helpers;
 
 use Exception;
 use DateTime;
-use Doctrine\DBAL\Connection;
 use App\Lib\Cloudinary;
 use App\Lib\Mailer;
 use App\Lib\Cronhooks;
+
+use App\Models\Log;
+use App\Models\Picture;
+use App\Models\Cronhooks as CronhooksModel;
+use App\Models\Article;
+use Illuminate\Support\Carbon;
 
 class General
 {
   public function __construct()
   {}
 
-  public function addLog(Connection $db, array $user, string $table_name, int $id_record, string $action, array $changes = []): void
+  public function addLog(array $user, string $table_name, int $id_record, string $action, array $changes = []): void
   {
-    $db->createQueryBuilder()
-      ->insert('tb_log')
-      ->values([
-        'id_user'    => ':id_user',
-        'table_name' => ':table_name',
-        'id_record'  => ':id_record',
-        'action'     => ':action',
-        'changes'    => ':changes',
-        'ip_address' => ':ip_address',
-        'user_agent' => ':user_agent',
-        'created_at' => ':created_at',
-        'updated_at' => ':updated_at'
-      ])
-      ->setParameters([
-        'id_user'    => $user['user']->id ?? null,
-        'table_name' => $table_name,
-        'id_record'  => $id_record,
-        'action'     => $action,
-        'changes'    => json_encode($changes, JSON_UNESCAPED_UNICODE),
-        'ip_address' => $user['ip_address'],
-        'user_agent' => $user['user_agent'],
-        'created_at' => date('Y-m-d H:i:s'),
-        'updated_at' => date('Y-m-d H:i:s')
-      ])
-      ->executeStatement();
+    $userId = $user['user']->id ?? ($user['user']['id'] ?? null);
+    Log::create([
+      'id_user'    => $userId,
+      'table_name' => $table_name,
+      'id_record'  => $id_record,
+      'action'     => $action,
+      'changes'    => $changes,
+      'ip_address' => $user['ip_address'] ?? null,
+      'user_agent' => $user['user_agent'] ?? null,
+    ]);
   }
 
-  public function pictureUpload(Connection $db, Cloudinary $cloudinary, $file, $caption=null): ?array
+  public function pictureUpload(Cloudinary $cloudinary, $file, $caption=null): ?array
   {
-    if (empty($file)) {
-      return null;
-    }
+    if (empty($file)) return null;
 
-    // Upload to Cloudinary
     $upload = $cloudinary->upload($file);
     if (!$upload) {
       throw new Exception('Failed to upload photo', 409);
     }
 
-    // Generate thumbnail URL
     $thumbnail = substr_replace(
       $upload['secure_url'],
       "c_thumb,w_600/",
@@ -63,173 +49,115 @@ class General
       0
     );
 
-    // Save to database
-    $db->createQueryBuilder()
-      ->insert('tb_picture')
-      ->values([
-        'id_cloud'   => ':id_cloud',
-        'original'   => ':original',
-        'thumbnail'  => ':thumbnail',
-        'caption'    => ':caption',
-        'created_at' => ':created_at'
-      ])
-      ->setParameter('id_cloud', $upload['public_id'])
-      ->setParameter('original', $upload['secure_url'])
-      ->setParameter('thumbnail', $thumbnail)
-      ->setParameter('caption', $caption)
-      ->setParameter('created_at', date('Y-m-d H:i:s'))
-      ->executeStatement();
+    $picture = Picture::create([
+      'id_cloud'   => $upload['public_id'],
+      'original'   => $upload['secure_url'],
+      'thumbnail'  => $thumbnail,
+      'caption'    => $caption,
+    ]);
 
     return [
-      'id'  => $db->lastInsertId(),
+      'id'  => $picture->id,
       'url' => $upload['secure_url']
     ];
   }
 
-  public function recomputeCron(Connection $db, Cronhooks $cronhooks): bool
+  public function recomputeCron(Cronhooks $cronhooks): bool
   {
     try {
       $maxSlots     = 5;
-      $tb_article   = 'tb_article';
-      $tb_cronhooks = 'tb_cronhooks';
 
+      //* NEW
       //* EMPTY CRONJOB
-        //? Pilih semua data di tb_cronhooks yang terkait dengan artikel di site ini
-        $qryCronToDrop =  $db->createQueryBuilder()
-          ->select($tb_cronhooks.'.*')
-          ->from($tb_cronhooks)
-          ->innerJoin(
-            $tb_cronhooks,
-            $tb_article,
-            $tb_article,
-            $tb_article.'.id = '.$tb_cronhooks.'.id_parent'
-          )
-          ->where($tb_cronhooks.'.type = :type')
-          ->setParameters([
-            'type' => 'article',
-          ])
-          ->executeQuery()
-          ->fetchAllAssociative();
-        if (!empty($qryCronToDrop)) {
-          foreach ($qryCronToDrop as $cron) {
-            //? Hapus dari Cronhooks
-            if (!empty($cron['id_cronhooks'])) {
-              try {
-                $cronhooks->deleteSchedule($cron['id_cronhooks']);
-              } catch (\Throwable $e) {
-                error_log("recomputeCron: failed to delete cron " . $cron['id_cronhooks'] . ": " . $e->getMessage());
-              }
-            }
-            //? Hapus dari database
-            $dropCron = $db->createQueryBuilder()
-              ->delete($tb_cronhooks)
-              ->where($tb_cronhooks.'.id = :id')
-              ->setParameter('id', $cron['id'])
-              ->executeStatement();
-            if (!$dropCron) {
-              error_log("recomputeCron: failed to drop cron " . $cron['id_cronhooks']);
+        $crons = CronhooksModel::where('type', 'article')->get();
+        foreach ($crons as $cron) {
+          //? Hapus dari External Cronhooks Service
+          if (!empty($cron->id_cronhooks)) {
+            try {
+              $cronhooks->deleteSchedule($cron->id_cronhooks);
+            } catch (\Throwable $e) {
+              error_log("recomputeCron: failed to delete cron " . $cron->id_cronhooks . ": " . $e->getMessage());
             }
           }
+          //? Hapus dari database lokal (Eloquent delete)
+          $cron->delete();
         }
       //* EMPTY CRONJOB
 
       //* RESCHEDULE ARTICLE
-        //? Ambil artikel yang belum ada cron dan publish > NOW()
-        $qryArticleNext = $db->createQueryBuilder()
-          ->select('*')
-          ->from($tb_article)
-          ->where($tb_article.'.publish > :now')
-          ->andWhere($tb_article.'.status = :status')
-          ->orderBy($tb_article.'.publish', 'ASC')
-          ->setParameters([
-            'now'    => date('Y-m-d H:i:s', strtotime('+1 minute')),
-            'status' => 'inactive'
-          ])
-          ->executeQuery()
-          ->fetchAllAssociative();
-        if (!empty($qryArticleNext)) {
-          $count = 0;
-          foreach ($qryArticleNext as $article) {
-            $cronId = null;
-            //? Buat cron hanya untuk slot terbatas
-            if ($count < $maxSlots) {
-              $cron = $cronhooks->createSchedule(
-                $article['publish'],
-                [
-                  'title'    => 'Publish Artikel #' . $article['id'],
-                  'timezone' => 'Asia/Jakarta',
-                  'method'   => 'POST',
-                  'payload'  => [
-                    'slug' => $article['slug']
-                  ]
-                ]
-              );
-              $cronId = $cron ? $cron['id'] : null;
-            }
-            //? Simpan semua ke tb_cronhooks
-            $qrySaveToCron = $db->createQueryBuilder()
-              ->insert($tb_cronhooks)
-              ->values([
-                'id_parent'    => ':id_parent',
-                'type'         => ':type',
-                'id_cronhooks' => ':id_cronhooks'
-              ])
-              ->setParameters([
-                'id_parent'    => $article['id'],
-                'type'         => 'article',
-                'id_cronhooks' => $cronId
-              ])
-              ->executeStatement();
-            if (!$qrySaveToCron) {
-              error_log("recomputeCron: failed to save cron for article #" . $article['id']);
-              continue;
-            }
-            $count++;
+        //? Ambil artikel yang: publish > (NOW + 1 menit) AND status = inactive
+        $articles = Article::where('publish', '>', Carbon::now()->addMinute())
+          ->where('status', 'inactive')
+          ->orderBy('publish', 'ASC')
+          ->limit($maxSlots)
+          ->get();
+
+        foreach ($articles as $article) {
+          $cronId = null;
+
+          //? Create Schedule di External Service
+          $cronData = $cronhooks->createSchedule(
+            $article->publish,
+            [
+              'title'    => 'Publish Artikel #' . $article->id,
+              'timezone' => 'Asia/Jakarta',
+              'method'   => 'POST',
+              'payload'  => [
+                'slug' => $article->slug
+              ]
+            ]
+          );
+          $cronId = $cronData['id'] ?? null;
+
+          //? Simpan ke tb_cronhooks via Eloquent
+          try {
+            CronhooksModel::create([
+              'id_parent'    => $article->id,
+              'type'         => 'article',
+              'id_cronhooks' => $cronId
+            ]);
+          } catch (\Throwable $e) {
+            error_log("recomputeCron: failed to save cron for article #" . $article->id);
+            continue;
           }
         }
       //* RESCHEDULE ARTICLE
 
       return true;
-    }
-    catch (\Throwable $e) {
+    } catch (\Throwable $e) {
       error_log("recomputeCronjobs fatal: " . $e->getMessage());
       return true;
     }
+    //* NEW
   }
 
-  public function handleCronjob(Connection $db, Cronhooks $cronhooks, int $articleId, string $slug, string $publish, ?string $existingCronId = null): bool
+  public function handleCronjob(Cronhooks $cronhooks, int $articleId, string $slug, string $publish, ?string $existingCronId = null): bool
   {
     try {
-      // Hapus cron lama kalau ada
+      //* 1. Hapus cron lama kalau ada
       if (!empty($existingCronId)) {
         try {
-          // hapus dari Cronhooks
+          //? Hapus dari Cronhooks Service
           $cronhooks->deleteSchedule($existingCronId);
 
-          // hapus dari database
-          $db->createQueryBuilder()
-            ->delete('tb_cronhooks')
-            ->where('id_parent = :id_parent')
-            ->andWhere('type = :type')
-            ->setParameters([
-              'id_parent' => $articleId,
-              'type'      => 'article'
-            ])
-            ->executeStatement();
-        }
-        catch (\Throwable $e) {
-          // diamkan saja, biar tidak ganggu flow
+          //? Hapus dari database lokal
+          CronhooksModel::where('id_parent', $articleId)
+            ->where('type', 'article')
+            ->delete();
+        } catch (\Throwable $e) {
         }
       }
 
-      // Hanya buat cron kalau publish time di masa depan
-      $publishTime = date('Y-m-d H:i:s', strtotime($publish));
-      if (strtotime($publishTime) > time()) {
-        // Buat cron baru
+      //* 2. Hanya buat cron kalau publish time di masa depan
+      //? Gunakan Carbon untuk perbandingan waktu yang lebih robust
+      $publishTime = Carbon::parse($publish);
+
+      if ($publishTime->isFuture()) {
+        //? Buat cron baru di Service
         $cron = $cronhooks->createSchedule(
-          $publishTime,
+          $publishTime->format('Y-m-d H:i:s'),
           [
-            'title'    => 'Publish Artikel #'.$articleId,
+            'title'    => 'Publish Artikel #' . $articleId,
             'timezone' => 'Asia/Jakarta',
             'method'   => 'POST',
             'payload'  => [
@@ -239,27 +167,17 @@ class General
         );
 
         if (!empty($cron['id'])) {
-          // Simpan ke DB
-          $db->createQueryBuilder()
-            ->insert('tb_cronhooks')
-            ->values([
-              'id_parent'    => ':id_parent',
-              'type'         => ':type',
-              'id_cronhooks' => ':id_cronhooks',
-            ])
-            ->setParameters([
-              'id_parent'    => $articleId,
-              'type'         => 'article',
-              'id_cronhooks' => $cron['id']
-            ])
-            ->executeStatement();
+          //? Simpan ke DB via Eloquent
+          CronhooksModel::create([
+            'id_parent'    => $articleId,
+            'type'         => 'article',
+            'id_cronhooks' => $cron['id']
+          ]);
         }
       }
 
       return true;
-    }
-    catch (\Throwable $e) {
-      // diamkan juga
+    } catch (\Throwable $e) {
       return false;
     }
   }

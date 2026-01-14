@@ -3,9 +3,11 @@
 namespace App\Services\Admin;
 
 use Exception;
-use App\Lib\Database;
+use Illuminate\Database\Capsule\Manager as DB;
 use App\Helpers\General;
 use App\Lib\Cloudinary;
+
+use App\Models\ContentContact;
 
 class AdminContentContactService
 {
@@ -16,19 +18,13 @@ class AdminContentContactService
 
   public function __construct()
   {
-    $this->db = (new Database())->getConnection();
     $this->helper = new General;
     $this->cloudinary = new Cloudinary;
   }
 
   private function checkExist(array $input)
   {
-    $check = $this->db->createQueryBuilder()
-      ->select('*')
-      ->from($this->tableMain)
-      ->where('id = :id')
-      ->setParameter('id', (int) $input['id'])
-      ->fetchAssociative();
+    $check = ContentContact::where('id', (int) $input['id'])->first();
     if (!$check) {
       throw new Exception('Not Found', 404);
     }
@@ -37,79 +33,50 @@ class AdminContentContactService
 
   public function list(array $input)
   {
-    $data = [];
-
-    $query = $this->db->createQueryBuilder()
-      ->select('*')
-      ->from($this->tableMain)
-      ->executeQuery()
-      ->fetchAllAssociative();
-
-    if (!empty($query)) {
-      $data = $query;
-    }
-
-    return $data;
+    return ContentContact::all()->toArray();
   }
 
   public function add(array $input, array $user)
   {
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? INSERT TO table
-        $this->db->createQueryBuilder()
-          ->insert($this->tableMain)
-          ->setValue('name', ':name')
-          ->setValue('value', ':value')
-          ->setValue('created_at', ':created_at')
-          ->setValue('updated_at', ':updated_at')
-          ->setParameter('name', $input['name'])
-          ->setParameter('value', $input['value'])
-          ->setParameter('created_at', date('Y-m-d H:i:s'))
-          ->setParameter('updated_at', date('Y-m-d H:i:s'))
-          ->executeStatement();
+        $insert = ContentContact::create([
+          'name'  => $input['name'],
+          'value' => $input['value'],
+        ]);
       //? INSERT TO table
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, $this->db->lastInsertId(), 'INSERT');
+        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT');
       //? LOG Record
 
-      $this->db->commit();
+      DB::commit();
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
 
   public function edit(array $input, array $user)
   {
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? UPDATE ON table
-        $update = $this->db->createQueryBuilder()
-          ->update($this->tableMain)
-          ->set('value', ':value')
-          ->set('updated_at', ':updated_at')
-          ->where('id = :id')
-          ->setParameter('value', $input['value'])
-          ->setParameter('updated_at', date('Y-m-d H:i:s'))
-          ->setParameter('id', (int) $input['id']);
-        $update->executeStatement();
+        ContentContact::where('id', (int) $input['id'])->update([
+          'value' => $input['value']
+        ]);
       //? UPDATE ON table
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $input['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE');
       //? LOG Record
 
-      $this->db->commit();
+      DB::commit();
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
@@ -117,27 +84,18 @@ class AdminContentContactService
   public function drop(array $input, array $user)
   {
     $check = $this->checkExist($input);
-
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? DELETE table
-      $this->db->createQueryBuilder()
-        ->delete($this->tableMain)
-        ->where('id = :id')
-        ->setParameter('id', $check['id'])
-        ->executeStatement();
+        ContentContact::where('id', (int) $check->id)->delete();
       //? DELETE table
-
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $check['id'], 'DELETE');
+        $this->helper->addLog($user, $this->tableMain, (int) $check->id, 'DELETE');
       //? LOG Record
-
-      $this->db->commit();
+      DB::commit();
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }

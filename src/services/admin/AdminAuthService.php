@@ -3,17 +3,17 @@
 namespace App\Services\Admin;
 
 use Exception;
-use App\Lib\Database;
+use Illuminate\Database\Capsule\Manager as DB;
 use App\Helpers\General;
+use App\Models\User;
+use App\Models\UserRole;
 
 class AdminAuthService
 {
-  private $db;
   private $helper;
 
   public function __construct()
   {
-    $this->db = (new Database())->getConnection();
     $this->helper = new General;
   }
 
@@ -22,45 +22,29 @@ class AdminAuthService
     //* CHECK USER
       $username = filter_var($input['username'], FILTER_SANITIZE_FULL_SPECIAL_CHARS);
       $password = $input['password'];
-      $query    = $this->db->createQueryBuilder()
-        ->select('
-          tb_user.*,
-          tb_user_role.label as label,
-          tb_user_role.role as role'
-        )
-        ->from('tb_user')
-        ->innerJoin(
-          'tb_user',
-          'tb_user_role',
-          'tb_user_role',
-          'tb_user.id_user_role = tb_user_role.id'
-        )
-        ->where('username = :username')
-        ->andWhere('status = :status')
-        ->setParameter('username', $username)
-        ->setParameter('status', 'active');
-      $getData = $query->executeQuery()->fetchAssociative();
-      if (!$getData || !password_verify($password, $getData['password'])) {
+      $user     = User::with('userRole')
+        ->where('username', $username)
+        ->where('status', 'active')
+        ->first();
+      if (!$user || !password_verify($password, $user->password)) {
         throw new Exception('Username atau password salah', 401);
       }
+      $getData          = $user->toArray();
+      $getData['label'] = $user->userRole->label ?? null;
+      $getData['role']  = $user->userRole->role ?? null;
     //* CHECK USER
 
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //* SET LAST LOGIN
-        $this->db->update('tb_user', ['last_login' => date('Y-m-d H:i:s')], ['id' => $getData['id']]);
+        $user->update(['last_login' => date('Y-m-d H:i:s')]);
       //* SET LAST LOGIN
 
       //* GET ROLE
-        $queryPeran = $this->db->createQueryBuilder()
-          ->select('role')
-          ->from('tb_user_role')
-          ->where('id = :id')
-          ->setParameter('id', $getData['id_user_role']);
-        $getPeran = $queryPeran->executeQuery()->fetchOne();
+        $getPeran = UserRole::where('id', $getData['id_user_role'])->value('role');
       //* GET ROLE
 
-      $this->db->commit();
+      DB::commit();
 
       return [
         'user' => $getData,
@@ -68,37 +52,23 @@ class AdminAuthService
       ];
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
 
   public function auth(array $input)
   {
-    $users = $this->db->createQueryBuilder()
-      ->select('
-        tb_user.*,
-        tb_user_role.label as label,
-        tb_user_role.role as role'
-      )
-      ->from('tb_user')
-      ->innerJoin(
-        'tb_user',
-        'tb_user_role',
-        'tb_user_role',
-        'tb_user.id_user_role = tb_user_role.id'
-      )
-      ->where('tb_user.id = :staff_id')
-      ->andWhere('tb_user.status = :status')
-      ->setParameter('staff_id', $input['user_id'])
-      ->setParameter('status', 'active')
-      ->executeQuery()
-      ->fetchAssociative();
-    if (!$users) {
+    $user = User::with('userRole')
+      ->where('id', $input['user_id'])
+      ->where('status', 'active')
+      ->first();
+    if (!$user) {
       throw new Exception('Unauthenticated', 401);
     }
+    $users = $user->toArray();
+    $users['label'] = $user->userRole->label ?? null;
+    $users['role']  = $user->userRole->role ?? null;
     return $users;
   }
 }

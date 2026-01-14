@@ -10,7 +10,6 @@ use App\Lib\Valkey;
 use App\Lib\Cronhooks;
 
 use App\Models\Article;
-use App\Models\ArticleCategory;
 use App\Models\Picture;
 use App\Models\SeoMeta;
 
@@ -20,6 +19,7 @@ class AdminArticleService
   private $cloudinary;
   private $valkey;
   private $cronhooks;
+  private $tableMain = 'tb_article';
   private $cacheKey = 'article';
   private $cacheExpired = (60 * 30); // 30 minutes
 
@@ -34,6 +34,18 @@ class AdminArticleService
   private function checkExist(array $input)
   {
     $check = Article::find($input['id']);
+    if (!$check) {
+      throw new Exception('Not Found', 404);
+    }
+    return $check;
+  }
+
+  private function checkMeta(array $input)
+  {
+    $check = SeoMeta::where([
+      'id_parent' => (int) $input['id'],
+      'type'      => 'article'
+    ])->first();
     if (!$check) {
       throw new Exception('Not Found', 404);
     }
@@ -110,43 +122,44 @@ class AdminArticleService
 
   public function detail(array $input)
   {
-    $article = $this->checkExist($input);
-    $article->load(['category', 'seoMeta', 'picture']);
+    $data = [];
+    $detail = $this->checkExist($input);
+    $detail->load(['category', 'seoMeta', 'picture']);
 
     $data = [
       'article' => [
-        'id'            => $article->id,
-        'title'         => $article->title,
-        'slug'          => $article->slug,
-        'excerpt'       => $article->excerpt,
-        'content'       => $article->content,
-        'author'        => $article->author,
-        'publish'       => $article->publish ? date('Y-m-d H:i:s', strtotime($article->publish)) : null,
-        'status'        => $article->status,
-        'featured'      => $article->featured ?? [],
-        'read_time'     => $article->read_time ?? 0,
-        'created_at'    => $article->created_at ? $article->created_at->format('Y-m-d H:i:s') : null,
-        'updated_at'    => $article->updated_at ? $article->updated_at->format('Y-m-d H:i:s') : null,
+        'id'            => $detail->id,
+        'title'         => $detail->title,
+        'slug'          => $detail->slug,
+        'excerpt'       => $detail->excerpt,
+        'content'       => $detail->content,
+        'author'        => $detail->author,
+        'publish'       => $detail->publish ? date('Y-m-d H:i:s', strtotime($detail->publish)) : null,
+        'status'        => $detail->status,
+        'featured'      => $detail->featured ?? [],
+        'read_time'     => $detail->read_time ?? 0,
+        'created_at'    => $detail->created_at ? $detail->created_at->format('Y-m-d H:i:s') : null,
+        'updated_at'    => $detail->updated_at ? $detail->updated_at->format('Y-m-d H:i:s') : null,
       ],
       'category' => [
-        'id'            => $article->id_category,
-        'title'         => $article->category->title ?? null,
+        'id'            => $detail->id_category,
+        'title'         => $detail->category->title ?? null,
       ],
       'seo' => [
-        'keyphrase'     => $article->seoMeta->seo_keyphrase ?? null,
-        'analysis'      => $article->seoMeta->seo_analysis ?? null,
-        'readability'   => $article->seoMeta->seo_readability ?? null,
+        'keyphrase'     => $detail->seoMeta->seo_keyphrase ?? null,
+        'analysis'      => $detail->seoMeta->seo_analysis ?? null,
+        'readability'   => $detail->seoMeta->seo_readability ?? null,
       ],
       'meta' => [
-        'title'         => $article->seoMeta->meta_title ?? null,
-        'description'   => $article->seoMeta->meta_description ?? null,
-        'robots'        => $article->seoMeta->meta_robots ?? null,
+        'title'         => $detail->seoMeta->meta_title ?? null,
+        'description'   => $detail->seoMeta->meta_description ?? null,
+        'robots'        => $detail->seoMeta->meta_robots ?? null,
       ],
       'picture' => [
-        'id'            => $article->id_picture,
-        'original'      => $article->picture->original ?? null,
-        'thumbnail'     => $article->picture->thumbnail ?? null,
-        'caption'       => $article->picture->caption ?? null,
+        'id'            => $detail->id_picture,
+        'original'      => $detail->picture->original ?? null,
+        'thumbnail'     => $detail->picture->thumbnail ?? null,
+        'caption'       => $detail->picture->caption ?? null,
       ]
     ];
 
@@ -160,51 +173,58 @@ class AdminArticleService
     DB::beginTransaction();
     try {
       //? PICTURE UPLOAD
-      $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null, $input['picture_caption'] ?? null);
+        $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null, $input['picture_caption'] ?? null);
+      //? PICTURE UPLOAD
 
       //? INSERT TO tableMain (Article)
-      $article = Article::create([
-        'title'       => $input['title'],
-        'slug'        => $input['slug'],
-        'excerpt'     => $input['excerpt'] ?? null,
-        'content'     => $input['content'] ?? null,
-        'id_picture'  => $picture_id['id'] ?? null,
-        'id_category' => !empty($input['category']) ? (int)$input['category'] : null,
-        'author'      => $input['author'] ?? null,
-        'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
-        'status'      => $input['status'],
-        'featured'    => $input['featured'] ?? [],
-        'read_time'   => $input['read_time'] ?? 0,
-      ]);
+        $article = Article::create([
+          'title'       => $input['title'],
+          'slug'        => $input['slug'],
+          'excerpt'     => $input['excerpt'] ?? null,
+          'content'     => $input['content'] ?? null,
+          'id_picture'  => $picture_id['id'] ?? null,
+          'id_category' => !empty($input['category']) ? (int)$input['category'] : null,
+          'author'      => $input['author'] ?? null,
+          'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
+          'status'      => $input['status'],
+          'featured'    => !empty($input['featured']) ? $input['featured'] : null,
+          'read_time'   => $input['read_time'] ?? 0,
+        ]);
+        $lastTableMainId = $article->id;
+      //? INSERT TO tableMain (Article)
 
       //? INSERT TO tableSeoMeta
-      SeoMeta::create([
-        'id_parent'        => $article->id,
-        'type'             => 'article',
-        'meta_title'       => $input['meta_title'] ?? null,
-        'meta_description' => $input['meta_description'] ?? null,
-        'meta_robots'      => $input['meta_robots'] ?? null,
-        'seo_keyphrase'    => $input['seo_keyphrase'] ?? null,
-        'seo_analysis'     => $input['seo_analysis'] ?? null,
-        'seo_readability'  => $input['seo_readability'] ?? null,
-      ]);
+        SeoMeta::create([
+          'id_parent'        => $lastTableMainId,
+          'type'             => 'article',
+          'meta_title'       => $input['meta_title'] ?? null,
+          'meta_description' => $input['meta_description'] ?? null,
+          'meta_robots'      => $input['meta_robots'] ?? null,
+          'seo_keyphrase'    => $input['seo_keyphrase'] ?? null,
+          'seo_analysis'     => $input['seo_analysis'] ?? null,
+          'seo_readability'  => $input['seo_readability'] ?? null,
+        ]);
+      //? INSERT TO tableSeoMeta
 
       //? LOG Record
-      $this->helper->addLog($user, 'tb_article', $article->id, 'INSERT');
+        $this->helper->addLog($user, $this->tableMain, $lastTableMainId, 'INSERT');
+      //? LOG Record
 
       //? DELETE CACHE
-      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
-      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
+      //? DELETE CACHE
 
       DB::commit();
 
       //? CHANGE CRONJOB
-      if (!empty($input['publish']) && $input['publish'] > date('Y-m-d H:i:s')) {
-        $this->helper->recomputeCron($this->cronhooks);
-      }
+        if (!empty($input['publish']) && $input['publish'] > date('Y-m-d H:i:s')) {
+          $this->helper->recomputeCron($this->cronhooks);
+        }
+      //? CHANGE CRONJOB
 
       return [
-        'id' => $article->id
+        'id' => $lastTableMainId
       ];
 
     } catch (Exception $e) {
@@ -218,79 +238,44 @@ class AdminArticleService
     $this->checkSlug($input);
     $check = $this->checkExist($input);
 
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? PICTURE UPLOAD
-        $picture_id = $this->helper->pictureUpload($this->db, $this->cloudinary, $input['picture'] ?? null);
+        $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null);
       //? PICTURE UPLOAD
 
       //? UPDATE ON tableMain
-        $update = $this->db->createQueryBuilder()
-          ->update($this->tableMain)
-          ->set('title', ':title')
-          ->set('slug', ':slug')
-          ->set('excerpt', ':excerpt')
-          ->set('content', ':content')
-          ->set('id_category', ':id_category')
-          ->set('author', ':author')
-          ->set('publish', ':publish')
-          ->set('status', ':status')
-          ->set('featured', ':featured')
-          ->set('read_time', ':read_time')
-          ->set('updated_at', ':updated_at')
-          ->where('id = :id')
-          ->setParameters([
-            'id'          => (int) $input['id'],
-            'title'       => $input['title'],
-            'slug'        => $input['slug'],
-            'excerpt'     => $input['excerpt'] ?? null,
-            'content'     => $input['content'] ?? null,
-            'id_category' => !empty($input['category']) ? $input['category'] : null,
-            'author'      => $input['author'] ?? null,
-            'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
-            'status'      => $input['status'],
-            'featured'    => !empty($input['featured']) ? '{' . implode(',', $input['featured']) . '}' : null,
-            'read_time'   => $input['read_time'] ?? 0,
-            'updated_at'  => date('Y-m-d H:i:s'),
-          ]);
+        $updateData = [
+          'title'       => $input['title'],
+          'slug'        => $input['slug'],
+          'excerpt'     => $input['excerpt'] ?? null,
+          'content'     => $input['content'] ?? null,
+          'id_category' => !empty($input['category']) ? $input['category'] : null,
+          'author'      => $input['author'] ?? null,
+          'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
+          'status'      => $input['status'],
+          'featured'    => !empty($input['featured']) ? $input['featured'] : null,
+          'read_time'   => $input['read_time'] ?? 0,
+          'updated_at'  => date('Y-m-d H:i:s'),
+        ];
         if (!empty($picture_id['id'])) {
-          $update->set('id_picture', ':id_picture')
-            ->setParameter('id_picture', $picture_id['id']);
+          $updateData['id_picture'] = $picture_id['id'];
         }
-        $update->executeStatement();
+        Article::where('id', (int) $input['id'])->update($updateData);
       //? UPDATE ON tableMain
 
       //? UPDATE ON tablePicture
         if (empty($picture_id['id']) && !empty($input['picture_caption'])) {
-          $this->db->createQueryBuilder()
-            ->update($this->tablePicture)
-            ->set('caption', ':caption')
-            ->set('updated_at', ':updated_at')
-            ->where('id = :id')
-            ->setParameters([
-              'id'         => $check['id_picture'],
-              'caption'    => $input['picture_caption'],
-              'updated_at' => date('Y-m-d H:i:s'),
-            ])
-            ->executeStatement();
+          Picture::where('id', $check->id_picture)->update([
+            'caption' => $input['picture_caption'],
+          ]);
         }
       //? UPDATE ON tablePicture
 
       //? UPDATE ON tableSeoMeta
-        $this->db->createQueryBuilder()
-          ->update($this->tableSeoMeta)
-          ->set('meta_title', ':meta_title')
-          ->set('meta_description', ':meta_description')
-          ->set('meta_robots', ':meta_robots')
-          ->set('seo_keyphrase', ':seo_keyphrase')
-          ->set('seo_analysis', ':seo_analysis')
-          ->set('seo_readability', ':seo_readability')
-          ->set('updated_at', ':updated_at')
-          ->where('id_parent = :id_parent')
-          ->andWhere('type = :type')
-          ->setParameters([
-            'id_parent'        => (int) $input['id'],
-            'type'             => 'article',
+        SeoMeta::where('id_parent', (int) $input['id'])
+          ->where('type', 'article')
+          ->update([
             'meta_title'       => $input['meta_title'] ?? null,
             'meta_description' => $input['meta_description'] ?? null,
             'meta_robots'      => $input['meta_robots'] ?? null,
@@ -298,12 +283,11 @@ class AdminArticleService
             'seo_analysis'     => $input['seo_analysis'] ?? null,
             'seo_readability'  => $input['seo_readability'] ?? null,
             'updated_at'       => date('Y-m-d H:i:s'),
-          ])
-          ->executeStatement();
+          ]);
       //? UPDATE ON tableSeoMeta
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $input['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE');
       //? LOG Record
 
       //? DELETE CACHE
@@ -312,7 +296,7 @@ class AdminArticleService
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
-      $this->db->commit();
+      DB::commit();
 
       //? CHANGE CRONJOB
         if (!empty($input['publish'])) {
@@ -330,7 +314,7 @@ class AdminArticleService
             && ($input['publish'] > $now || $check['publish'] > $now)
           )
           {
-            $this->helper->recomputeCron($this->db, $this->cronhooks, $input['site']);
+            $this->helper->recomputeCron($this->cronhooks, $input['site']);
             return true;
           }
           //! Case 3: Kalau publish berubah → recompute (selama salah satu masih future)
@@ -339,16 +323,16 @@ class AdminArticleService
             && ($input['publish'] > $now || $check['publish'] > $now)
           )
           {
-            $this->helper->recomputeCron($this->db, $this->cronhooks, $input['site']);
+            $this->helper->recomputeCron($this->cronhooks, $input['site']);
             return true;
           }
         }
       //? CHANGE CRONJOB
+
+      return true;
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
@@ -357,50 +341,34 @@ class AdminArticleService
   {
     $check = $this->checkExist($input);
 
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? DELETE tableMain
-        $this->db->createQueryBuilder()
-          ->delete($this->tableMain)
-          ->where('id = :id')
-          ->setParameter('id', $check['id'])
-          ->executeStatement();
+        Article::where('id', $check->id)->delete();
       //? DELETE tableMain
 
       //? DELETE tableSeoMeta
-        $this->db->createQueryBuilder()
-          ->delete($this->tableSeoMeta)
-          ->where('id_parent = :id_parent')
-          ->andWhere('type = :type')
-          ->setParameter('id_parent', $check['id'])
-          ->setParameter('type', 'article')
-          ->executeStatement();
+        SeoMeta::where('id_parent', $check->id)
+          ->where('type', 'article')
+          ->delete();
       //? DELETE tableSeoMeta
 
       //? DELETE picture
-        if (!empty($check['id_picture'])) {
-          //! GET PICTURE ID
-          $getPicture = $this->db->createQueryBuilder()
-            ->select('id_cloud')
-            ->from($this->tablePicture)
-            ->where('id = :id')
-            ->setParameter('id', $check['id_picture'])
-            ->fetchAssociative();
-          //! DROP PICTURE ON CLOUD
-          if (!empty($getPicture['id_cloud'])) {
-            $this->cloudinary->delete($getPicture['id_cloud']);
+        if (!empty($check->id_picture)) {
+          $picture = Picture::find($check->id_picture);
+          if ($picture) {
+            //! DROP PICTURE ON CLOUD
+            if (!empty($picture->id_cloud)) {
+              $this->cloudinary->delete($picture->id_cloud);
+            }
+            //! DROP PICTURE ON DATABASE
+            $picture->delete();
           }
-          //! DROP PICTURE ON DATABASE
-          $this->db->createQueryBuilder()
-            ->delete($this->tablePicture)
-            ->where('id = :id')
-            ->setParameter('id', $check['id_picture'])
-            ->executeStatement();
         }
       //? DELETE picture
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $check['id'], 'DELETE');
+        $this->helper->addLog($user, $this->tableMain, (int) $check['id'], 'DELETE');
       //? LOG Record
 
       //? DELETE CACHE
@@ -409,18 +377,16 @@ class AdminArticleService
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
-      $this->db->commit();
+      DB::commit();
 
       //? CHANGE CRONJOB
         if ($check['publish'] > date('Y-m-d H:i:s')) {
-          $this->helper->recomputeCron($this->db, $this->cronhooks);
+          $this->helper->recomputeCron($this->cronhooks);
         }
       //? CHANGE CRONJOB
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
@@ -432,17 +398,16 @@ class AdminArticleService
         $checkMain = $this->checkExist($input);
         $checkMeta = $this->checkMeta($input);
         if (
-          empty($checkMain['excerpt']) ||
-          empty($checkMain['content']) ||
-          empty($checkMain['id_picture']) ||
-          empty($checkMain['site']) ||
-          empty($checkMain['id_category']) ||
-          empty($checkMain['author']) ||
-          empty($checkMain['publish']) ||
-          empty($checkMain['read_time']) ||
-          empty($checkMeta['meta_title']) ||
-          empty($checkMeta['meta_description']) ||
-          empty($checkMeta['meta_robots'])
+          empty($checkMain->excerpt) ||
+          empty($checkMain->content) ||
+          empty($checkMain->id_picture) ||
+          empty($checkMain->id_category) ||
+          empty($checkMain->author) ||
+          empty($checkMain->publish) ||
+          empty($checkMain->read_time) ||
+          empty($checkMeta->meta_title) ||
+          empty($checkMeta->meta_description) ||
+          empty($checkMeta->meta_robots)
         )
         {
           throw new Exception('Lengkapi beberapa field dulu', 400);
@@ -450,33 +415,25 @@ class AdminArticleService
       }
     //! IF ACTIVE
 
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? UPDATE ON tableMain
-        $update = $this->db->createQueryBuilder()
-          ->update($this->tableMain)
-          ->set('status', ':status')
-          ->set('updated_at', ':updated_at')
-          ->where('id = :id')
-          ->setParameters([
-            'id'          => (int) $input['id'],
-            'status'      => $input['status'],
-            'updated_at'  => date('Y-m-d H:i:s'),
-          ]);
-        $update->executeStatement();
+        Article::where('id', (int) $input['id'])->update([
+          'status' => $input['status']
+        ]);
       //? UPDATE ON tableMain
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $input['id'], 'UPDATE', ['Status' => $input['status']]);
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', ['Status' => $input['status']]);
       //? LOG Record
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
-      $this->db->commit();
+      DB::commit();
 
       //? CHANGE CRONJOB
         if (!empty($checkMain['publish'])) {
@@ -487,23 +444,23 @@ class AdminArticleService
             && ($checkMain['publish'] > $now)
           )
           {
-            $this->helper->recomputeCron($this->db, $this->cronhooks, $input['site']);
+            $this->helper->recomputeCron($this->cronhooks, $input['site']);
             return true;
           }
         }
       //? CHANGE CRONJOB
+
+      return true;
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
 
   public function addPicture(array $input, array $user)
   {
-    $upload = $this->helper->pictureUpload($this->db, $this->cloudinary, $input['picture'] ?? null);
+    $upload = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null);
     return $upload;
   }
 }

@@ -28,4 +28,8 @@ class Article extends Model {
     public function seoMeta() {
         return $this->hasOne(SeoMeta::class, 'id_parent')->where('type', 'article');
     }
+
+    public function cronhooks() {
+        return $this->hasOne(Cronhooks::class, 'id_parent')->where('type', 'article');
+    }
 }

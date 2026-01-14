@@ -3,14 +3,17 @@
 namespace App\Services\Admin;
 
 use Exception;
-use App\Lib\Database;
+use Illuminate\Database\Capsule\Manager as DB;
 use App\Helpers\General;
 use App\Lib\Cloudinary;
 use App\Lib\Valkey;
 
+use App\Models\ArticleCategory;
+use App\Models\Article;
+use App\Models\SeoMeta;
+
 class AdminArticleCategoryService
 {
-  private $db;
   private $helper;
   private $cloudinary;
   private $valkey;
@@ -21,7 +24,6 @@ class AdminArticleCategoryService
 
   public function __construct()
   {
-    $this->db = (new Database())->getConnection();
     $this->helper = new General;
     $this->cloudinary = new Cloudinary;
     $this->valkey = new Valkey;
@@ -29,12 +31,7 @@ class AdminArticleCategoryService
 
   private function checkExist(array $input)
   {
-    $check = $this->db->createQueryBuilder()
-      ->select('*')
-      ->from($this->tableMain)
-      ->where('id = :id')
-      ->setParameter('id', (int) $input['id'])
-      ->fetchAssociative();
+    $check = ArticleCategory::find($input['id']);
     if (!$check) {
       throw new Exception('Not Found', 404);
     }
@@ -43,34 +40,20 @@ class AdminArticleCategoryService
 
   private function checkArticleTotal(array $input)
   {
-    $check = $this->db->createQueryBuilder()
-      ->select('1')
-      ->from($this->tableArticle)
-      ->where('id_category = :id_category')
-      ->setParameter('id_category', (int) $input['id'])
-      ->setMaxResults(1)
-      ->executeQuery()
-      ->fetchOne();
-    return (bool) $check;
+    return Article::where('id_category', (int) $input['id'])->exists();
   }
 
   public function checkSlug(array $input)
   {
-    $check = $this->db->createQueryBuilder()
-      ->select('id')
-      ->from($this->tableMain)
-      ->where('slug = :slug')
-      ->setParameter('slug', $input['slug']);
-
+    $query = ArticleCategory::where( 'slug', $input['slug']);
     if (!empty($input['id'])) {
-      $query = $check->fetchAssociative();
-      if ($query && (int) $query['id'] !== (int) $input['id']) {
+      $check = $query->first();
+      if ($check && $check->id !== (int) $input['id']) {
         throw new Exception('Slug already exists', 409);
       }
       return true;
     }
-
-    if ($check->fetchOne()) {
+    if ($query->exists()) {
       throw new Exception('Slug already exists', 409);
     }
     return true;
@@ -80,49 +63,42 @@ class AdminArticleCategoryService
   {
     $data = [];
 
-    $queryBuilder = $this->db->createQueryBuilder()
-      ->select(
-        "{$this->tableMain}.*",
-        "{$this->tableSeoMeta}.meta_title",
-        "{$this->tableSeoMeta}.meta_description",
-        "{$this->tableSeoMeta}.meta_robots",
-        "(
-          SELECT COUNT(*)
-          FROM tb_article
-          WHERE tb_article.id_category = {$this->tableMain}.id
-        ) as total_article"
-      )
-      ->from($this->tableMain)
-      ->leftJoin(
-        $this->tableMain,
-        $this->tableSeoMeta,
-        $this->tableSeoMeta,
-        "{$this->tableSeoMeta}.id_parent = {$this->tableMain}.id AND {$this->tableSeoMeta}.type = 'article_category'"
-      );
+    $query = ArticleCategory::with('seoMeta')
+      ->withCount(['articles as total_article']);
 
     if ($input['status'] !== 'all') {
-      $queryBuilder->where('status = :status')
-        ->setParameter('status', $input['status']);
+      $query->where('status', $input['status']);
     }
-    $query = $queryBuilder->executeQuery()->fetchAllAssociative();
+    $results = $query->get();
 
-    if (!empty($query)) {
-      foreach ($query as $row) {
+    if ($results->isNotEmpty()) {
+      foreach ($results as $row) {
         $data[] = [
-          'id'               => $row['id'],
-          'title'            => $row['title'],
-          'status'           => $row['status'],
-          'slug'             => $row['slug'],
-          'description'      => $row['description'],
-          'meta_title'       => $row['meta_title'],
-          'meta_description' => $row['meta_description'],
-          'meta_robots'      => $row['meta_robots'],
-          'total'            => $row['total_article'],
-          'created_at'       => date('Y-m-d H:i:s', strtotime($row['created_at']))
+          'id'               => $row->id,
+          'title'            => $row->title,
+          'status'           => $row->status,
+          'slug'             => $row->slug,
+          'description'      => $row->description,
+          'meta_title'       => $row->seoMeta->meta_title ?? null,
+          'meta_description' => $row->seoMeta->meta_description ?? null,
+          'meta_robots'      => $row->seoMeta->meta_robots ?? null,
+          'total'            => $row->total_article ?? 0, // Hasil withCount
+          'created_at'       => date('Y-m-d H:i:s', strtotime($row->created_at))
         ];
       }
     }
+    return $data;
+  }
 
+  public function detail(array $input)
+  {
+    $data = [];
+    $event = $this->checkExist($input);
+    $event->load('seoMeta');
+
+    if ($event) {
+      $data = $event->toArray();
+    }
     return $data;
   }
 
@@ -130,71 +106,42 @@ class AdminArticleCategoryService
   {
     $this->checkSlug($input);
 
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? INSERT TO tableMain
-        $this->db->createQueryBuilder()
-          ->insert($this->tableMain)
-          ->values([
-            'status'      => ':status',
-            'title'       => ':title',
-            'description' => ':description',
-            'slug'        => ':slug',
-            'created_at'  => ':created_at',
-            'updated_at'  => ':updated_at'
-          ])
-          ->setParameters([
-            'status'      => $input['status'],
-            'title'       => $input['title'],
-            'description' => $input['description'],
-            'slug'        => $input['slug'],
-            'created_at'  => date('Y-m-d H:i:s'),
-            'updated_at'  => date('Y-m-d H:i:s')
-          ])
-          ->executeStatement();
-        $lastTableMainId = $this->db->lastInsertId();
+        $category = ArticleCategory::create([
+          'status'      => $input['status'],
+          'title'       => $input['title'],
+          'description' => $input['description'],
+          'slug'        => $input['slug'],
+        ]);
+        $lastTableMainId = $category->id;
       //? INSERT TO tableMain
 
       //? INSERT to tableSeoMeta
-        $this->db->createQueryBuilder()
-          ->insert($this->tableSeoMeta)
-          ->values([
-            'id_parent'        => ':id_parent',
-            'type'             => ':type',
-            'meta_title'       => ':meta_title',
-            'meta_description' => ':meta_description',
-            'meta_robots'      => ':meta_robots',
-            'created_at'       => ':created_at',
-            'updated_at'       => ':updated_at'
-          ])
-          ->setParameters([
-            'id_parent'        => $lastTableMainId,
-            'type'             => 'article_category',
-            'meta_title'       => $input['meta_title'],
-            'meta_description' => $input['meta_description'],
-            'meta_robots'      => $input['meta_robots'],
-            'created_at'       => date('Y-m-d H:i:s'),
-            'updated_at'       => date('Y-m-d H:i:s')
-          ])
-          ->executeStatement();
-        $lastTableSeoMetaId = $this->db->lastInsertId();
+        $seo = SeoMeta::create([
+          'id_parent'        => $lastTableMainId,
+          'type'             => 'article_category',
+          'meta_title'       => $input['meta_title'],
+          'meta_description' => $input['meta_description'],
+          'meta_robots'      => $input['meta_robots'],
+        ]);
+        $lastTableSeoMetaId = $seo->id;
       //? INSERT to tableSeoMeta
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, $lastTableMainId, 'INSERT');
-        $this->helper->addLog($this->db, $user, $this->tableSeoMeta, $lastTableSeoMetaId, 'INSERT');
+        $this->helper->addLog($user, $this->tableMain, $lastTableMainId, 'INSERT');
+        $this->helper->addLog($user, $this->tableSeoMeta, $lastTableSeoMetaId, 'INSERT');
       //? LOG Record
 
       //? DELETE CACHE
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
       //? DELETE CACHE
 
-      $this->db->commit();
+      DB::commit();
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
@@ -203,50 +150,30 @@ class AdminArticleCategoryService
   {
     $this->checkSlug($input);
 
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? UPDATE ON tableMain
-        $this->db->createQueryBuilder()
-          ->update($this->tableMain)
-          ->set('status', ':status')
-          ->set('title', ':title')
-          ->set('description', ':description')
-          ->set('slug', ':slug')
-          ->set('updated_at', ':updated_at')
-          ->where('id = :id')
-          ->setParameters([
-            'id'          => (int) $input['id'],
-            'title'       => $input['title'],
-            'slug'        => $input['slug'],
-            'description' => $input['description'],
-            'status'      => $input['status'],
-            'updated_at'  => date('Y-m-d H:i:s')
-          ])
-          ->executeStatement();
+        ArticleCategory::where('id', (int) $input['id'])->update([
+          'title'       => $input['title'],
+          'slug'        => $input['slug'],
+          'description' => $input['description'],
+          'status'      => $input['status'],
+          'updated_at'  => date('Y-m-d H:i:s')
+        ]);
       //? UPDATE ON tableMain
 
       //? UPDATE ON tableSeoMeta
-        $this->db->createQueryBuilder()
-          ->update($this->tableSeoMeta)
-          ->set('meta_title', ':meta_title')
-          ->set('meta_description', ':meta_description')
-          ->set('meta_robots', ':meta_robots')
-          ->set('updated_at', ':updated_at')
-          ->where('id_parent = :id_parent')
-          ->andWhere('type = :type')
-          ->setParameters([
-            'id_parent'        => (int) $input['id'],
-            'type'             => 'article_category',
-            'meta_title'       => $input['meta_title'],
-            'meta_description' => $input['meta_description'],
-            'meta_robots'      => $input['meta_robots'],
-            'updated_at'       => date('Y-m-d H:i:s'),
-          ])
-          ->executeStatement();
+        SeoMeta::where('id_parent', (int) $input['id'])->where('type', 'article_category')
+          ->update([
+              'meta_title'       => $input['meta_title'],
+              'meta_description' => $input['meta_description'],
+              'meta_robots'      => $input['meta_robots'],
+              'updated_at'       => date('Y-m-d H:i:s'),
+          ]);
       //? UPDATE ON tableSeoMeta
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $input['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE');
       //? LOG Record
 
       //? DELETE CACHE
@@ -254,12 +181,10 @@ class AdminArticleCategoryService
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
       //? DELETE CACHE
 
-      $this->db->commit();
+      DB::commit();
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
@@ -272,28 +197,20 @@ class AdminArticleCategoryService
       throw new Exception('This category has articles, you can not delete it.');
     }
 
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? DELETE tableMain
-        $this->db->createQueryBuilder()
-          ->delete($this->tableMain)
-          ->where('id = :id')
-          ->setParameter('id', $check['id'])
-          ->executeStatement();
+        ArticleCategory::where('id', $check->id)->delete();
       //? DELETE tableMain
 
       //? DELETE tableSeoMeta
-      $this->db->createQueryBuilder()
-        ->delete($this->tableSeoMeta)
-        ->where('id_parent = :id_parent')
-        ->andWhere('type = :type')
-        ->setParameter('id_parent', $check['id'])
-        ->setParameter('type', 'article_category')
-        ->executeStatement();
+        SeoMeta::where('id_parent', $check->id)
+          ->where('type', 'article_category')
+          ->delete();
       //? DELETE tableSeoMeta
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $check['id'], 'DELETE');
+        $this->helper->addLog($user, $this->tableMain, (int) $check['id'], 'DELETE');
       //? LOG Record
 
       //? DELETE CACHE
@@ -301,12 +218,10 @@ class AdminArticleCategoryService
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
       //? DELETE CACHE
 
-      $this->db->commit();
+      DB::commit();
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }

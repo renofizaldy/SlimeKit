@@ -11,4 +11,8 @@ class Log extends Model {
   protected $casts = [
     'changes' => 'array',
   ];
+
+  public function user() {
+    return $this->belongsTo(User::class, 'id_user');
+  }
 }

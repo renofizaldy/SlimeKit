@@ -22,9 +22,6 @@ final class CreateTables extends AbstractMigration
         // Helper untuk default timestamp
         $currentTimestamp = 'CURRENT_TIMESTAMP';
 
-        $this->execute("CREATE TYPE action_enum AS ENUM ('INSERT', 'UPDATE', 'DELETE')");
-        $this->execute("CREATE TYPE status_enum AS ENUM ('active', 'inactive')");
-
         // -- TB_USER_ROLE --
         $table = $this->table('tb_user_role', ['id' => false, 'primary_key' => 'id']);
         $table->addColumn('id', 'biginteger', ['identity' => true, 'signed' => false])
@@ -48,7 +45,6 @@ final class CreateTables extends AbstractMigration
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
             ->create();
-        $this->execute('ALTER TABLE tb_user ALTER COLUMN status TYPE status_enum USING status::status_enum');
 
         // -- TB_PICTURE --
         $table = $this->table('tb_picture', ['id' => false, 'primary_key' => 'id']);
@@ -83,7 +79,6 @@ final class CreateTables extends AbstractMigration
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
             ->create();
-        $this->execute('ALTER TABLE tb_log ALTER COLUMN action TYPE action_enum USING action::action_enum');
 
         // -- TB_SEO_META --
         $table = $this->table('tb_seo_meta', ['id' => false, 'primary_key' => 'id']);
@@ -157,7 +152,6 @@ final class CreateTables extends AbstractMigration
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
             ->create();
-        $this->execute('ALTER TABLE tb_article ALTER COLUMN status TYPE status_enum USING status::status_enum');
 
         // -- TB_ARTICLE_CATEGORY --
         $table = $this->table('tb_article_category', ['id' => false, 'primary_key' => 'id']);
@@ -171,7 +165,6 @@ final class CreateTables extends AbstractMigration
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
             ->create();
-        $this->execute('ALTER TABLE tb_article_category ALTER COLUMN status TYPE status_enum USING status::status_enum');
 
         // -- TB_CRONHOOKS --
         $table = $this->table('tb_cronhooks', ['id' => false, 'primary_key' => 'id']);

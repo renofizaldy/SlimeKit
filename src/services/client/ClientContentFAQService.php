@@ -3,20 +3,19 @@
 namespace App\Services\Client;
 
 use Exception;
-use App\Lib\Database;
+use Illuminate\Database\Capsule\Manager as DB;
 use App\Helpers\General;
 use App\Lib\Cloudinary;
 
+use App\Models\ContentFAQ;
+
 class ClientContentFAQService
 {
-  private $db;
   private $helper;
   private $cloudinary;
-  private $tableMain = 'tb_content_faq';
 
   public function __construct()
   {
-    $this->db = (new Database())->getConnection();
     $this->helper = new General;
     $this->cloudinary = new Cloudinary;
   }
@@ -26,20 +25,16 @@ class ClientContentFAQService
     $data  = [];
     $limit = max(0, (int) ($input['limit'] ?? 10));
 
-    $query = $this->db->createQueryBuilder()
-      ->select('*')
-      ->from($this->tableMain)
-      ->orderBy('sort', 'ASC')
-      ->setMaxResults($limit > 0 ? $limit : null)
-      ->executeQuery()
-      ->fetchAllAssociative();
+    $query = ContentFAQ::orderBy('sort', 'ASC')
+      ->limit($limit > 0 ? $limit : null)
+      ->get();
 
-    if (!empty($query)) {
+    if (!$query->isEmpty()) {
       foreach($query as $row) {
         $data[] = [
-          'sort'        => (int) $row['sort'],
-          'title'       => $row['title'],
-          'description' => $row['description']
+          'sort'        => (int) $row->sort,
+          'title'       => $row->title,
+          'description' => $row->description
         ];
       }
     }

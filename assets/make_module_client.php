@@ -220,32 +220,24 @@ if (!file_exists($servicePath)) {
   namespace App\Services\Client;
 
   use Exception;
-  use App\Lib\Database;
+  use App\Models\Model;
   use App\Helpers\General;
   use App\Lib\Cloudinary;
 
   class {$moduleName}Service
   {
-    private \$db;
     private \$helper;
     private \$cloudinary;
-    private \$tableMain = 'table';
 
     public function __construct()
     {
-      \$this->db = (new Database())->getConnection();
       \$this->helper = new General;
       \$this->cloudinary = new Cloudinary;
     }
 
     private function checkExist(array \$input)
     {
-      \$check = \$this->db->createQueryBuilder()
-        ->select('*')
-        ->from(\$this->tableMain)
-        ->where('id = :id')
-        ->setParameter('id', (int) \$input['id'])
-        ->fetchAssociative();
+      \$check = Model::where('id', (int) \$input['id'])->first();
       if (!\$check) {
         throw new Exception('Not Found', 404);
       }
@@ -254,22 +246,11 @@ if (!file_exists($servicePath)) {
 
     public function list(array \$input)
     {
-      \$data = [];
+      \$data  = [];
+      \$query = Model::where('id', (int) \$input['id'])->get();
 
-      \$query = \$this->db->createQueryBuilder()
-        ->select('*')
-        ->from(\$this->tableMain)
-        ->where('id = :id')
-        ->setParameter('id', (int) \$input['id'])
-        ->executeQuery()
-        ->fetchAllAssociative();
-
-      if (!empty(\$query)) {
-        foreach (\$query as \$row) {
-          \$data[] = [
-            'field' => \$row['column']
-          ];
-        }
+      foreach (\$query as \$row) {
+        \$data[] = \$row->toArray();
       }
 
       return \$data;
@@ -277,99 +258,67 @@ if (!file_exists($servicePath)) {
 
     public function detail(array \$input)
     {
-      \$data = [];
-      \$event = \$this->checkExist(\$input);
-
-      \$query = \$this->db->createQueryBuilder()
-        ->select('*')
-        ->from(\$this->tableMain)
-        ->leftJoin(
-          \$this->tableMain,
-          'table_to_join',
-          'table_to_join',
-          \$this->tableMain.'.id = table_to_join.id'
-        )
-        ->where('id = :id')
-        ->setParameter('id', (int) \$input['id'])
-        ->executeQuery()
-        ->fetchAssociative();
-
-      if (!empty(\$query)) {
-        \$data = \$query;
-      }
-
+      \$detail = \$this->checkExist(\$input);
+      \$data   = \$detail->toArray();
       return \$data;
     }
 
     public function add(array \$input, array \$user)
     {
-      \$this->db->beginTransaction();
+      DB::beginTransaction();
       try {
         //? PICTURE UPLOAD
-          \$picture_id = \$this->helper->pictureUpload(\$this->db, \$this->cloudinary, \$input['picture'] ?? null);
+          \$picture_id = \$this->helper->pictureUpload(\$this->cloudinary, \$input['picture'] ?? null);
         //? PICTURE UPLOAD
 
         //? INSERT TO table
-          \$this->db->createQueryBuilder()
-            ->insert(\$this->tableMain)
-            ->values([
-              'id_picture' => ':id_picture',
-              'column'     => ':field',
-            ])
-            ->setParameters([
-              'id_picture' => \$picture_id,
-              'field' => (int) \$input['field'],
-            ]);
-            ->executeStatement();
+          \$insert = Model::create([
+            'id_picture' => \$picture_id,
+            'column'     => (int) \$input['field'],
+          ]);
+          \$insertId = \$insert->id;
         //? INSERT TO table
 
         //? LOG Record
-          \$this->helper->addLog(\$this->db, \$user, \$this->tableMain, \$this->db->lastInsertId(), 'INSERT');
+          \$this->helper->addLog(\$user, 'table_name', \$insertId, 'INSERT');
         //? LOG Record
 
-        \$this->db->commit();
+        DB::commit();
       }
       catch (Exception \$e) {
-        if (\$this->db->isTransactionActive()) {
-          \$this->db->rollBack();
-        }
+        DB::rollBack();
         throw \$e;
       }
     }
 
     public function edit(array \$input, array \$user)
     {
-      \$this->db->beginTransaction();
+      \$check = \$this->checkExist(\$input);
+      DB::beginTransaction();
       try {
         //? PICTURE UPLOAD
-          \$picture_id = \$this->helper->pictureUpload(\$this->db, \$this->cloudinary, \$input['picture'] ?? null);
+          \$picture_id = \$this->helper->pictureUpload(\$this->cloudinary, \$input['picture'] ?? null);
         //? PICTURE UPLOAD
 
         //? UPDATE ON table
-          \$update = \$this->db->createQueryBuilder()
-            ->update(\$this->tableMain)
-            ->set('column', ':field')
-            ->where('id = :id')
-            ->setParameters([
-              'id'    => (int) \$input['id'],
-              'field' => (int) \$input['field'],
-            ]);
+
+          \$data = [
+            'column' => (int) \$input['field'],
+          ];
           if (!empty(\$picture_id)) {
-            \$update->set('id_picture', ':id_picture')->setParameter('id_picture', \$picture_id);
+            \$data['id_picture'] = \$picture_id;
           }
-          \$update->executeStatement();
+          \$update = Model::where('id', (int) \$input['id'])->update();
         //? UPDATE ON table
 
         //? LOG Record
-          \$this->helper->addLog(\$this->db, \$user, \$this->tableMain, (int) \$input['id'], 'UPDATE');
+          \$this->helper->addLog(\$user, 'table_name', (int) \$input['id'], 'UPDATE');
         //? LOG Record
 
-        \$this->db->commit();
+        DB::commit();
       }
       catch (Exception \$e) {
-        if (\$this->db->isTransactionActive()) {
-          \$this->db->rollBack();
-        }
+        DB::rollBack();
         throw \$e;
       }
     }
@@ -378,26 +327,20 @@ if (!file_exists($servicePath)) {
     {
       \$check = \$this->checkExist(\$input);
 
-      \$this->db->beginTransaction();
+      DB::beginTransaction();
       try {
         //? DELETE table
-          \$this->db->createQueryBuilder()
-            ->delete(\$this->tableMain)
-            ->where('id = :id')
-            ->setParameter('id', \$check['id'])
-            ->executeStatement();
+          \$check->delete();
         //? DELETE table
 
         //? LOG Record
-          \$this->helper->addLog(\$this->db, \$user, \$this->tableMain, (int) \$check['id'], 'DELETE');
+          \$this->helper->addLog(\$user, 'table_name', (int) \$check['id'], 'DELETE');
         //? LOG Record
 
-        \$this->db->commit();
+        DB::commit();
       }
       catch (Exception \$e) {
-        if (\$this->db->isTransactionActive()) {
-          \$this->db->rollBack();
-        }
+        DB::rollBack();
         throw \$e;
       }
     }
@@ -435,29 +378,29 @@ if (!file_exists($validatorPath)) {
       switch (\$type) {
         case 'list':
           \$rules = [
-            'field',
+            'field' => 'required|string|not_empty',
           ];
         break;
         case 'detail':
           \$rules = [
-            'id',
-            'field',
+            'id'    => 'required|integer|not_empty',
+            'field' => 'required|string|not_empty',
           ];
         break;
         case 'add':
           \$rules = [
-            'field',
+            'field' => 'required|string|not_empty',
           ];
         break;
         case 'edit':
           \$rules = [
-            'id',
-            'field',
+            'id'    => 'required|integer|not_empty',
+            'field' => 'required|string|not_empty',
           ];
         break;
         case 'drop':
           \$rules = [
-            'id'
+            'id' => 'required|integer|not_empty'
           ];
         break;
         default:

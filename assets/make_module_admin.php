@@ -220,7 +220,7 @@ if (!file_exists($servicePath)) {
   namespace App\Services\Admin;
 
   use Exception;
-  use App\Models\\{$moduleName};
+  use App\Models\Model;
   use App\Helpers\General;
   use App\Lib\Cloudinary;
 
@@ -235,31 +235,114 @@ if (!file_exists($servicePath)) {
       \$this->cloudinary = new Cloudinary;
     }
 
+    private function checkExist(array \$input)
+    {
+      \$check = Model::where('id', (int) \$input['id'])->first();
+      if (!\$check) {
+        throw new Exception('Not Found', 404);
+      }
+      return \$check;
+    }
+
     public function list(array \$input)
     {
-      return {$moduleName}::orderBy('id', 'desc')->get()->toArray();
+      \$data  = [];
+      \$query = Model::where('id', (int) \$input['id'])->get();
+
+      foreach (\$query as \$row) {
+        \$data[] = \$row->toArray();
+      }
+
+      return \$data;
     }
 
     public function detail(array \$input)
     {
-      return {$moduleName}::find(\$param['id']);
+      \$detail = \$this->checkExist(\$input);
+      \$data   = \$detail->toArray();
+      return \$data;
     }
 
     public function add(array \$input, array \$user)
     {
-      return {$moduleName}::create(\$data);
+      DB::beginTransaction();
+      try {
+        //? PICTURE UPLOAD
+          \$picture_id = \$this->helper->pictureUpload(\$this->cloudinary, \$input['picture'] ?? null);
+        //? PICTURE UPLOAD
+
+        //? INSERT TO table
+          \$insert = Model::create([
+            'id_picture' => \$picture_id,
+            'column'     => (int) \$input['field'],
+          ]);
+          \$insertId = \$insert->id;
+        //? INSERT TO table
+
+        //? LOG Record
+          \$this->helper->addLog(\$user, 'table_name', \$insertId, 'INSERT');
+        //? LOG Record
+
+        DB::commit();
+      }
+      catch (Exception \$e) {
+        DB::rollBack();
+        throw \$e;
+      }
     }
 
     public function edit(array \$input, array \$user)
     {
-      \$item = {$moduleName}::find(\$data['id']);
-      \$item->update(\$data);
-      return \$item;
+      \$check = \$this->checkExist(\$input);
+      DB::beginTransaction();
+      try {
+        //? PICTURE UPLOAD
+          \$picture_id = \$this->helper->pictureUpload(\$this->cloudinary, \$input['picture'] ?? null);
+        //? PICTURE UPLOAD
+
+        //? UPDATE ON table
+
+          \$data = [
+            'column' => (int) \$input['field'],
+          ];
+          if (!empty(\$picture_id)) {
+            \$data['id_picture'] = \$picture_id;
+          }
+          \$update = Model::where('id', (int) \$input['id'])->update();
+        //? UPDATE ON table
+
+        //? LOG Record
+          \$this->helper->addLog(\$user, 'table_name', (int) \$input['id'], 'UPDATE');
+        //? LOG Record
+
+        DB::commit();
+      }
+      catch (Exception \$e) {
+        DB::rollBack();
+        throw \$e;
+      }
     }
 
     public function drop(array \$input, array \$user)
     {
-      return {$moduleName}::destroy(\$param['id']);
+      \$check = \$this->checkExist(\$input);
+
+      DB::beginTransaction();
+      try {
+        //? DELETE table
+          \$check->delete();
+        //? DELETE table
+
+        //? LOG Record
+          \$this->helper->addLog(\$user, 'table_name', (int) \$check['id'], 'DELETE');
+        //? LOG Record
+
+        DB::commit();
+      }
+      catch (Exception \$e) {
+        DB::rollBack();
+        throw \$e;
+      }
     }
   }
   EOD;
@@ -300,7 +383,7 @@ if (!file_exists($validatorPath)) {
         break;
         case 'detail':
           \$rules = [
-            'id' => 'required|integer|not_empty',
+            'id'    => 'required|integer|not_empty',
             'field' => 'required|string|not_empty',
           ];
         break;
@@ -311,7 +394,7 @@ if (!file_exists($validatorPath)) {
         break;
         case 'edit':
           \$rules = [
-            'id' => 'required|integer|not_empty',
+            'id'    => 'required|integer|not_empty',
             'field' => 'required|string|not_empty',
           ];
         break;

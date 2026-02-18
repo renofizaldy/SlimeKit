@@ -24,185 +24,185 @@ $controllerPath = "$baseDir/controllers/{$moduleName}Controller.php";
 if (!file_exists($controllerPath)) {
 
   $controllerCode = <<<EOD
-    <?php
+  <?php
 
-    namespace App\Controllers;
+  namespace App\Controllers;
 
-    use Psr\Http\Message\ResponseInterface as Response;
-    use Psr\Http\Message\ServerRequestInterface as Request;
-    use Exception;
-    use App\Helpers\General;
-    use App\Services\\{$moduleName}Service;
-    use App\Validators\\{$moduleName}Validator;
+  use Psr\Http\Message\ResponseInterface as Response;
+  use Psr\Http\Message\ServerRequestInterface as Request;
+  use Exception;
+  use App\Helpers\General;
+  use App\Services\\{$moduleName}Service;
+  use App\Validators\\{$moduleName}Validator;
 
-    class {$moduleName}Controller
+  class {$moduleName}Controller
+  {
+    private \$helper;
+    private \$service;
+    private \$validator;
+
+    public function __construct()
     {
-      private \$helper;
-      private \$service;
-      private \$validator;
-
-      public function __construct()
-      {
-        \$this->helper = new General;
-        \$this->service = new {$moduleName}Service;
-        \$this->validator = new {$moduleName}Validator;
-      }
-
-      public function list(Request \$request, Response \$response)
-      {
-        \$input = \$request->getQueryParams();
-        try {
-          //* VALIDATION
-          \$this->validator->validate('list', \$input);
-          //* SERVICES
-          \$data = \$this->service->list(\$input);
-
-          \$result = [
-            'data'    => \$data,
-            'message' => 'Ok',
-            'status'  => 200
-          ];
-        }
-        catch (Exception \$e) {
-          \$result = [
-            'message' => 'Error: ' . \$e->getMessage(),
-            'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-          ];
-        }
-
-        \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-        return \$response
-          ->withHeader('Content-type', 'application/json')
-          ->withStatus(\$result['status']);
-      }
-
-      public function detail(Request \$request, Response \$response)
-      {
-        \$input = \$request->getQueryParams();
-        try {
-          //* VALIDATION
-          \$this->validator->validate('detail', \$input);
-          //* SERVICES
-          \$data = \$this->service->detail(\$input);
-
-          \$result = [
-            'data'    => \$data,
-            'message' => 'Ok',
-            'status'  => 200
-          ];
-        }
-        catch (Exception \$e) {
-          \$result = [
-            'message' => 'Error: ' . \$e->getMessage(),
-            'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-          ];
-        }
-
-        \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-        return \$response
-          ->withHeader('Content-type', 'application/json')
-          ->withStatus(\$result['status']);
-      }
-
-      public function add(Request \$request, Response \$response)
-      {
-        \$input = \$request->getParsedBody();
-        \$user  = [
-          'user'       => \$request->getAttribute('user'),
-          'user_agent' => \$request->getHeaderLine('User-Agent'),
-          'ip_address' => \$this->helper->getClientIp(\$request),
-        ];
-        try {
-          //* VALIDATION
-          \$this->validator->validate('add', \$input);
-          //* SERVICES
-          \$data = \$this->service->add(\$input, \$user);
-
-          \$result = [
-            'data'    => \$data,
-            'message' => 'Ok',
-            'status'  => 200
-          ];
-        }
-        catch (Exception \$e) {
-          \$result = [
-            'message' => 'Error: ' . \$e->getMessage(),
-            'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-          ];
-        }
-
-        \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-        return \$response
-          ->withHeader('Content-type', 'application/json')
-          ->withStatus(\$result['status']);
-      }
-
-      public function edit(Request \$request, Response \$response)
-      {
-        \$input = \$request->getParsedBody();
-        \$user  = [
-          'user'       => \$request->getAttribute('user'),
-          'user_agent' => \$request->getHeaderLine('User-Agent'),
-          'ip_address' => \$this->helper->getClientIp(\$request),
-        ];
-        try {
-          //* VALIDATION
-          \$this->validator->validate('edit', \$input);
-          //* SERVICES
-          \$data = \$this->service->edit(\$input, \$user);
-
-          \$result = [
-            'data'    => \$data,
-            'message' => 'Ok',
-            'status'  => 200
-          ];
-        }
-        catch (Exception \$e) {
-          \$result = [
-            'message' => 'Error: ' . \$e->getMessage(),
-            'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-          ];
-        }
-
-        \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-        return \$response
-          ->withHeader('Content-type', 'application/json')
-          ->withStatus(\$result['status']);
-      }
-
-      public function drop(Request \$request, Response \$response)
-      {
-        \$input = \$request->getParsedBody();
-        \$user  = [
-          'user'       => \$request->getAttribute('user'),
-          'user_agent' => \$request->getHeaderLine('User-Agent'),
-          'ip_address' => \$this->helper->getClientIp(\$request),
-        ];
-        try {
-          //* VALIDATION
-          \$this->validator->validate('drop', \$input);
-          //* SERVICES
-          \$data = \$this->service->drop(\$input, \$user);
-
-          \$result = [
-            'data'    => \$data,
-            'message' => 'Ok',
-            'status'  => 200
-          ];
-        }
-        catch (Exception \$e) {
-          \$result = [
-            'message' => 'Error: ' . \$e->getMessage(),
-            'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-          ];
-        }
-
-        \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-        return \$response
-          ->withHeader('Content-type', 'application/json')
-          ->withStatus(\$result['status']);
-      }
+      \$this->helper = new General;
+      \$this->service = new {$moduleName}Service;
+      \$this->validator = new {$moduleName}Validator;
     }
+
+    public function list(Request \$request, Response \$response)
+    {
+      \$input = \$request->getQueryParams();
+      try {
+        //* VALIDATOR
+        \$this->validator->validate('list', \$input);
+        //* SERVICES
+        \$data = \$this->service->list(\$input);
+
+        \$result = [
+          'data'    => \$data,
+          'message' => 'Ok',
+          'status'  => 200
+        ];
+      }
+      catch (Exception \$e) {
+        \$result = [
+          'message' => 'Error: ' . \$e->getMessage(),
+          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
+        ];
+      }
+
+      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
+      return \$response
+        ->withHeader('Content-type', 'application/json')
+        ->withStatus(\$result['status']);
+    }
+
+    public function detail(Request \$request, Response \$response)
+    {
+      \$input = \$request->getQueryParams();
+      try {
+        //* VALIDATOR
+        \$this->validator->validate('detail', \$input);
+        //* SERVICES
+        \$data = \$this->service->detail(\$input);
+
+        \$result = [
+          'data'    => \$data,
+          'message' => 'Ok',
+          'status'  => 200
+        ];
+      }
+      catch (Exception \$e) {
+        \$result = [
+          'message' => 'Error: ' . \$e->getMessage(),
+          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
+        ];
+      }
+
+      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
+      return \$response
+        ->withHeader('Content-type', 'application/json')
+        ->withStatus(\$result['status']);
+    }
+
+    public function add(Request \$request, Response \$response)
+    {
+      \$input = \$request->getParsedBody();
+      \$user  = [
+        'user'       => \$request->getAttribute('user'),
+        'user_agent' => \$request->getHeaderLine('User-Agent'),
+        'ip_address' => \$this->helper->getClientIp(\$request),
+      ];
+      try {
+        //* VALIDATOR
+        \$this->validator->validate('add', \$input);
+        //* SERVICES
+        \$data = \$this->service->add(\$input, \$user);
+
+        \$result = [
+          'data'    => \$data,
+          'message' => 'Ok',
+          'status'  => 200
+        ];
+      }
+      catch (Exception \$e) {
+        \$result = [
+          'message' => 'Error: ' . \$e->getMessage(),
+          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
+        ];
+      }
+
+      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
+      return \$response
+        ->withHeader('Content-type', 'application/json')
+        ->withStatus(\$result['status']);
+    }
+
+    public function edit(Request \$request, Response \$response)
+    {
+      \$input = \$request->getParsedBody();
+      \$user  = [
+        'user'       => \$request->getAttribute('user'),
+        'user_agent' => \$request->getHeaderLine('User-Agent'),
+        'ip_address' => \$this->helper->getClientIp(\$request),
+      ];
+      try {
+        //* VALIDATOR
+        \$this->validator->validate('edit', \$input);
+        //* SERVICES
+        \$data = \$this->service->edit(\$input, \$user);
+
+        \$result = [
+          'data'    => \$data,
+          'message' => 'Ok',
+          'status'  => 200
+        ];
+      }
+      catch (Exception \$e) {
+        \$result = [
+          'message' => 'Error: ' . \$e->getMessage(),
+          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
+        ];
+      }
+
+      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
+      return \$response
+        ->withHeader('Content-type', 'application/json')
+        ->withStatus(\$result['status']);
+    }
+
+    public function drop(Request \$request, Response \$response)
+    {
+      \$input = \$request->getParsedBody();
+      \$user  = [
+        'user'       => \$request->getAttribute('user'),
+        'user_agent' => \$request->getHeaderLine('User-Agent'),
+        'ip_address' => \$this->helper->getClientIp(\$request),
+      ];
+      try {
+        //* VALIDATOR
+        \$this->validator->validate('drop', \$input);
+        //* SERVICES
+        \$data = \$this->service->drop(\$input, \$user);
+
+        \$result = [
+          'data'    => \$data,
+          'message' => 'Ok',
+          'status'  => 200
+        ];
+      }
+      catch (Exception \$e) {
+        \$result = [
+          'message' => 'Error: ' . \$e->getMessage(),
+          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
+        ];
+      }
+
+      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
+      return \$response
+        ->withHeader('Content-type', 'application/json')
+        ->withStatus(\$result['status']);
+    }
+  }
   EOD;
 
   file_put_contents($controllerPath, $controllerCode);
@@ -215,193 +215,136 @@ $servicePath = "$baseDir/services/{$moduleName}Service.php";
 if (!file_exists($servicePath)) {
 
   $serviceCode = <<<EOD
-    <?php
+  <?php
 
-    namespace App\Services;
+  namespace App\Services;
 
-    use Exception;
-    use App\Lib\Database;
-    use App\Helpers\General;
-    use App\Lib\Cloudinary;
+  use Exception;
+  use App\Models\Model;
+  use App\Helpers\General;
+  use App\Lib\Cloudinary;
 
-    class {$moduleName}Service
+  class {$moduleName}Service
+  {
+    private \$helper;
+    private \$cloudinary;
+
+    public function __construct()
     {
-      private \$db;
-      private \$helper;
-      private \$cloudinary;
-      private \$tableMain = 'table';
+      \$this->helper = new General;
+      \$this->cloudinary = new Cloudinary;
+    }
 
-      public function __construct()
-      {
-        \$this->db = (new Database())->getConnection();
-        \$this->helper = new General;
-        \$this->cloudinary = new Cloudinary;
+    private function checkExist(array \$input)
+    {
+      \$check = Model::where('id', (int) \$input['id'])->first();
+      if (!\$check) {
+        throw new Exception('Not Found', 404);
+      }
+      return \$check;
+    }
+
+    public function list(array \$input)
+    {
+      \$data  = [];
+      \$query = Model::where('id', (int) \$input['id'])->get();
+
+      foreach (\$query as \$row) {
+        \$data[] = \$row->toArray();
       }
 
-      private function checkExist(array \$input)
-      {
-        \$check = \$this->db->createQueryBuilder()
-          ->select('*')
-          ->from(\$this->tableMain)
-          ->where('id = :id')
-          ->setParameter('id', (int) \$input['id'])
-          ->fetchAssociative();
-        if (!\$check) {
-          throw new Exception('Not Found', 404);
-        }
-        return \$check;
+      return \$data;
+    }
+
+    public function detail(array \$input)
+    {
+      \$detail = \$this->checkExist(\$input);
+      \$data   = \$detail->toArray();
+      return \$data;
+    }
+
+    public function add(array \$input, array \$user)
+    {
+      DB::beginTransaction();
+      try {
+        //? PICTURE UPLOAD
+          \$picture_id = \$this->helper->pictureUpload(\$this->cloudinary, \$input['picture'] ?? null);
+        //? PICTURE UPLOAD
+
+        //? INSERT TO table
+          \$insert = Model::create([
+            'id_picture' => \$picture_id,
+            'column'     => (int) \$input['field'],
+          ]);
+          \$insertId = \$insert->id;
+        //? INSERT TO table
+
+        //? LOG Record
+          \$this->helper->addLog(\$user, 'table_name', \$insertId, 'INSERT');
+        //? LOG Record
+
+        DB::commit();
       }
-
-      public function list(array \$input)
-      {
-        \$data = [];
-
-        \$query = \$this->db->createQueryBuilder()
-          ->select('*')
-          ->from(\$this->tableMain)
-          ->where('id = :id')
-          ->setParameter('id', (int) \$input['id'])
-          ->executeQuery()
-          ->fetchAllAssociative();
-
-        if (!empty(\$query)) {
-          foreach (\$query as \$row) {
-            \$data[] = [
-              'field' => \$row['column']
-            ];
-          }
-        }
-
-        return \$data;
-      }
-
-      public function detail(array \$input)
-      {
-        \$data = [];
-        \$event = \$this->checkExist(\$input);
-
-        \$query = \$this->db->createQueryBuilder()
-          ->select('*')
-          ->from(\$this->tableMain)
-          ->leftJoin(
-            \$this->tableMain,
-            'table_to_join',
-            'table_to_join',
-            \$this->tableMain.'.id = table_to_join.id'
-          )
-          ->where('id = :id')
-          ->setParameter('id', (int) \$input['id'])
-          ->executeQuery()
-          ->fetchAssociative();
-
-        if (!empty(\$query)) {
-          \$data = \$query;
-        }
-
-        return \$data;
-      }
-
-      public function add(array \$input, array \$user)
-      {
-        \$this->db->beginTransaction();
-        try {
-          //? PICTURE UPLOAD
-            \$picture_id = \$this->helper->pictureUpload(\$this->db, \$this->cloudinary, \$input['picture'] ?? null);
-          //? PICTURE UPLOAD
-
-          //? INSERT TO table
-            \$this->db->createQueryBuilder()
-              ->insert(\$this->tableMain)
-              ->values([
-                'id_picture' => ':id_picture',
-                'column'     => ':field',
-              ])
-              ->setParameters([
-                'id_picture' => \$picture_id,
-                'field' => (int) \$input['field'],
-              ]);
-              ->executeStatement();
-          //? INSERT TO table
-
-          //? LOG Record
-            \$this->helper->addLog(\$this->db, \$user, \$this->tableMain, \$this->db->lastInsertId(), 'INSERT');
-          //? LOG Record
-
-          \$this->db->commit();
-        }
-        catch (Exception \$e) {
-          if (\$this->db->isTransactionActive()) {
-            \$this->db->rollBack();
-          }
-          throw \$e;
-        }
-      }
-
-      public function edit(array \$input, array \$user)
-      {
-        \$this->db->beginTransaction();
-        try {
-          //? PICTURE UPLOAD
-            \$picture_id = \$this->helper->pictureUpload(\$this->db, \$this->cloudinary, \$input['picture'] ?? null);
-          //? PICTURE UPLOAD
-
-          //? UPDATE ON table
-            \$update = \$this->db->createQueryBuilder()
-              ->update(\$this->tableMain)
-              ->set('column', ':field')
-              ->where('id = :id')
-              ->setParameters([
-                'id'    => (int) \$input['id'],
-                'field' => (int) \$input['field'],
-              ]);
-            if (!empty(\$picture_id)) {
-              \$update->set('id_picture', ':id_picture')->setParameter('id_picture', \$picture_id);
-            }
-            \$update->executeStatement();
-          //? UPDATE ON table
-
-          //? LOG Record
-            \$this->helper->addLog(\$this->db, \$user, \$this->tableMain, (int) \$input['id'], 'UPDATE');
-          //? LOG Record
-
-          \$this->db->commit();
-        }
-        catch (Exception \$e) {
-          if (\$this->db->isTransactionActive()) {
-            \$this->db->rollBack();
-          }
-          throw \$e;
-        }
-      }
-
-      public function drop(array \$input, array \$user)
-      {
-        \$check = \$this->checkExist(\$input);
-
-        \$this->db->beginTransaction();
-        try {
-          //? DELETE table
-            \$this->db->createQueryBuilder()
-              ->delete(\$this->tableMain)
-              ->where('id = :id')
-              ->setParameter('id', \$check['id'])
-              ->executeStatement();
-          //? DELETE table
-
-          //? LOG Record
-            \$this->helper->addLog(\$this->db, \$user, \$this->tableMain, (int) \$check['id'], 'DELETE');
-          //? LOG Record
-
-          \$this->db->commit();
-        }
-        catch (Exception \$e) {
-          if (\$this->db->isTransactionActive()) {
-            \$this->db->rollBack();
-          }
-          throw \$e;
-        }
+      catch (Exception \$e) {
+        DB::rollBack();
+        throw \$e;
       }
     }
+
+    public function edit(array \$input, array \$user)
+    {
+      \$check = \$this->checkExist(\$input);
+      DB::beginTransaction();
+      try {
+        //? PICTURE UPLOAD
+          \$picture_id = \$this->helper->pictureUpload(\$this->cloudinary, \$input['picture'] ?? null);
+        //? PICTURE UPLOAD
+
+        //? UPDATE ON table
+
+          \$data = [
+            'column' => (int) \$input['field'],
+          ];
+          if (!empty(\$picture_id)) {
+            \$data['id_picture'] = \$picture_id;
+          }
+          \$update = Model::where('id', (int) \$input['id'])->update();
+        //? UPDATE ON table
+
+        //? LOG Record
+          \$this->helper->addLog(\$user, 'table_name', (int) \$input['id'], 'UPDATE');
+        //? LOG Record
+
+        DB::commit();
+      }
+      catch (Exception \$e) {
+        DB::rollBack();
+        throw \$e;
+      }
+    }
+
+    public function drop(array \$input, array \$user)
+    {
+      \$check = \$this->checkExist(\$input);
+
+      DB::beginTransaction();
+      try {
+        //? DELETE table
+          \$check->delete();
+        //? DELETE table
+
+        //? LOG Record
+          \$this->helper->addLog(\$user, 'table_name', (int) \$check['id'], 'DELETE');
+        //? LOG Record
+
+        DB::commit();
+      }
+      catch (Exception \$e) {
+        DB::rollBack();
+        throw \$e;
+      }
+    }
+  }
   EOD;
 
   file_put_contents($servicePath, $serviceCode);
@@ -414,80 +357,60 @@ $validatorPath = "$baseDir/validators/{$moduleName}Validator.php";
 if (!file_exists($validatorPath)) {
 
   $validatorCode = <<<EOD
-    <?php
+  <?php
 
-    namespace App\Validators;
+  namespace App\Validators;
 
-    use Exception;
+  use Exception;
+  use App\Helpers\General;
 
-    class {$moduleName}Validator
+  class {$moduleName}Validator
+  {
+    private \$helper;
+
+    public function __construct()
     {
-      public function validate(string \$type, array \$input)
-      {
-        switch (\$type) {
-          case 'list':
-            \$requiredFields = [
-              'field',
-            ];
-            \$this->validateRequiredFields(\$input, \$requiredFields);
-            \$this->validateEmptyFields(\$input, \$requiredFields);
-          break;
-          case 'detail':
-            \$requiredFields = [
-              'id',
-              'field',
-            ];
-            \$this->validateRequiredFields(\$input, \$requiredFields);
-            \$this->validateEmptyFields(\$input, \$requiredFields);
-          break;
-          case 'add':
-            \$requiredFields = [
-              'field',
-            ];
-            \$this->validateRequiredFields(\$input, \$requiredFields);
-            \$this->validateEmptyFields(\$input, \$requiredFields);
-          break;
-          case 'edit':
-            \$requiredFields = [
-              'id',
-              'field',
-            ];
-            \$this->validateRequiredFields(\$input, \$requiredFields);
-            \$this->validateEmptyFields(\$input, \$requiredFields);
-          break;
-          case 'drop':
-            \$requiredFields = [
-              'id'
-            ];
-            \$this->validateRequiredFields(\$input, \$requiredFields);
-            \$this->validateEmptyFields(\$input, \$requiredFields);
-          break;
-          default:
-            throw new Exception('Can\\'t validate some field', 400);
-          break;
-        }
-
-        return true;
-      }
-
-      private function validateRequiredFields(array \$input, array \$requiredFields)
-      {
-        foreach (\$requiredFields as \$field) {
-          if (!isset(\$input[\$field])) {
-            throw new Exception('Missing required field', 400);
-          }
-        }
-      }
-
-      private function validateEmptyFields(array \$input, array \$requiredFields)
-      {
-        foreach (\$requiredFields as \$field) {
-          if (empty(\$input[\$field])) {
-            throw new Exception('Some field can\\'t be empty', 400);
-          }
-        }
-      }
+      \$this->helper = new General;
     }
+
+    public function validate(string \$type, array \$input)
+    {
+      switch (\$type) {
+        case 'list':
+          \$rules = [
+            'field' => 'required|string|not_empty',
+          ];
+        break;
+        case 'detail':
+          \$rules = [
+            'id'    => 'required|integer|not_empty',
+            'field' => 'required|string|not_empty',
+          ];
+        break;
+        case 'add':
+          \$rules = [
+            'field' => 'required|string|not_empty',
+          ];
+        break;
+        case 'edit':
+          \$rules = [
+            'id'    => 'required|integer|not_empty',
+            'field' => 'required|string|not_empty',
+          ];
+        break;
+        case 'drop':
+          \$rules = [
+            'id' => 'required|integer|not_empty'
+          ];
+        break;
+        default:
+          throw new Exception('Can\\'t validate some field', 400);
+        break;
+      }
+      \$this->helper->validateByRules(\$input, \$rules);
+      return true;
+    }
+  }
   EOD;
 
   file_put_contents($validatorPath, $validatorCode);

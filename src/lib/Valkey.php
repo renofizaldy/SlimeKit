@@ -18,16 +18,15 @@ class Valkey
 
     try {
       $this->client = new Client([
-        'scheme'   => $_ENV['VALKEY_SCHEME'] ?? 'tcp', // tcp or tls (if SSL)
-        'host'     => $_ENV['VALKEY_HOST'],
-        'port'     => $_ENV['VALKEY_PORT'],
-        'username' => $_ENV['VALKEY_USERNAME'] ?? null,
-        'password' => $_ENV['VALKEY_PASSWORD'] ?? null,
-        'ssl'      => ($_ENV['VALKEY_SCHEME'] === 'tls') ? ['verify_peer' => false] : null,
+        'scheme'     => $_ENV['VALKEY_SCHEME'] ?? 'tcp',                                        // tcp or tls (if SSL)
+        'host'       => $_ENV['VALKEY_HOST'],
+        'port'       => $_ENV['VALKEY_PORT'],
+        'username'   => $_ENV['VALKEY_USERNAME'] ?? null,
+        'password'   => $_ENV['VALKEY_PASSWORD'] ?? null,
+        'persistent' => true,
+        'ssl'        => ($_ENV['VALKEY_SCHEME'] === 'tls') ? ['verify_peer' => false] : null,
       ]);
 
-      $this->client->connect();
-      $this->client->ping();
       $this->isConnected = true;
     }
     catch (Exception $e) {

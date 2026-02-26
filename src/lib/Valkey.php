@@ -18,7 +18,7 @@ class Valkey
 
     try {
       $this->client = new Client([
-        'scheme'     => $_ENV['VALKEY_SCHEME'] ?? 'tcp',                                        // tcp or tls (if SSL)
+        'scheme'     => $_ENV['VALKEY_SCHEME'] ?? 'tcp',
         'host'       => $_ENV['VALKEY_HOST'],
         'port'       => $_ENV['VALKEY_PORT'],
         'username'   => $_ENV['VALKEY_USERNAME'] ?? null,

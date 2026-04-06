@@ -14,7 +14,7 @@ return [
     'default_migration_table' => 'phinxlog',
     'default_environment'     => 'production',
     'production' => [
-      'adapter' => $_ENV['DB_CLIENT'] ?? 'mysql',
+      'adapter' => $_ENV['DB_CLIENT'] ?? 'pgsql',
       'host'    => $_ENV['DB_HOST'],
       'name'    => $_ENV['DB_NAME'],
       'user'    => $_ENV['DB_USER'],

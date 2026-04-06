@@ -1,0 +1,77 @@
+name: Deploy SlimeKit
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Autentikasi GCP
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      # 2. Build & Push Docker ke Artifact Registry
+      - name: Docker Build & Push
+        run: |
+          gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev
+          IMAGE_URL="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.REPO_NAME }}/${{ vars.CLOUD_RUN_NAME }}:${{ github.sha }}"
+          docker build -f Dockerfile -t $IMAGE_URL .
+          docker push $IMAGE_URL
+
+      # 3. Setup OpenTofu
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_version: 1.6.0
+
+      # 4. Eksekusi Infrastruktur
+      - name: Tofu Init & Apply
+        working-directory: ./tofu
+        run: |
+          tofu init -backend-config="bucket=${{ vars.GCS_BUCKET_NAME }}"
+          tofu apply -auto-approve -var="image_tag=${{ github.sha }}"
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+          TF_VAR_cloudinary_url: ${{ secrets.CLOUDINARY_URL }}
+          TF_VAR_sym_key: ${{ secrets.SYM_KEY }}
+          TF_VAR_smtp_user: ${{ secrets.SMTP_USER }}
+          TF_VAR_smtp_pass: ${{ secrets.SMTP_PASS }}
+          TF_VAR_neon_api_key: ${{ secrets.NEON_API_KEY }}
+          TF_VAR_image_tag: ${{ secrets.IMAGE_TAG }}
+          TF_VAR_cloud_run_name: ${{ vars.CLOUD_RUN_NAME }}
+          TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
+          TF_VAR_gcs_bucket_name: ${{ vars.GCS_BUCKET_NAME }}
+          TF_VAR_repo_name: ${{ vars.REPO_NAME }}
+          TF_VAR_neon_db_name: ${{ vars.NEON_DB_NAME }}
+          TF_VAR_neon_region: ${{ vars.NEON_REGION }}
+          TF_VAR_valkey_username: ${{ secrets.VALKEY_USERNAME }}
+          TF_VAR_valkey_password: ${{ secrets.VALKEY_PASSWORD }}
+
+      # 5. Jalankan Migrasi Database
+      - name: Run Database Migration
+        working-directory: ./tofu 
+        run: |
+          NEON_DB_URL=$(tofu output -raw database_url)
+          cd ..
+          composer install --no-dev --optimize-autoloader
+          php -r "
+            \$url = '$NEON_DB_URL';
+            \$p = parse_url(\$url);
+            \$env = sprintf(
+                \"DB_CLIENT=pgsql\nDB_CONNECTION=pgsql\nDB_HOST=%s\nDB_PORT=%s\nDB_USER=%s\nDB_PASS=%s\nDB_NAME=%s\n\",
+                \$p['host'], 
+                \$p['port'] ?? 5432, 
+                \$p['user'], 
+                \$p['pass'], 
+                ltrim(\$p['path'], '/')
+            );
+            file_put_contents('.env', \$env);
+          "
+          composer migrate

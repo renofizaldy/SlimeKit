@@ -127,3 +127,162 @@ composer make:module:client NamaModule
 ```
 composer dump-autoload -o
 ```
+
+## Atur OpenTofu untuk Deploy ke Google Cloud Run
+
+**1. Install OpenTofu di [sini](https://opentofu.org/docs/intro/install/)**
+
+**2. Untuk testing OpenTofu secara lokal**:
+- Atur file `tofu/terraform.tfvars.example`.
+- Rename file `tofu/terraform.tfvars.example` menjadi `tofu/terraform.tfvars`
+- Atur semua konfigurasi yang dibutuhkan pada file `tofu/terraform.tfvars`
+
+**3. Untuk atur deploy ke Github Actions**:
+- Copy .github/workflows/deploy.yml di dalam /assets ke root folder
+- Atur dan sesuaikan konfigurasi pada file .github/workflows/deploy.yml
+
+**4. Login Google Cloud** 
+```
+gcloud auth login
+```
+
+**5. Buat Repository Artifact Registry di Google Cloud**
+```
+gcloud artifacts repositories create <NAMA-REPO> --repository-format=docker --location=asia-southeast1 --description="<DESKRIPSI-REPO>" --project=<PROJECT-ID>
+```
+
+**6. Autentikasi Docker**
+```
+gcloud auth configure-docker asia-southeast1-docker.pkg.dev
+```
+
+**7. Buat bucket di Google Cloud Storage**
+```
+gsutil mb -p <PROJECT-ID> -c STANDARD -l asia-southeast1 -b on gs://<NAMA-BUCKET-UNIK>
+```
+Catatan:
+- `-l asia-southeast1`: Menentukan lokasi *bucket* di Jakarta (sesuaikan jika kamu ingin lokasi lain).
+- `-b on`: Mengaktifkan *Uniform Bucket-Level Access* (direkomendasikan untuk keamanan).
+
+**8. Aktifkan Versioning pada Bucket**
+Sangat disarankan mengaktifkan versioning. Jika terjadi kesalahan konfigurasi pada OpenTofu yang merusak state, kamu bisa memulihkan file .tfstate dari versi sebelumnya.
+```
+gsutil versioning set on gs://<NAMA-BUCKET-UNIK>
+```
+
+**9. Konfigurasi File OpenTofu** (di dalam `providers.tf`)
+Setelah bucket dibuat, beritahu OpenTofu untuk menggunakannya. Buka file .tf utama kamu (misalnya providers.tf atau buat file baru bernama backend.tf di dalam folder tofu/) dan tambahkan blok ini:
+```
+terraform {
+  backend "gcs" {
+    bucket  = "<NAMA-BUCKET-UNIK>"
+    prefix  = "terraform/state"
+  }
+}
+```
+
+**10. Atur Secrets Actions di Github** (*Cukup sampai di sini jika ingin fokus langsung deploy ke Cloud*)
+Masukkan credential variabel berikut ini di **Repository Secrets** di **Settings -> Secrets and variables -> Actions**
+```
+GCP_CREDENTIALS <-- Isi dengan Google Cloud Service Account JSON Key
+CLOUDINARY_URL <-- Isi dengan Cloudinary URL
+IMAGE_TAG <-- Isi dengan Image Tag (Contoh: latest)
+NEON_API_KEY <-- Isi dengan Neon API Key
+SMTP_PASS <-- Isi dengan SMTP Password
+SMTP_USER <-- Isi dengan SMTP Username
+SYM_KEY <-- Isi dengan Sym Key
+VALKEY_USERNAME <-- Isi dengan Valkey/Redis Username
+VALKEY_PASSWORD <-- Isi dengan Valkey/Redis Password
+```
+Masukkan credential variabel berikut ini di **Repository Variables** di **Settings -> Secrets and variables -> Actions**
+```
+GCP_PROJECT_ID <-- Isi dengan GCP Project ID
+GCP_REGION <-- Isi dengan GCP Region (Contoh: asia-southeast1)
+GCS_BUCKET_NAME <-- Isi dengan GCS Bucket Name
+CLOUD_RUN_NAME <-- Isi dengan Cloud Run Name (Contoh: pbike-api)
+REPO_NAME <-- Isi dengan Repo Name (Contoh: slimekit-img)
+NEON_DB_NAME <-- Isi dengan Neon DB Name
+NEON_REGION <-- Isi dengan Neon Region (Contoh: aws-ap-southeast-1)
+```
+
+**11. Build dan Push Docker Image** (Gunakan yang bawah jika menggunakan Apple Silicon)
+```
+docker build -f Dockerfile -t asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest .
+
+docker build --platform linux/amd64 -t asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest .
+```
+
+**12. Push Docker Image**
+```
+docker push asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest
+```
+
+**13. Apply OpenTofu**
+```
+cd /tofu
+tofu init
+tofu plan
+tofu apply
+```
+
+## Atur Service Account Google Cloud Run
+### Langkah 1: Membuat Service Account
+
+1. Buka dashboard Google Cloud dan pastikan kamu berada di project yang benar (`starry-axis-384903`).
+
+2. Di menu pencarian atas, ketik **Service Accounts** (atau buka menu kiri: **IAM & Admin > Service Accounts**).
+
+3. Klik tombol **+ CREATE SERVICE ACCOUNT** di bagian atas.
+
+4. Isi detailnya:
+
+- **Service account name**: `github-actions-deployer` (atau nama lain yang mudah diingat)
+- **Service account ID**: (akan terisi otomatis)
+- **Description**: "Untuk deploy SlimeKit via GitHub Actions & OpenTofu"
+
+5. Klik **CREATE AND CONTINUE**.
+
+### Langkah 2: Memberikan Izin (Roles)
+
+Ini bagian paling penting. Agar OpenTofu dan GitHub Actions bisa mengatur Cloud Run, Artifact Registry, dan membaca status (State) di Storage, kamu harus memberikan izin spesifik.
+
+Di bagian **Grant this service account access to project**, tambahkan Role berikut satu per satu:
+
+1. **Cloud Run Admin**  
+  _(Agar bisa membuat/mengubah Cloud Run)_
+
+2. **Service Account User**  
+  _(Syarat wajib agar Cloud Run bisa berjalan)_
+
+3. **Artifact Registry Administrator**  
+  _(Agar Docker bisa melakukan push image ke registry)_
+
+4. **Storage Object Admin**  
+  _(Agar OpenTofu bisa membaca dan menulis `terraform.tfstate` di bucket GCS)_
+
+Setelah keempat peran ditambahkan, klik **CONTINUE** lalu **DONE**.
+
+### Langkah 3: Mengunduh Kunci (JSON Key)
+
+1. Kamu akan kembali ke daftar Service Accounts. Klik email dari Service Account yang baru saja kamu buat (`github-actions-deployer@...`).
+
+2. Masuk ke tab **KEYS** di bagian atas.
+
+3. Klik tombol: **ADD KEY > Create new key**
+
+4. Pilih format: **JSON**. Klik **CREATE**.
+
+5. Sebuah file `.json` akan otomatis terunduh ke laptopmu. Simpan file ini dengan aman dan jangan pernah dibagikan.
+
+### Langkah 4: Memasukkan ke GitHub
+
+Sekarang, pindahkan kunci tersebut ke GitHub:
+
+1. Buka file `.json` yang baru saja kamu unduh menggunakan text editor (Notepad / VS Code).
+2. Copy seluruh isi teks di dalam file tersebut (dari `{` pertama sampai `}` terakhir).
+3. Buka repositori GitHub milikmu.
+4. Pergi ke **Settings > Secrets and variables > Actions**
+5. Klik tombol **New repository secret**. Isi:
+  - **Name**: `GCP_CREDENTIALS`
+  - **Secret**: paste seluruh isi JSON tadi
+6. Klik **Add secret**.

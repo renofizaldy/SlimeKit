@@ -1,6 +1,8 @@
 resource "google_cloud_run_v2_service" "slimekit" {
   name     = var.cloud_run_name
   location = var.gcp_region
+
+  invoker_iam_disabled = true
   
   scaling {
     max_instance_count = 2
@@ -154,16 +156,4 @@ resource "google_cloud_run_v2_service" "slimekit" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
-}
-
-locals {
-  api = google_cloud_run_v2_service.slimekit
-}
-
-resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  project  = local.api.project
-  location = local.api.location
-  name     = local.api.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
 }

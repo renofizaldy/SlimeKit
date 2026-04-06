@@ -13,7 +13,6 @@ resource "google_cloud_run_v2_service" "slimekit" {
     max_instance_request_concurrency = 80
 
     containers {
-      # Mengambil image hasil build GitHub Actions
       image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/${var.repo_name}/${var.cloud_run_name}:${var.image_tag}"
       
       ports {
@@ -28,7 +27,6 @@ resource "google_cloud_run_v2_service" "slimekit" {
         startup_cpu_boost = true
       }
 
-      # --- ENV STATIS ---
       env {
         name  = "ENVIRONMENT"
         value = var.environment

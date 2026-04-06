@@ -1,13 +1,14 @@
 resource "google_cloud_run_v2_service" "slimekit" {
   name     = var.cloud_run_name
   location = var.gcp_region
+  
+  scaling {
+    max_instance_count = 2
+  }
 
   template {
     timeout = "300s"
     max_instance_request_concurrency = 80
-    scaling {
-      max_instance_count = 2
-    }
 
     containers {
       # Mengambil image hasil build GitHub Actions

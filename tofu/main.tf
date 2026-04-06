@@ -28,15 +28,19 @@ resource "google_cloud_run_v2_service" "slimekit" {
       # --- ENV STATIS ---
       env {
         name  = "ENVIRONMENT"
-        value = "PRODUCTION"
+        value = var.environment
+      }
+      env {
+        name  = "SYM_KEY"
+        value = var.sym_key
       }
       env {
         name  = "BASE_PATH"
-        value = "/"
+        value = var.base_path
       }
       env {
         name  = "APP_NAME"
-        value = "slimekit"
+        value = var.app_name
       }
       env {
         name  = "DB_HOST"
@@ -44,7 +48,7 @@ resource "google_cloud_run_v2_service" "slimekit" {
       }
       env {
         name  = "DB_PORT"
-        value = "5432"
+        value = tonumber(var.db_port)
       }
       env {
         name  = "DB_USER"
@@ -60,15 +64,11 @@ resource "google_cloud_run_v2_service" "slimekit" {
       }
       env {
         name  = "DB_CLIENT"
-        value = "pgsql"
+        value = var.db_client
       }
       env {
         name  = "SMTP_HOST"
-        value = "in-v3.mailjet.com"
-      }
-      env {
-        name  = "SMTP_PORT"
-        value = "587"
+        value = var.smtp_host
       }
       env {
         name  = "SMTP_USER"
@@ -79,32 +79,52 @@ resource "google_cloud_run_v2_service" "slimekit" {
         value = var.smtp_pass
       }
       env {
+        name  = "SMTP_PORT"
+        value = tonumber(var.smtp_port)
+      }
+      env {
         name  = "MAIL_FROM"
-        value = "info@lolitamakeup.id"
+        value = var.mail_from
       }
       env {
         name  = "MAIL_FROM_NAME"
-        value = "Slimekit"
+        value = var.mail_from_name
       }
       env {
         name  = "CLOUDINARY_URL"
         value = var.cloudinary_url
       }
       env {
-        name  = "SYM_KEY"
-        value = var.sym_key
+        name  = "R2_REGION"
+        value = var.r2_region
+      }
+      env {
+        name  = "R2_ENDPOINT"
+        value = var.r2_endpoint
+      }
+      env {
+        name  = "R2_ACCESS_KEY_ID"
+        value = var.r2_access_key_id
+      }
+      env {
+        name  = "R2_SECRET_ACCESS_KEY"
+        value = var.r2_secret_access_key
+      }
+      env {
+        name  = "R2_BUCKET"
+        value = var.r2_bucket
       }
       env {
         name  = "VALKEY_SCHEME"
-        value = "tcp"
+        value = var.valkey_scheme
       }
       env {
         name  = "VALKEY_HOST"
-        value = ""
+        value = var.valkey_host
       }
       env {
         name  = "VALKEY_PORT"
-        value = ""
+        value = tonumber(var.valkey_port)
       }
       env {
         name  = "VALKEY_USERNAME"
@@ -113,6 +133,18 @@ resource "google_cloud_run_v2_service" "slimekit" {
       env {
         name  = "VALKEY_PASSWORD"
         value = var.valkey_password
+      }
+      env {
+        name  = "CRONHOOKS_API_KEY"
+        value = var.cronhooks_api_key
+      }
+      env {
+        name  = "CRONHOOKS_BASE_URL"
+        value = var.cronhooks_base_url
+      }
+      env {
+        name  = "CRONHOOKS_CALLBACK"
+        value = var.cronhooks_callback
       }
     }
   }

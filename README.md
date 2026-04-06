@@ -185,24 +185,44 @@ terraform {
 Masukkan credential variabel berikut ini di **Repository Secrets** di **Settings -> Secrets and variables -> Actions**
 ```
 GCP_CREDENTIALS <-- Isi dengan Google Cloud Service Account JSON Key
-CLOUDINARY_URL <-- Isi dengan Cloudinary URL
 IMAGE_TAG <-- Isi dengan Image Tag (Contoh: latest)
-NEON_API_KEY <-- Isi dengan Neon API Key
-SMTP_PASS <-- Isi dengan SMTP Password
-SMTP_USER <-- Isi dengan SMTP Username
 SYM_KEY <-- Isi dengan Sym Key
+NEON_API_KEY <-- Isi dengan Neon API Key
+CLOUDINARY_URL <-- Isi dengan Cloudinary URL
+SMTP_USER <-- Isi dengan SMTP Username
+SMTP_PASS <-- Isi dengan SMTP Password
+R2_ACCESS_KEY_ID <-- Isi dengan R2 Access Key ID
+R2_SECRET_ACCESS_KEY <-- Isi dengan R2 Secret Access Key
 VALKEY_USERNAME <-- Isi dengan Valkey/Redis Username
 VALKEY_PASSWORD <-- Isi dengan Valkey/Redis Password
+CRONHOOKS_API_KEY <-- Isi dengan Cronhooks API Key
 ```
 Masukkan credential variabel berikut ini di **Repository Variables** di **Settings -> Secrets and variables -> Actions**
 ```
 GCP_PROJECT_ID <-- Isi dengan GCP Project ID
 GCP_REGION <-- Isi dengan GCP Region (Contoh: asia-southeast1)
 GCS_BUCKET_NAME <-- Isi dengan GCS Bucket Name
-CLOUD_RUN_NAME <-- Isi dengan Cloud Run Name (Contoh: pbike-api)
 REPO_NAME <-- Isi dengan Repo Name (Contoh: slimekit-img)
-NEON_DB_NAME <-- Isi dengan Neon DB Name
+CLOUD_RUN_NAME <-- Isi dengan Cloud Run Name (Contoh: slimekit-api)
+ENVIRONMENT <-- Isi dengan Environment (Contoh: production)
+BASE_PATH <-- Isi dengan Base Path (Contoh: /)
+APP_NAME <-- Isi dengan App Name (Contoh: SlimeKit)
 NEON_REGION <-- Isi dengan Neon Region (Contoh: aws-ap-southeast-1)
+DB_NAME <-- Isi dengan DB Name (Contoh: slimekit-db)
+DB_PORT <-- Isi dengan DB Port (Contoh: 5432)
+DB_CLIENT <-- Isi dengan DB Client (Contoh: pgsql)
+SMTP_HOST <-- Isi dengan SMTP Host (Contoh: smtp.mailjet.com)
+SMTP_PORT <-- Isi dengan SMTP Port (Contoh: 587)
+MAIL_FROM <-- Isi dengan Mail From (Contoh: [EMAIL_ADDRESS])
+MAIL_FROM_NAME <-- Isi dengan Mail From Name (Contoh: SlimeKit)
+R2_REGION <-- Isi dengan R2 Region (Contoh: auto)
+R2_ENDPOINT <-- Isi dengan R2 Endpoint (Contoh: https://xxxxxxxxxxxxxxxx.r2.cloudflarestorage.com)
+R2_BUCKET <-- Isi dengan R2 Bucket (Contoh: slimekit-r2)
+VALKEY_SCHEME <-- Isi dengan Valkey Scheme (Contoh: tcp)
+VALKEY_HOST <-- Isi dengan Valkey Host (Contoh: valkey.example.com)
+VALKEY_PORT <-- Isi dengan Valkey Port (Contoh: 6379)
+CRONHOOKS_BASE_URL <-- Isi dengan Cronhooks Base URL (Contoh: https://cronhooks.example.com)
+CRONHOOKS_CALLBACK <-- Isi dengan Cronhooks Callback (Contoh: https://cronhooks.example.com/callback)
 ```
 
 **11. Build dan Push Docker Image** (Gunakan yang bawah jika menggunakan Apple Silicon)

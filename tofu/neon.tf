@@ -1,5 +1,5 @@
 resource "neon_project" "slimekit_db" {
-  name      = var.neon_db_name
+  name      = var.db_name
   region_id = var.neon_region
   history_retention_seconds = 21600
 }

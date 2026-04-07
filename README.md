@@ -158,12 +158,9 @@ gcloud auth configure-docker asia-southeast1-docker.pkg.dev
 
 **7. Buat bucket di Google Cloud Storage**
 ```
-gcloud storage buckets create gs://<NAMA-BUCKET-UNIK> \
-  --project=<PROJECT-ID> \
-  --default-storage-class=STANDARD \
-  --location=us-west1 \
-  --uniform-bucket-level-access \
-  --versioning
+gcloud storage buckets create gs://<NAMA-BUCKET-UNIK> --project=<PROJECT-ID> --default-storage-class=STANDARD --location=us-west1 --uniform-bucket-level-access
+
+gcloud storage buckets update gs://<NAMA-BUCKET-UNIK> --versioning
 ```
 Catatan:
 - `--project=<PROJECT-ID>`: Ganti dengan Project ID Google Cloud kamu.
@@ -171,7 +168,17 @@ Catatan:
 - `--uniform-bucket-level-access`: Mengaktifkan *Uniform Bucket-Level Access* (direkomendasikan untuk keamanan).
 - `--versioning`: Mengaktifkan *Versioning* (direkomendasikan untuk keamanan).
 
-**8. Atur Secrets Actions di Github** (*Cukup sampai di sini jika ingin fokus langsung deploy ke Cloud*)
+**8. Atur Lifecycle Google Cloud Storage**
+Sangat disarankan untuk menambahkan aturan Lifecycle Management agar Google Cloud otomatis menghapus versi yang sudah terlalu tua (misalnya: hanya simpan 10 versi terakhir atau hapus versi non-aktif yang sudah berumur 30 hari).
+- Masuk ke Bucket yang sudah di buat di Dashboard GCP
+- Klik Bucket yang baru dibuat
+- Klik tab **Lifecycle**
+- Klik tombol **Add a rule**
+- Select an action: **Delete Object**
+- Select object conditions -> Set Conditions: **Number of newer versions** (Isi dengan Angka)
+- Klik tombol **Create**
+
+**9. Atur Secrets Actions di Github** (*Cukup sampai di sini jika ingin fokus langsung deploy ke Cloud*)
 Masukkan credential variabel berikut ini di **Repository Secrets** di **Settings -> Secrets and variables -> Actions**
 ```
 GCP_CREDENTIALS <-- Isi dengan Google Cloud Service Account JSON Key
@@ -215,19 +222,19 @@ CRONHOOKS_BASE_URL <-- Isi dengan Cronhooks Base URL (Contoh: https://cronhooks.
 CRONHOOKS_CALLBACK <-- Isi dengan Cronhooks Callback (Contoh: https://cronhooks.example.com/callback)
 ```
 
-**9. Build dan Push Docker Image** (Gunakan yang bawah jika menggunakan Apple Silicon)
+**10. Build dan Push Docker Image** (Gunakan yang bawah jika menggunakan Apple Silicon)
 ```
 docker build -f Dockerfile -t asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest .
 
 docker build --platform linux/amd64 -t asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest .
 ```
 
-**10. Push Docker Image**
+**11. Push Docker Image**
 ```
 docker push asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest
 ```
 
-**11. Apply OpenTofu**
+**12. Apply OpenTofu**
 ```
 cd /tofu
 tofu init

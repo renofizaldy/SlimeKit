@@ -158,30 +158,20 @@ gcloud auth configure-docker asia-southeast1-docker.pkg.dev
 
 **7. Buat bucket di Google Cloud Storage**
 ```
-gsutil mb -p <PROJECT-ID> -c STANDARD -l asia-southeast1 -b on gs://<NAMA-BUCKET-UNIK>
+gcloud storage buckets create gs://<NAMA-BUCKET-UNIK> \
+  --project=<PROJECT-ID> \
+  --default-storage-class=STANDARD \
+  --location=us-west1 \
+  --uniform-bucket-level-access \
+  --versioning
 ```
 Catatan:
-- `-l asia-southeast1`: Menentukan lokasi *bucket* di Jakarta (sesuaikan jika kamu ingin lokasi lain).
-- `-b on`: Mengaktifkan *Uniform Bucket-Level Access* (direkomendasikan untuk keamanan).
+- `--project=<PROJECT-ID>`: Ganti dengan Project ID Google Cloud kamu.
+- `--location=us-west1`: Menentukan lokasi *bucket* di US (sesuaikan jika kamu ingin lokasi lain, us-west1/us-east1-us-central1 adalah lokasi yang direkomendasikan agar gratis).
+- `--uniform-bucket-level-access`: Mengaktifkan *Uniform Bucket-Level Access* (direkomendasikan untuk keamanan).
+- `--versioning`: Mengaktifkan *Versioning* (direkomendasikan untuk keamanan).
 
-**8. Aktifkan Versioning pada Bucket**
-Sangat disarankan mengaktifkan versioning. Jika terjadi kesalahan konfigurasi pada OpenTofu yang merusak state, kamu bisa memulihkan file .tfstate dari versi sebelumnya.
-```
-gsutil versioning set on gs://<NAMA-BUCKET-UNIK>
-```
-
-**9. Konfigurasi File OpenTofu** (di dalam `providers.tf`)
-Setelah bucket dibuat, beritahu OpenTofu untuk menggunakannya. Buka file .tf utama kamu (misalnya providers.tf atau buat file baru bernama backend.tf di dalam folder tofu/) dan tambahkan blok ini:
-```
-terraform {
-  backend "gcs" {
-    bucket  = "<NAMA-BUCKET-UNIK>"
-    prefix  = "terraform/state"
-  }
-}
-```
-
-**10. Atur Secrets Actions di Github** (*Cukup sampai di sini jika ingin fokus langsung deploy ke Cloud*)
+**8. Atur Secrets Actions di Github** (*Cukup sampai di sini jika ingin fokus langsung deploy ke Cloud*)
 Masukkan credential variabel berikut ini di **Repository Secrets** di **Settings -> Secrets and variables -> Actions**
 ```
 GCP_CREDENTIALS <-- Isi dengan Google Cloud Service Account JSON Key
@@ -225,19 +215,19 @@ CRONHOOKS_BASE_URL <-- Isi dengan Cronhooks Base URL (Contoh: https://cronhooks.
 CRONHOOKS_CALLBACK <-- Isi dengan Cronhooks Callback (Contoh: https://cronhooks.example.com/callback)
 ```
 
-**11. Build dan Push Docker Image** (Gunakan yang bawah jika menggunakan Apple Silicon)
+**9. Build dan Push Docker Image** (Gunakan yang bawah jika menggunakan Apple Silicon)
 ```
 docker build -f Dockerfile -t asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest .
 
 docker build --platform linux/amd64 -t asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest .
 ```
 
-**12. Push Docker Image**
+**10. Push Docker Image**
 ```
 docker push asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest
 ```
 
-**13. Apply OpenTofu**
+**11. Apply OpenTofu**
 ```
 cd /tofu
 tofu init

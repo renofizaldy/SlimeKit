@@ -220,9 +220,11 @@ if (!file_exists($servicePath)) {
   namespace App\Services\Admin;
 
   use Exception;
-  use App\Models\Model;
+  use Illuminate\Database\Capsule\Manager as DB;
   use App\Helpers\General;
   use App\Lib\Cloudinary;
+
+  use App\Models\Model;
 
   class {$moduleName}Service
   {

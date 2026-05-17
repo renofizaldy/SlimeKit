@@ -247,17 +247,19 @@ tofu apply
 
 1. Buka dashboard Google Cloud dan pastikan kamu berada di project yang benar (`starry-axis-384903`).
 
-2. Di menu pencarian atas, ketik **Service Accounts** (atau buka menu kiri: **IAM & Admin > Service Accounts**).
+2. Di menu pencarian atas, ketik **Cloud Run Admin API** lalu klik Enable.
 
-3. Klik tombol **+ CREATE SERVICE ACCOUNT** di bagian atas.
+3. Di menu pencarian atas, ketik **Service Accounts** (atau buka menu kiri: **IAM & Admin > Service Accounts**).
 
-4. Isi detailnya:
+4. Klik tombol **+ CREATE SERVICE ACCOUNT** di bagian atas.
+
+5. Isi detailnya:
 
 - **Service account name**: `github-actions-deployer` (atau nama lain yang mudah diingat)
 - **Service account ID**: (akan terisi otomatis)
 - **Description**: "Untuk deploy SlimeKit via GitHub Actions & OpenTofu"
 
-5. Klik **CREATE AND CONTINUE**.
+6. Klik **CREATE AND CONTINUE**.
 
 ### Langkah 2: Memberikan Izin (Roles)
 

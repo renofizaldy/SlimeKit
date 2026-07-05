@@ -11,23 +11,58 @@ class Valkey
   protected $client;
   protected $isConnected = false;
 
-  public function __construct()
+  public function __construct($testDate = null)
   {
     $dotenv = Dotenv::createImmutable(__DIR__.'/../../');
     $dotenv->safeLoad();
 
+    $date = $testDate ? new \DateTime($testDate) : new \DateTime();
+    $day = (int)$date->format('j');
+
+    //* Determine credential prefix based on date range
+    // if ($day >= 1 && $day <= 10) {
+    //   $prefix = 'VALKEY1';
+    // } elseif ($day >= 11 && $day <= 20) {
+    //   $prefix = 'VALKEY2';
+    // } else {
+    //   $prefix = 'VALKEY3';
+    // }
+    // $getEnv = function($key) use ($prefix) {
+    //   return $_ENV["{$prefix}_{$key}"] ?? $_ENV["VALKEY_{$key}"] ?? null;
+    // };
+
+    $getEnv = function($key) {
+      return $_ENV["VALKEY_{$key}"] ?? null;
+    };
+
     try {
+      $scheme = $getEnv('SCHEME') ?? 'tls';
       $this->client = new Client([
-        'scheme'     => $_ENV['VALKEY_SCHEME'] ?? 'tcp',
-        'host'       => $_ENV['VALKEY_HOST'],
-        'port'       => $_ENV['VALKEY_PORT'],
-        'username'   => $_ENV['VALKEY_USERNAME'] ?? null,
-        'password'   => $_ENV['VALKEY_PASSWORD'] ?? null,
-        'persistent' => true,
-        'ssl'        => ($_ENV['VALKEY_SCHEME'] === 'tls') ? ['verify_peer' => false] : null,
+        'scheme'             => $scheme,
+        'host'               => $getEnv('HOST'),
+        'port'               => $getEnv('PORT'),
+        'username'           => $getEnv('USERNAME'),
+        'password'           => $getEnv('PASSWORD'),
+        'persistent'         => true,
+        'timeout'            => 2.5, //! Max 2.5s untuk establish connection
+        'read_write_timeout' => 2.5, //! Max 2.5s untuk read/write command
+        'ssl'                => ($scheme === 'tls') ? ['verify_peer' => false] : null,
       ]);
 
+      //* Predis menggunakan lazy connection, koneksi nyata terjadi saat command pertama dikirim.
+      //* isConnected = true hanya menandakan client sudah terkonfigurasi.
+      //* Setiap method memiliki try-catch sendiri untuk menangani kegagalan koneksi.
       $this->isConnected = true;
+
+      //* Auto-flush logic on 1st and 16th
+      // if ($day === 1 || $day === 16) {
+      //   $flushLockKey = 'system:flush_lock:' . $date->format('Y-m-d');
+      //   if (!$this->exists($flushLockKey)) {
+      //     $this->deleteAll();
+      //     $this->set($flushLockKey, 'flushed', 172800); //! Set lock for 48 hours to prevent multiple flushes
+      //   }
+      // }
+
     }
     catch (Exception $e) {
       $this->isConnected = false;
@@ -55,11 +90,16 @@ class Valkey
   {
     if (!$this->isConnected) return false;
 
-    $this->client->set($key, $value);
-    if ($expireIn) {
-      $this->client->expire($key, $expireIn);
+    try {
+      $this->client->set($key, $value);
+      if ($expireIn) {
+        $this->client->expire($key, $expireIn);
+      }
+      return true;
+    } catch (Exception $e) {
+      $this->isConnected = false;
+      return false;
     }
-    return true;
   }
 
   /**
@@ -71,7 +111,13 @@ class Valkey
   public function get($key)
   {
     if (!$this->isConnected) return null;
-    return $this->client->get($key);
+
+    try {
+      return $this->client->get($key);
+    } catch (Exception $e) {
+      $this->isConnected = false;
+      return null;
+    }
   }
 
   /**
@@ -83,7 +129,13 @@ class Valkey
   public function delete($key)
   {
     if (!$this->isConnected) return false;
-    return $this->client->del([$key]);
+
+    try {
+      return $this->client->del([$key]);
+    } catch (Exception $e) {
+      $this->isConnected = false;
+      return false;
+    }
   }
 
   /**
@@ -120,6 +172,51 @@ class Valkey
     }
   }
 
+  public function deleteByPrefixes(array $prefixes)
+  {
+    $result = true;
+
+    foreach ($prefixes as $prefix) {
+      $deleted = $this->deleteByPrefix($prefix);
+      if ($deleted === false) {
+        $result = false;
+      }
+    }
+
+    return $result;
+  }
+
+  public function deleteListCaches(array $cacheKeys)
+  {
+    $prefixes = array_map(fn ($key) => "{$key}:list", $cacheKeys);
+    return $this->deleteByPrefixes($prefixes);
+  }
+
+  public function getKeysByPrefix($prefix)
+  {
+    if (!$this->isConnected) return [];
+
+    $cursor = 0;
+    $pattern = $prefix . '*';
+    $allKeys = [];
+
+    try {
+      do {
+        $result = $this->client->scan($cursor, ['match' => $pattern, 'count' => 100]);
+        $cursor = $result[0];
+        $keys = $result[1];
+
+        if (!empty($keys)) {
+          $allKeys = array_merge($allKeys, $keys);
+        }
+      } while ($cursor != 0);
+
+      return array_unique($allKeys);
+    } catch (Exception $e) {
+      return [];
+    }
+  }
+
   /**
    * Delete All key
    *
@@ -146,6 +243,64 @@ class Valkey
   public function exists($key)
   {
     if (!$this->isConnected) return false;
-    return $this->client->exists($key) > 0;
+
+    try {
+      return $this->client->exists($key) > 0;
+    } catch (Exception $e) {
+      $this->isConnected = false;
+      return false;
+    }
+  }
+
+  /**
+   * Push a value onto the head of a list (Queue).
+   * * @param string $key
+   * @param mixed $value
+   * @return int|false The length of the list after the push, or false
+   */
+  public function lpush($key, $value)
+  {
+    if (!$this->isConnected) return false;
+
+    try {
+      return $this->client->lpush($key, [$value]);
+    } catch (Exception $e) {
+      $this->isConnected = false;
+      return false;
+    }
+  }
+
+  /**
+   * Remove and return the last element of a list (Process Queue).
+   * * @param string $key
+   * @return string|null
+   */
+  public function rpop($key)
+  {
+    if (!$this->isConnected) return null;
+
+    try {
+      return $this->client->rpop($key);
+    } catch (Exception $e) {
+      $this->isConnected = false;
+      return null;
+    }
+  }
+
+  /**
+   * Increment the integer value of a key by one.
+   * * @param string $key
+   * @return int|false The value of key after the increment, or false if not connected
+   */
+  public function increment($key)
+  {
+    if (!$this->isConnected) return false;
+
+    try {
+      return $this->client->incr($key);
+    } catch (Exception $e) {
+      $this->isConnected = false;
+      return false;
+    }
   }
 }

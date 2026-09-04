@@ -2,7 +2,6 @@
 
 namespace App\Lib;
 
-use Dotenv\Dotenv;
 use Aws\S3\S3Client;
 use Aws\Exception\AwsException;
 use Symfony\Component\Mime\MimeTypes;
@@ -16,21 +15,18 @@ class CloudflareR2
   /**
    * Initialize CloudflareR2 client.
    */
-  public function __construct()
+  public function __construct(array $config)
   {
-    $dotenv = Dotenv::createImmutable(__DIR__.'/../../');
-    $dotenv->safeLoad();
-
     $this->client = new S3Client([
-      'region'      => $_ENV['R2_REGION'],
+      'region'      => $config['region'],
       'version'     => 'latest',
-      'endpoint'    => $_ENV['R2_ENDPOINT'],
+      'endpoint'    => $config['endpoint'],
       'credentials' => [
-        'key'    => $_ENV['R2_ACCESS_KEY_ID'],
-        'secret' => $_ENV['R2_SECRET_ACCESS_KEY'],
+        'key'    => $config['access_key'],
+        'secret' => $config['secret_key'],
       ],
     ]);
-    $this->bucket = $_ENV['R2_BUCKET'];
+    $this->bucket = $config['bucket'];
     $this->mimeTypes = new MimeTypes();
   }
 

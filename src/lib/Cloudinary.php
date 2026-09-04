@@ -2,23 +2,20 @@
 
 namespace App\Lib;
 
-require __DIR__.'/../../vendor/autoload.php';
-
-use Dotenv\Dotenv;
-
 class Cloudinary
 {
-  public function __construct()
+  protected $appName;
+
+  public function __construct(array $config)
   {
-    $dotenv = Dotenv::createImmutable(__DIR__.'/../../');
-    $dotenv->safeLoad();
-    \Cloudinary\Configuration\Configuration::instance($_ENV['CLOUDINARY_URL']);
+    \Cloudinary\Configuration\Configuration::instance($config['url']);
+    $this->appName = $config['app_name'] ?? '';
   }
 
   public function upload($file, $opt=[])
   {
     if (empty($opt) || !isset($opt['folder'])) {
-      $opt['folder'] = $_ENV['APP_NAME'];
+      $opt['folder'] = $this->appName;
     }
     $cloudinary = new \Cloudinary\Api\Upload\UploadApi();
     $result = $cloudinary->upload($file, $opt);

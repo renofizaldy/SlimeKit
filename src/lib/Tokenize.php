@@ -2,21 +2,17 @@
 
 namespace App\Lib;
 
-require __DIR__.'/../../vendor/autoload.php';
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Dotenv\Dotenv;
 
 class Tokenize
 {
   private $key;
 
-  function __construct()
+  function __construct(array $config)
   {
-    $dotenv = Dotenv::createImmutable(__DIR__.'/../../');
-    $dotenv->safeLoad();
-    $this->key = $_ENV['SYM_KEY'];
+    $this->key = $config['secret_key'];
   }
 
   public function encode($data=[]) {

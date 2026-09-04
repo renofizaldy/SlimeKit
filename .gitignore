@@ -1,5 +1,5 @@
-**/.DS_Store
+/.phpunit.cache
 /vendor
+/logs
 .env
-/tofu/.terraform*
-/tofu/terraform.tfvars
+**/.DS_Store

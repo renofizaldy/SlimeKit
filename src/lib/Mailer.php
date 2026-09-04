@@ -5,34 +5,29 @@ namespace App\Lib;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require __DIR__ . '/../../vendor/autoload.php';
 
-use Dotenv\Dotenv;
 
 class Mailer
 {
   protected $mail;
 
-  public function __construct()
+  public function __construct(array $config)
   {
-    $dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
-    $dotenv->safeLoad();
-
     $this->mail = new PHPMailer(true);
-    $this->configure();
+    $this->configure($config);
   }
 
-  protected function configure()
+  protected function configure(array $config)
   {
     $this->mail->isSMTP();
-    $this->mail->Host       = $_ENV['SMTP_HOST'];
+    $this->mail->Host       = $config['host'];
     $this->mail->SMTPAuth   = true;
-    $this->mail->Username   = $_ENV['SMTP_USER'];
-    $this->mail->Password   = $_ENV['SMTP_PASS'];
+    $this->mail->Username   = $config['username'];
+    $this->mail->Password   = $config['password'];
     $this->mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $this->mail->Port       = $_ENV['SMTP_PORT'];
+    $this->mail->Port       = $config['port'];
 
-    $this->mail->setFrom('info@lolitamakeup.id', $_ENV['MAIL_FROM_NAME']);
+    $this->mail->setFrom($config['from_email'], $config['from_name']);
   }
 
   public function renderTemplate($templateName, $data = [])

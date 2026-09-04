@@ -7,6 +7,7 @@ use DateTime;
 use App\Lib\Cloudinary;
 use App\Lib\Mailer;
 use App\Lib\Cronhooks;
+use App\Lib\Valkey;
 
 use App\Models\Log;
 use App\Models\Picture;
@@ -16,8 +17,12 @@ use Illuminate\Support\Carbon;
 
 class General
 {
-  public function __construct()
-  {}
+  protected $valkey;
+
+  public function __construct(?Valkey $valkey = null)
+  {
+    $this->valkey = $valkey;
+  }
 
   public function addLog(array $user, string $table_name, int $id_record, string $action, array $changes = []): void
   {

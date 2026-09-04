@@ -5,14 +5,14 @@ namespace App\Lib;
 use Google\Cloud\Storage\StorageClient;
 use Exception;
 
-class GoogleCloud
+class GoogleCloudStorage
 {
   private $storage;
 
-  public function __construct()
+  public function __construct(array $config)
   {
     $this->storage = new StorageClient([
-      'keyFilePath' => __DIR__ . '/../../assets/gcs-service-account.json',
+      'keyFilePath' => $config['credentials_path'],
     ]);
   }
 

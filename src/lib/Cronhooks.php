@@ -1,7 +1,6 @@
 <?php
 namespace App\Lib;
 
-use Dotenv\Dotenv;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 
@@ -12,14 +11,11 @@ class Cronhooks
   private $callbackUrl;
   private $client;
 
-  public function __construct()
+  public function __construct(array $config)
   {
-    $dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
-    $dotenv->safeLoad();
-
-    $this->apiKey      = $_ENV['CRONHOOKS_API_KEY'] ?? '';
-    $this->baseUrl     = $_ENV['CRONHOOKS_BASE_URL'] ?: 'https://api.cronhooks.io';
-    $this->callbackUrl = $_ENV['CRONHOOKS_CALLBACK'] ?? '';
+    $this->apiKey      = $config['api_key'] ?? '';
+    $this->baseUrl     = $config['base_url'] ?: 'https://api.cronhooks.io';
+    $this->callbackUrl = $config['callback_url'] ?? '';
 
     $this->client  = new Client([
       'base_uri' => rtrim($this->baseUrl, '/'),
@@ -47,6 +43,10 @@ class Cronhooks
    */
   public function createSchedule(string $publishTime, array $opts = []): array
   {
+    if (empty($this->apiKey) || empty($this->callbackUrl) || empty($this->baseUrl)) {
+      return ['error' => 'CRONHOOKS config incomplete'];
+    }
+
     // --- siapkan default option
     $title       = $opts['title'] ?? "Trigger";
     $timezone    = $opts['timezone'] ?? 'Asia/Jakarta';
@@ -111,6 +111,10 @@ class Cronhooks
 
   public function deleteSchedule(string $scheduleId): bool
   {
+    if (empty($this->apiKey) || empty($this->callbackUrl) || empty($this->baseUrl)) {
+      return true;
+    }
+
     $res = $this->client->delete("/schedules/{$scheduleId}", [
       'headers' => [
         'Authorization' => "Bearer {$this->apiKey}",

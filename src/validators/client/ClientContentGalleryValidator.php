@@ -3,30 +3,36 @@
 namespace App\Validators\Client;
 
 use Exception;
+use Rakit\Validation\Validator;
 use App\Helpers\General;
 
 class ClientContentGalleryValidator
 {
-  private $helper;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-  }
+  public function __construct(
+    private Validator $validator,
+    private General $helper
+  ) {}
 
   public function validate(string $type, array $input)
   {
     switch ($type) {
       case 'list':
-        $rules = [
-          'limit' => 'required',
-        ];
-      break;
+        $rules = $this->helper->paginationRules([
+          'limit' => 'numeric',
+        ]);
+        break;
       default:
         throw new Exception('Can\'t validate some field', 400);
-      break;
     }
-    $this->helper->validateByRules($input, $rules);
+
+    $validation = $this->validator->make($input, $rules);
+    $validation->validate();
+
+    if ($validation->fails()) {
+      $errors = $validation->errors()->firstOfAll();
+      throw new Exception(json_encode(['validation_errors' => $errors]), 400);
+    }
+
     return true;
   }
 }

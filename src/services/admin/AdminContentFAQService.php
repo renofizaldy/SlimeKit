@@ -11,15 +11,12 @@ use App\Models\ContentFAQ;
 
 class AdminContentFAQService
 {
-  private $helper;
-  private $cloudinary;
-  private $tableMain = 'tb_content_faq';
+  private string $tableMain = 'tb_content_faq';
 
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-  }
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary
+  ) {}
 
   private function checkExist(array $input)
   {
@@ -30,9 +27,19 @@ class AdminContentFAQService
     return $check;
   }
 
-  public function list(array $input)
+  public function list(array $input = [])
   {
-    return ContentFAQ::all()->toArray();
+    $page     = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? 10));
+
+    $query = ContentFAQ::orderBy('sort', 'asc')->orderBy('id', 'asc');
+
+    return $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => $row->toArray()
+    );
   }
 
   public function add(array $input, array $user)
@@ -47,7 +54,7 @@ class AdminContentFAQService
       //? INSERT TO table
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT');
+        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT', $this->helper->logRecordChanges($insert));
       //? LOG Record
 
       DB::commit();
@@ -60,17 +67,20 @@ class AdminContentFAQService
 
   public function edit(array $input, array $user)
   {
+    $check = $this->checkExist($input);
+
     DB::beginTransaction();
     try {
       //? UPDATE ON table
-        ContentFAQ::where('id', (int) $input['id'])->update([
+        $updateData = [
           'title'       => $input['title'],
           'description' => $input['description'],
-        ]);
+        ];
+        ContentFAQ::where('id', (int) $input['id'])->update($updateData);
       //? UPDATE ON table
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $this->helper->logUpdateChanges($check, $updateData));
       //? LOG Record
 
       DB::commit();
@@ -86,14 +96,16 @@ class AdminContentFAQService
     DB::beginTransaction();
     try {
       foreach($input['order'] as $row) {
+        $check = ContentFAQ::where('id', (int) $row['id'])->first();
         //? UPDATE ON table
-          ContentFAQ::where('id', (int) $row['id'])->update([
+          $updateData = [
             'sort' => (int) $row['sort'],
-          ]);
+          ];
+          ContentFAQ::where('id', (int) $row['id'])->update($updateData);
         //? UPDATE ON table
 
         //? LOG Record
-          $this->helper->addLog($user, $this->tableMain, (int) $row['id'], 'UPDATE');
+          $this->helper->addLog($user, $this->tableMain, (int) $row['id'], 'UPDATE', $this->helper->logUpdateChanges($check ?? [], $updateData));
         //? LOG Record
       }
 
@@ -116,7 +128,7 @@ class AdminContentFAQService
       //? DELETE table
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, $check->id, 'DELETE');
+        $this->helper->addLog($user, $this->tableMain, $check->id, 'DELETE', $this->helper->logRecordChanges($check));
       //? LOG Record
 
       DB::commit();

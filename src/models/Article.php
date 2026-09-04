@@ -29,6 +29,10 @@ class Article extends Model {
         return $this->hasOne(SeoMeta::class, 'id_parent')->where('type', 'article');
     }
 
+    public function articleAgent() {
+        return $this->hasOne(ArticleAgent::class, 'id_parent');
+    }
+
     public function cronhooks() {
         return $this->hasOne(Cronhooks::class, 'id_parent')->where('type', 'article');
     }

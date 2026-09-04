@@ -8,27 +8,41 @@ use App\Helpers\General;
 use App\Lib\Cloudinary;
 use App\Lib\Valkey;
 use App\Lib\Cronhooks;
+use App\Lib\NextRevalidator;
 
 use App\Models\Article;
 use App\Models\Picture;
 use App\Models\SeoMeta;
+use App\Models\ArticleAgent;
 
 class AdminArticleService
 {
-  private $helper;
-  private $cloudinary;
-  private $valkey;
-  private $cronhooks;
-  private $tableMain = 'tb_article';
-  private $cacheKey = 'article';
-  private $cacheExpired = (60 * 30); // 30 minutes
+  private string $tableMain = 'tb_article';
+  private string $cacheKey = 'article';
+  private int $cacheExpired = (60 * 30); // 30 minutes
 
-  public function __construct()
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary,
+    private Valkey $valkey,
+    private Cronhooks $cronhooks,
+    private NextRevalidator $nextRevalidator
+  ) {}
+
+  private function shouldRevalidateArticle($status, $publish): bool
   {
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-    $this->valkey = new Valkey;
-    $this->cronhooks = new Cronhooks;
+    return $status === 'active'
+      && !empty($publish)
+      && strtotime((string) $publish) <= time();
+  }
+
+  private function revalidateArticle(?string $site, ?string $slug, ?string $oldSlug = null): void
+  {
+    if (empty($site) || empty($slug)) {
+      return;
+    }
+
+    $this->nextRevalidator->revalidateArticle($site, $slug, $oldSlug);
   }
 
   private function checkExist(array $input)
@@ -54,26 +68,38 @@ class AdminArticleService
 
   public function checkSlug(array $input)
   {
-    $query = Article::where('slug', $input['slug']);
+    $query = Article::where([
+      'slug' => $input['slug'],
+      'site' => $input['site'],
+    ]);
     if (!empty($input['id'])) {
-      $query->where('id', '!=', $input['id']);
+      $query->where('id', '!=', (int) $input['id']);
     }
     if ($query->exists()) {
-      throw new Exception('Slug already exists', 400);
+      throw new Exception('Slug already exists', 409);
     }
     return true;
   }
 
   public function list(array $input)
   {
-    $data = [];
+    $page           = max(1, (int) ($input['page'] ?? 1));
+    $pageSize       = max(1, (int) ($input['pageSize'] ?? 10));
+    $allowedOrderBy = ['publish', 'id', 'title', 'status', 'site', 'author', 'created_at'];
+    $orderBy        = in_array($input['orderBy'] ?? '', $allowedOrderBy, true) ? $input['orderBy'] : 'publish';
+    $orderDir       = strtolower($input['orderDir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
     //* GENERATE CACHE KEY
       $cacheKey   = sprintf(
-        "{$this->cacheKey}:admin:list:status=%s:featured=%s:category=%s",
+        "{$this->cacheKey}:admin:list:status=%s:site=%s:featured=%s:category=%s:page=%d:pageSize=%d:orderBy=%s:orderDir=%s",
         $input['status'],
+        $input['site'],
         $input['featured'],
-        $input['category']
+        $input['category'],
+        $page,
+        $pageSize,
+        $orderBy,
+        $orderDir
       );
       $cachedData = $this->valkey->get($cacheKey);
       if ($cachedData) {
@@ -82,37 +108,48 @@ class AdminArticleService
     //* GENERATE CACHE KEY
 
     //* BUILD QUERY
-    $query = Article::with(['category', 'seoMeta']);
-    //? IF FILTER: STATUS
-    if ($input['status'] !== 'all') {
-      $query->where('status', $input['status']);
-    }
-    //? IF FILTER: FEATURED
-    if ($input['featured'] !== 'all') {
-      $query->whereJsonContains('featured', $input['featured']);
-    }
-    //? IF FILTER: CATEGORY
-    if ($input['category'] !== 'all' && !empty($input['category'])) {
-      $query->where('id_category', (int) $input['category']);
-    }
-    $results = $query->orderBy('id', 'desc')->get();
-    if ($results->isNotEmpty()) {
-      $data = $results->map(function ($row) {
-        return [
+      $query = Article::with(['category', 'seoMeta']);
+      //? IF FILTER: STATUS
+      if ($input['status'] !== 'all') {
+        $query->where('status', $input['status']);
+      }
+      //? IF FILTER: SITE
+      if ($input['site'] !== 'all') {
+        $query->where('site', $input['site']);
+      }
+      //? IF FILTER: FEATURED
+      if ($input['featured'] !== 'all') {
+        $query->whereJsonContains('featured', $input['featured']);
+      }
+      //? IF FILTER: CATEGORY
+      if ($input['category'] !== 'all' && !empty($input['category'])) {
+        $query->where('id_category', (int) $input['category']);
+      }
+      $query->orderBy($orderBy, $orderDir);
+      if ($orderBy !== 'id') {
+        $query->orderBy('id', 'desc');
+      }
+
+      $data = $this->helper->paginateQuery(
+        $query,
+        $page,
+        $pageSize,
+        fn ($row) => [
           'id'              => $row->id,
           'title'           => $row->title,
           'category'        => $row->category ? $row->category->title : null,
           'featured'        => $row->featured ?? [],
           'status'          => $row->status,
+          'site'            => $row->site,
           'slug'            => $row->slug,
           'author'          => $row->author,
           'seo_keyphrase'   => $row->seoMeta ? $row->seoMeta->seo_keyphrase : null,
           'seo_analysis'    => $row->seoMeta ? $row->seoMeta->seo_analysis : null,
           'seo_readability' => $row->seoMeta ? $row->seoMeta->seo_readability : null,
           'publish'         => $row->publish ? date('Y-m-d H:i:s', strtotime($row->publish)) : null
-        ];
-      })->toArray();
-    }
+        ]
+      );
+    //* BUILD QUERY
 
     //* SAVE TO CACHE
     $this->valkey->set($cacheKey, json_encode($data), $this->cacheExpired-1); //! Valkey Expired
@@ -128,38 +165,39 @@ class AdminArticleService
 
     $data = [
       'article' => [
-        'id'            => $detail->id,
-        'title'         => $detail->title,
-        'slug'          => $detail->slug,
-        'excerpt'       => $detail->excerpt,
-        'content'       => $detail->content,
-        'author'        => $detail->author,
-        'publish'       => $detail->publish ? date('Y-m-d H:i:s', strtotime($detail->publish)) : null,
-        'status'        => $detail->status,
-        'featured'      => $detail->featured ?? [],
-        'read_time'     => $detail->read_time ?? 0,
-        'created_at'    => $detail->created_at ? $detail->created_at->format('Y-m-d H:i:s') : null,
-        'updated_at'    => $detail->updated_at ? $detail->updated_at->format('Y-m-d H:i:s') : null,
+        'id'          => $detail->id,
+        'title'       => $detail->title,
+        'slug'        => $detail->slug,
+        'excerpt'     => $detail->excerpt,
+        'content'     => $detail->content,
+        'author'      => $detail->author,
+        'publish'     => $detail->publish ? date('Y-m-d H:i:s', strtotime($detail->publish)) : null,
+        'status'      => $detail->status,
+        'site'        => $detail->site,
+        'featured'    => $detail->featured ?? [], // Auto-cast dari Model
+        'read_time'   => $detail->read_time ?? 0,
+        'created_at'  => $detail->created_at ? $detail->created_at->format('Y-m-d H:i:s') : null,
+        'updated_at'  => $detail->updated_at ? $detail->updated_at->format('Y-m-d H:i:s') : null,
       ],
       'category' => [
-        'id'            => $detail->id_category,
-        'title'         => $detail->category->title ?? null,
+        'id'          => $detail->id_category,
+        'title'       => $detail->category->title ?? null,
       ],
       'seo' => [
-        'keyphrase'     => $detail->seoMeta->seo_keyphrase ?? null,
-        'analysis'      => $detail->seoMeta->seo_analysis ?? null,
-        'readability'   => $detail->seoMeta->seo_readability ?? null,
+        'keyphrase'   => $detail->seoMeta->seo_keyphrase ?? null,
+        'analysis'    => $detail->seoMeta->seo_analysis ?? null,
+        'readability' => $detail->seoMeta->seo_readability ?? null,
       ],
       'meta' => [
-        'title'         => $detail->seoMeta->meta_title ?? null,
-        'description'   => $detail->seoMeta->meta_description ?? null,
-        'robots'        => $detail->seoMeta->meta_robots ?? null,
+        'title'       => $detail->seoMeta->meta_title ?? null,
+        'description' => $detail->seoMeta->meta_description ?? null,
+        'robots'      => $detail->seoMeta->meta_robots ?? null,
       ],
       'picture' => [
-        'id'            => $detail->id_picture,
-        'original'      => $detail->picture->original ?? null,
-        'thumbnail'     => $detail->picture->thumbnail ?? null,
-        'caption'       => $detail->picture->caption ?? null,
+        'id'          => $detail->id_picture,
+        'original'    => $detail->picture->original ?? null,
+        'thumbnail'   => $detail->picture->thumbnail ?? null,
+        'caption'     => $detail->picture->caption ?? null,
       ]
     ];
 
@@ -176,13 +214,14 @@ class AdminArticleService
         $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null, $input['picture_caption'] ?? null);
       //? PICTURE UPLOAD
 
-      //? INSERT TO tableMain (Article)
+      //? INSERT TO tableMain
         $article = Article::create([
           'title'       => $input['title'],
           'slug'        => $input['slug'],
           'excerpt'     => $input['excerpt'] ?? null,
           'content'     => $input['content'] ?? null,
           'id_picture'  => $picture_id['id'] ?? null,
+          'site'        => $input['site'] ?? null,
           'id_category' => !empty($input['category']) ? (int)$input['category'] : null,
           'author'      => $input['author'] ?? null,
           'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
@@ -191,7 +230,7 @@ class AdminArticleService
           'read_time'   => $input['read_time'] ?? 0,
         ]);
         $lastTableMainId = $article->id;
-      //? INSERT TO tableMain (Article)
+      //? INSERT TO tableMain
 
       //? INSERT TO tableSeoMeta
         SeoMeta::create([
@@ -206,28 +245,43 @@ class AdminArticleService
         ]);
       //? INSERT TO tableSeoMeta
 
+      //? INSERT TO tableArticleAgent
+        if (!empty($input['article_agent'])) {
+          ArticleAgent::where('id', $input['article_agent'])->update([
+            'id_parent' => $lastTableMainId
+          ]);
+        }
+      //? INSERT TO tableArticleAgent
+
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, $lastTableMainId, 'INSERT');
+        $changes = $this->helper->logRecordChanges($article);
+        $this->helper->addLog($user, $this->tableMain, $lastTableMainId, 'INSERT', $changes);
       //? LOG Record
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
       DB::commit();
 
+      //? REVALIDATE ARTICLE
+        if ($this->shouldRevalidateArticle($input['status'], $input['publish'] ?? null)) {
+          $this->revalidateArticle($input['site'], $input['slug']);
+        }
+      //? REVALIDATE ARTICLE
+
       //? CHANGE CRONJOB
         if (!empty($input['publish']) && $input['publish'] > date('Y-m-d H:i:s')) {
-          $this->helper->recomputeCron($this->cronhooks);
+          $this->helper->reCron($this->cronhooks);
         }
       //? CHANGE CRONJOB
 
       return [
         'id' => $lastTableMainId
       ];
-
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
       DB::rollBack();
       throw $e;
     }
@@ -250,6 +304,7 @@ class AdminArticleService
           'slug'        => $input['slug'],
           'excerpt'     => $input['excerpt'] ?? null,
           'content'     => $input['content'] ?? null,
+          'site'        => $input['site'] ?? null,
           'id_category' => !empty($input['category']) ? $input['category'] : null,
           'author'      => $input['author'] ?? null,
           'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
@@ -273,30 +328,50 @@ class AdminArticleService
       //? UPDATE ON tablePicture
 
       //? UPDATE ON tableSeoMeta
+        $updateSeoData = [
+          'meta_title'       => $input['meta_title'] ?? null,
+          'meta_description' => $input['meta_description'] ?? null,
+          'meta_robots'      => $input['meta_robots'] ?? null,
+          'seo_keyphrase'    => $input['seo_keyphrase'] ?? null,
+          'seo_analysis'     => $input['seo_analysis'] ?? null,
+          'seo_readability'  => $input['seo_readability'] ?? null,
+          'updated_at'       => date('Y-m-d H:i:s'),
+        ];
         SeoMeta::where('id_parent', (int) $input['id'])
           ->where('type', 'article')
-          ->update([
-            'meta_title'       => $input['meta_title'] ?? null,
-            'meta_description' => $input['meta_description'] ?? null,
-            'meta_robots'      => $input['meta_robots'] ?? null,
-            'seo_keyphrase'    => $input['seo_keyphrase'] ?? null,
-            'seo_analysis'     => $input['seo_analysis'] ?? null,
-            'seo_readability'  => $input['seo_readability'] ?? null,
-            'updated_at'       => date('Y-m-d H:i:s'),
-          ]);
+          ->update($updateSeoData);
       //? UPDATE ON tableSeoMeta
 
+      //? UPDATE ON tableArticleAgent
+        if (!empty($input['article_agent'])) {
+          ArticleAgent::where('id', $input['article_agent'])->update([
+            'id_parent' => $input['id']
+          ]);
+        }
+      //? UPDATE ON tableArticleAgent
+
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE');
+        $changes = $this->helper->logUpdateChanges($check, $updateData);
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $changes);
       //? LOG Record
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
       DB::commit();
+
+      //? REVALIDATE ARTICLE
+        if (
+          $this->shouldRevalidateArticle($input['status'], $input['publish'] ?? null)
+          || $this->shouldRevalidateArticle($check->status, $check->publish)
+        ) {
+          $oldSlug = ($check->slug !== $input['slug']) ? $check->slug : null;
+          $this->revalidateArticle($input['site'], $input['slug'], $oldSlug);
+        }
+      //? REVALIDATE ARTICLE
 
       //? CHANGE CRONJOB
         if (!empty($input['publish'])) {
@@ -314,7 +389,7 @@ class AdminArticleService
             && ($input['publish'] > $now || $check['publish'] > $now)
           )
           {
-            $this->helper->recomputeCron($this->cronhooks, $input['site']);
+            $this->helper->reCron($this->cronhooks);
             return true;
           }
           //! Case 3: Kalau publish berubah → recompute (selama salah satu masih future)
@@ -323,7 +398,7 @@ class AdminArticleService
             && ($input['publish'] > $now || $check['publish'] > $now)
           )
           {
-            $this->helper->recomputeCron($this->cronhooks, $input['site']);
+            $this->helper->reCron($this->cronhooks);
             return true;
           }
         }
@@ -368,20 +443,27 @@ class AdminArticleService
       //? DELETE picture
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $check['id'], 'DELETE');
+        $changes = $this->helper->logRecordChanges($check);
+        $this->helper->addLog($user, $this->tableMain, (int) $check['id'], 'DELETE', $changes);
       //? LOG Record
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $check['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $check['site']));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
       DB::commit();
 
+      //? REVALIDATE ARTICLE
+        if ($this->shouldRevalidateArticle($check['status'], $check['publish'])) {
+          $this->revalidateArticle($check['site'], $check['slug']);
+        }
+      //? REVALIDATE ARTICLE
+
       //? CHANGE CRONJOB
         if ($check['publish'] > date('Y-m-d H:i:s')) {
-          $this->helper->recomputeCron($this->cronhooks);
+          $this->helper->reCron($this->cronhooks);
         }
       //? CHANGE CRONJOB
     }
@@ -393,14 +475,16 @@ class AdminArticleService
 
   public function statusChange(array $input, array $user)
   {
+    $checkMain = $this->checkExist($input);
+
     //! IF ACTIVE
       if ($input['status'] == 'active') {
-        $checkMain = $this->checkExist($input);
         $checkMeta = $this->checkMeta($input);
         if (
           empty($checkMain->excerpt) ||
           empty($checkMain->content) ||
           empty($checkMain->id_picture) ||
+          empty($checkMain->site) ||
           empty($checkMain->id_category) ||
           empty($checkMain->author) ||
           empty($checkMain->publish) ||
@@ -424,16 +508,27 @@ class AdminArticleService
       //? UPDATE ON tableMain
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', ['Status' => $input['status']]);
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $this->helper->logUpdateChanges($checkMain, [
+          'status' => $input['status']
+        ]));
       //? LOG Record
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
         $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
       //? DELETE CACHE
 
       DB::commit();
+
+      //? REVALIDATE ARTICLE
+        if (
+          $this->shouldRevalidateArticle($input['status'], $checkMain['publish'])
+          || $this->shouldRevalidateArticle($checkMain['status'], $checkMain['publish'])
+        ) {
+          $this->revalidateArticle($checkMain['site'], $checkMain['slug']);
+        }
+      //? REVALIDATE ARTICLE
 
       //? CHANGE CRONJOB
         if (!empty($checkMain['publish'])) {
@@ -444,7 +539,60 @@ class AdminArticleService
             && ($checkMain['publish'] > $now)
           )
           {
-            $this->helper->recomputeCron($this->cronhooks, $input['site']);
+            $this->helper->reCron($this->cronhooks);
+            return true;
+          }
+        }
+      //? CHANGE CRONJOB
+
+      return true;
+    }
+    catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function publishChange(array $input, array $user)
+  {
+    $check = $this->checkExist($input);
+    DB::beginTransaction();
+    try {
+      //? UPDATE ON tableMain
+        $updateData = [
+          'publish' => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null
+        ];
+        Article::where('id', (int) $input['id'])->update($updateData);
+      //? UPDATE ON tableMain
+
+      //? LOG Record
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $this->helper->logUpdateChanges($check, $updateData));
+      //? LOG Record
+
+      //? DELETE CACHE
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
+      //? DELETE CACHE
+
+      DB::commit();
+
+      //? REVALIDATE ARTICLE
+        if (
+          $this->shouldRevalidateArticle($check['status'], $input['publish'] ?? null)
+          || $this->shouldRevalidateArticle($check['status'], $check['publish'])
+        ) {
+          $this->revalidateArticle($check['site'], $check['slug']);
+        }
+      //? REVALIDATE ARTICLE
+
+      //? CHANGE CRONJOB
+        if (!empty($input['publish'])) {
+          $now = date('Y-m-d H:i:s');
+          //! Case 2: Kalau publish berubah → recompute (selama salah satu masih future)
+          if (($input['publish'] > $now) || ($check['publish'] > $now))
+          {
+            $this->helper->reCron($this->cronhooks);
             return true;
           }
         }

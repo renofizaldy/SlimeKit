@@ -43,11 +43,14 @@ class TokenMiddleware
     catch (Exception $e) {
       $result = [
         'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $e->getCode()
+        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
       ];
+
       $response = new Response();
       $response->getBody()->write(json_encode($result));
-      return $response->withHeader('Content-Type', 'application/json')->withStatus($e->getCode());
+      return $response
+        ->withHeader('Content-Type', 'application/json')
+        ->withStatus($result['status']);
     }
   }
 

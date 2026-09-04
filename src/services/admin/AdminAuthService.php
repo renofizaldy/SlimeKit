@@ -4,19 +4,11 @@ namespace App\Services\Admin;
 
 use Exception;
 use Illuminate\Database\Capsule\Manager as DB;
-use App\Helpers\General;
 use App\Models\User;
 use App\Models\UserRole;
 
 class AdminAuthService
 {
-  private $helper;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-  }
-
   public function login(array $input)
   {
     //* CHECK USER

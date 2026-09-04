@@ -14,20 +14,14 @@ use App\Models\SeoMeta;
 
 class AdminArticleCategoryService
 {
-  private $helper;
-  private $cloudinary;
-  private $valkey;
-  private $tableMain = 'tb_article_category';
-  private $tableSeoMeta = 'tb_seo_meta';
-  private $tableArticle = 'tb_article';
-  private $cacheKey = 'article_category';
+  private string $tableMain = 'tb_article_category';
+  private string $cacheKey = 'article_category';
 
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-    $this->valkey = new Valkey;
-  }
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary,
+    private Valkey $valkey
+  ) {}
 
   private function checkExist(array $input)
   {
@@ -45,7 +39,10 @@ class AdminArticleCategoryService
 
   public function checkSlug(array $input)
   {
-    $query = ArticleCategory::where( 'slug', $input['slug']);
+    $query = ArticleCategory::where([
+      'slug' => $input['slug'],
+      'site' => $input['site']
+    ]);
     if (!empty($input['id'])) {
       $check = $query->first();
       if ($check && $check->id !== (int) $input['id']) {
@@ -61,33 +58,42 @@ class AdminArticleCategoryService
 
   public function list(array $input)
   {
-    $data = [];
+    $page = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? 10));
 
     $query = ArticleCategory::with('seoMeta')
-      ->withCount(['articles as total_article']);
+      ->withCount(['articles as total_article' => function ($query) use ($input) {
+        if ($input['site'] !== 'all') {
+          $query->where('site', $input['site']);
+        }
+      }]);
 
     if ($input['status'] !== 'all') {
       $query->where('status', $input['status']);
     }
-    $results = $query->get();
-
-    if ($results->isNotEmpty()) {
-      foreach ($results as $row) {
-        $data[] = [
-          'id'               => $row->id,
-          'title'            => $row->title,
-          'status'           => $row->status,
-          'slug'             => $row->slug,
-          'description'      => $row->description,
-          'meta_title'       => $row->seoMeta->meta_title ?? null,
-          'meta_description' => $row->seoMeta->meta_description ?? null,
-          'meta_robots'      => $row->seoMeta->meta_robots ?? null,
-          'total'            => $row->total_article ?? 0, // Hasil withCount
-          'created_at'       => date('Y-m-d H:i:s', strtotime($row->created_at))
-        ];
-      }
+    if ($input['site'] !== 'all') {
+      $query->where('site', $input['site']);
     }
-    return $data;
+    $query->orderBy('id', 'desc');
+
+    return $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => [
+        'id'               => $row->id,
+        'title'            => $row->title,
+        'status'           => $row->status,
+        'site'             => $row->site,
+        'slug'             => $row->slug,
+        'description'      => $row->description,
+        'meta_title'       => $row->seoMeta->meta_title ?? null,
+        'meta_description' => $row->seoMeta->meta_description ?? null,
+        'meta_robots'      => $row->seoMeta->meta_robots ?? null,
+        'total'            => $row->total_article ?? 0, // Hasil withCount
+        'created_at'       => date('Y-m-d H:i:s', strtotime($row->created_at))
+      ]
+    );
   }
 
   public function detail(array $input)
@@ -111,6 +117,7 @@ class AdminArticleCategoryService
       //? INSERT TO tableMain
         $category = ArticleCategory::create([
           'status'      => $input['status'],
+          'site'        => $input['site'],
           'title'       => $input['title'],
           'description' => $input['description'],
           'slug'        => $input['slug'],
@@ -119,23 +126,21 @@ class AdminArticleCategoryService
       //? INSERT TO tableMain
 
       //? INSERT to tableSeoMeta
-        $seo = SeoMeta::create([
+        SeoMeta::create([
           'id_parent'        => $lastTableMainId,
           'type'             => 'article_category',
           'meta_title'       => $input['meta_title'],
           'meta_description' => $input['meta_description'],
           'meta_robots'      => $input['meta_robots'],
         ]);
-        $lastTableSeoMetaId = $seo->id;
       //? INSERT to tableSeoMeta
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, $lastTableMainId, 'INSERT');
-        $this->helper->addLog($user, $this->tableSeoMeta, $lastTableSeoMetaId, 'INSERT');
+        $this->helper->addLog($user, $this->tableMain, $lastTableMainId, 'INSERT', $this->helper->logRecordChanges($category));
       //? LOG Record
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
       //? DELETE CACHE
 
       DB::commit();
@@ -149,36 +154,41 @@ class AdminArticleCategoryService
   public function edit(array $input, array $user)
   {
     $this->checkSlug($input);
+    $check = $this->checkExist($input);
 
     DB::beginTransaction();
     try {
       //? UPDATE ON tableMain
-        ArticleCategory::where('id', (int) $input['id'])->update([
+        $updateData = [
           'title'       => $input['title'],
           'slug'        => $input['slug'],
           'description' => $input['description'],
           'status'      => $input['status'],
+          'site'        => $input['site'],
           'updated_at'  => date('Y-m-d H:i:s')
-        ]);
+        ];
+        ArticleCategory::where('id', (int) $input['id'])->update($updateData);
       //? UPDATE ON tableMain
 
       //? UPDATE ON tableSeoMeta
+        $updateSeoData = [
+          'meta_title'       => $input['meta_title'],
+          'meta_description' => $input['meta_description'],
+          'meta_robots'      => $input['meta_robots'],
+          'updated_at'       => date('Y-m-d H:i:s'),
+        ];
         SeoMeta::where('id_parent', (int) $input['id'])->where('type', 'article_category')
-          ->update([
-              'meta_title'       => $input['meta_title'],
-              'meta_description' => $input['meta_description'],
-              'meta_robots'      => $input['meta_robots'],
-              'updated_at'       => date('Y-m-d H:i:s'),
-          ]);
+          ->update($updateSeoData);
       //? UPDATE ON tableSeoMeta
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE');
+        $changes = $this->helper->logUpdateChanges($check, $updateData);
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $changes);
       //? LOG Record
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
       //? DELETE CACHE
 
       DB::commit();
@@ -210,12 +220,13 @@ class AdminArticleCategoryService
       //? DELETE tableSeoMeta
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $check['id'], 'DELETE');
+        $changes = $this->helper->logRecordChanges($check);
+        $this->helper->addLog($user, $this->tableMain, (int) $check['id'], 'DELETE', $changes);
       //? LOG Record
 
       //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list"));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail"));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $check['site']));
+        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
       //? DELETE CACHE
 
       DB::commit();

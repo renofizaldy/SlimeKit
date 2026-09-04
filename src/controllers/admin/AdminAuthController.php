@@ -6,40 +6,31 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Exception;
 use App\Lib\Tokenize;
-use App\Helpers\General;
+use App\Helpers\ApiResponse;
 use App\Services\Admin\AdminAuthService;
 use App\Validators\Admin\AdminAuthValidator;
 
 class AdminAuthController
 {
-  private $helper;
-  private $service;
-  private $validator;
-  private $jwt;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->service = new AdminAuthService;
-    $this->validator = new AdminAuthValidator;
-    $this->jwt = new Tokenize;
-  }
+  public function __construct(
+    private ApiResponse $apiResponse,
+    private AdminAuthService $service,
+    private AdminAuthValidator $validator,
+    private Tokenize $jwt
+  ) {}
 
   public function verify(Request $request, Response $response)
   {
-    $result = [
-      'message' => 'Ok',
-      'status'  => 200
-    ];
-    $response->getBody()->write(json_encode($result));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
+    return $this->apiResponse->success($response, [], 'Ok', 200);
   }
 
   public function login(Request $request, Response $response)
   {
     $input = $request->getParsedBody();
+    if (!is_array($input)) {
+      $input = [];
+    }
+
     try {
       //* VALIDATION
       $this->validator->validate('login', $input);
@@ -60,22 +51,10 @@ class AdminAuthController
         ])
       ];
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      return $this->apiResponse->success($response, $data, 'Ok', 200);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
-
-    $response->getBody()->write(json_encode($result));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus(200);
   }
 }

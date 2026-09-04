@@ -22,6 +22,14 @@ final class CreateTables extends AbstractMigration
         // Helper untuk default timestamp
         $currentTimestamp = 'CURRENT_TIMESTAMP';
 
+        // Check if table exists to avoid duplicate errors if DB is already synced but phinxlog is missing
+        if ($this->hasTable('tb_user')) {
+            return;
+        }
+
+        $this->execute("CREATE TYPE action_enum AS ENUM ('INSERT', 'UPDATE', 'DELETE')");
+        $this->execute("CREATE TYPE status_enum AS ENUM ('active', 'inactive')");
+
         // -- TB_USER_ROLE --
         $table = $this->table('tb_user_role', ['id' => false, 'primary_key' => 'id']);
         $table->addColumn('id', 'biginteger', ['identity' => true, 'signed' => false])
@@ -45,6 +53,7 @@ final class CreateTables extends AbstractMigration
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
             ->create();
+        $this->execute('ALTER TABLE tb_user ALTER COLUMN status TYPE status_enum USING status::status_enum');
 
         // -- TB_PICTURE --
         $table = $this->table('tb_picture', ['id' => false, 'primary_key' => 'id']);
@@ -79,6 +88,7 @@ final class CreateTables extends AbstractMigration
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
             ->create();
+        $this->execute('ALTER TABLE tb_log ALTER COLUMN action TYPE action_enum USING action::action_enum');
 
         // -- TB_SEO_META --
         $table = $this->table('tb_seo_meta', ['id' => false, 'primary_key' => 'id']);
@@ -141,6 +151,7 @@ final class CreateTables extends AbstractMigration
             ->addColumn('id_picture', 'biginteger', ['signed' => false, 'null' => true])
             ->addColumn('id_category', 'biginteger', ['signed' => false, 'null' => true])
             ->addColumn('status', 'string', ['null' => true])
+            ->addColumn('site', 'string', ['limit' => 250, 'default' => 'default'])
             ->addColumn('slug', 'string', ['limit' => 250, 'null' => true])
             ->addColumn('title', 'text', ['null' => true])
             ->addColumn('content', 'text', ['null' => true])
@@ -152,6 +163,7 @@ final class CreateTables extends AbstractMigration
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
             ->create();
+        $this->execute('ALTER TABLE tb_article ALTER COLUMN status TYPE status_enum USING status::status_enum');
 
         // -- TB_ARTICLE_CATEGORY --
         $table = $this->table('tb_article_category', ['id' => false, 'primary_key' => 'id']);
@@ -159,12 +171,14 @@ final class CreateTables extends AbstractMigration
             ->addColumn('id_picture', 'biginteger', ['signed' => false, 'null' => true])
             ->addColumn('id_parent', 'biginteger', ['signed' => false, 'null' => true])
             ->addColumn('status', 'string', ['null' => true])
+            ->addColumn('site', 'string', ['limit' => 250, 'default' => 'default'])
             ->addColumn('slug', 'string', ['limit' => 250, 'null' => true])
             ->addColumn('title', 'text', ['null' => true])
             ->addColumn('description', 'text', ['null' => true])
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
             ->create();
+        $this->execute('ALTER TABLE tb_article_category ALTER COLUMN status TYPE status_enum USING status::status_enum');
 
         // -- TB_CRONHOOKS --
         $table = $this->table('tb_cronhooks', ['id' => false, 'primary_key' => 'id']);
@@ -175,10 +189,26 @@ final class CreateTables extends AbstractMigration
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
             ->create();
+
+        // -- TB_ARTICLE_STATS --
+        $table = $this->table('tb_article_stats', ['id' => false, 'primary_key' => 'id']);
+        $table->addColumn('id', 'biginteger', ['identity' => true, 'signed' => false])
+            ->addColumn('site', 'string', ['limit' => 250, 'null' => false])
+            ->addColumn('slug', 'string', ['limit' => 500, 'null' => false])
+            ->addColumn('ip_address', 'string', ['limit' => 45, 'default' => 'unknown'])
+            ->addColumn('user_agent', 'text', ['default' => 'unknown'])
+            ->addColumn('country', 'string', ['limit' => 10, 'default' => 'unknown'])
+            ->addColumn('created_at', 'timestamp', ['null' => false])
+            ->addColumn('updated_at', 'timestamp', ['null' => false])
+            ->addIndex(['site', 'slug'], ['name' => 'idx_article_stats_site_slug'])
+            ->addIndex(['created_at'], ['name' => 'idx_article_stats_created_at'])
+            ->addIndex(['country'], ['name' => 'idx_article_stats_country'])
+            ->create();
     }
 
     public function down(): void
     {
+        $this->table('tb_article_stats')->drop()->save();
         $this->table('tb_cronhooks')->drop()->save();
         $this->table('tb_article_category')->drop()->save();
         $this->table('tb_article')->drop()->save();

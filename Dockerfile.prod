@@ -14,12 +14,13 @@ RUN apt update \
     && docker-php-ext-install gd \
     && docker-php-ext-install mysqli pdo_mysql
 
-RUN a2enmod rewrite headers
+RUN a2enmod rewrite headers setenvif
 RUN mkdir -p /var/www/slimekit
 
 WORKDIR /var/www/slimekit
 
 COPY . /var/www/slimekit
+COPY .env.prod /var/www/slimekit/.env
 
 COPY assets/php/custom-php.ini /usr/local/etc/php/conf.d/custom-php.ini
 

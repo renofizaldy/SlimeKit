@@ -124,19 +124,19 @@
 
 ---
 
-### Task 6: Dual Environment & Docker Configuration
+### Task 6: Dual Environment & Docker Configuration ✅
 **Description:** Menyiapkan konfigurasi dual environment `.env.dev` dan `.env.prod`, membuat `Dockerfile.dev` dan `Dockerfile.prod`, memperbarui `.env.example`, memperbarui `docker-compose.yml`, dan menghapus `Dockerfile` lama.
 
 **Acceptance criteria:**
-- [ ] `Dockerfile.dev` dibuat (menyalin `.env.dev` ke `.env` di container image).
-- [ ] `Dockerfile.prod` dibuat (menyalin `.env.prod` ke `.env` di container image).
-- [ ] `.env.dev` dan `.env.prod` template dibuat dengan variabel lengkap.
-- [ ] `.env.example` diperbarui memuat seluruh konfigurasi (AI, NextRevalidate, Valkey, Logging, CORS).
-- [ ] `docker-compose.yml` menunjuk ke `Dockerfile.dev`.
-- [ ] File `Dockerfile` tunggal lama dihapus.
+- [x] `Dockerfile.dev` dibuat (menyalin `.env.dev` ke `.env` di container image).
+- [x] `Dockerfile.prod` dibuat (menyalin `.env.prod` ke `.env` di container image).
+- [x] `.env.dev` dan `.env.prod` template dibuat dengan variabel lengkap.
+- [x] `.env.example` diperbarui memuat seluruh konfigurasi (AI, NextRevalidate, Valkey, Logging, CORS).
+- [x] `docker-compose.yml` menunjuk ke `Dockerfile.dev`.
+- [x] File `Dockerfile` tunggal lama dihapus.
 
 **Verification:**
-- [ ] Perintah `docker-compose config` memvalidasi konfigurasi tanpa error.
+- [x] Perintah `docker-compose config` memvalidasi konfigurasi tanpa error.
 
 **Dependencies:** Task 5
 **Files likely touched:**
@@ -151,46 +151,47 @@
 
 ---
 
-## Checkpoint 2: DevOps & Environments Verified
-- [ ] OpenTofu telah bersih dihapus dari proyek.
-- [ ] Dual environment `.env.dev` & `.env.prod` tersedia.
-- [ ] Dockerfile.dev & Dockerfile.prod siap digunakan.
+## Checkpoint 2: DevOps & Environments Verified ✅
+- [x] OpenTofu telah bersih dihapus dari proyek.
+- [x] Dual environment `.env.dev` & `.env.prod` tersedia.
+- [x] Dockerfile.dev & Dockerfile.prod siap digunakan.
 
 ---
 
 ## Phase 3: Core Helper Expansion & Automated Testing Infrastructure
 
-### Task 7: Reusable Helpers Expansion (`General.php`)
+### Task 7: Reusable Helpers Expansion (`General.php`) ✅
 **Description:** Memperluas class `App\Helpers\General` dengan fungsi-fungsi esensial yang sudah teruji di `news/api`: pagination helpers (`paginateQuery`, `paginateArray`, `paginationRules`), user context & client IP extractor, GeoIP lookup via Valkey cache, audit logger helpers, Tavily context cleaner, slugify, dan datetime normalizer.
 
 **Acceptance criteria:**
-- [ ] Method paginasi (`paginateQuery`, `paginateArray`, `normalizePagination`, `paginationRules`) tersedia.
-- [ ] Method `getUserContext`, `getClientIp`, dan `getGeoIp` tersedia.
-- [ ] Method audit log (`addLog`, `normalizeLogRecord`, `logRecordChanges`, `logUpdateChanges`) tersedia.
-- [ ] Method utilitas AI & data (`clean_tavily_context`, `normalize_datetime`, `slugify`, `getTopArticles`, `getCategoriesBySite`) tersedia.
+- [x] Method paginasi (`paginateQuery`, `paginateArray`, `normalizePagination`, `paginationRules`) tersedia.
+- [x] Method `getUserContext`, `getClientIp`, dan `getGeoIp` tersedia.
+- [x] Method audit log (`addLog`, `normalizeLogRecord`, `logRecordChanges`, `logUpdateChanges`) tersedia.
+- [x] Method utilitas AI & data (`clean_tavily_context`, `normalize_datetime`, `slugify`, `getTopArticles`, `getCategoriesBySite`) tersedia.
 
 **Verification:**
-- [ ] File `General.php` dapat di-load tanpa error kompilasi/linter.
+- [x] File `General.php` dapat di-load tanpa error kompilasi/linter.
 
 **Dependencies:** Task 2, Task 3
 **Files likely touched:**
 - `src/helpers/General.php`
+- `src/models/ArticleStats.php` (baru)
 **Estimated scope:** Medium (1 file besar)
 
 ---
 
-### Task 8: Inisialisasi PHPUnit & Test Suite Harness
+### Task 8: Inisialisasi PHPUnit & Test Suite Harness ✅
 **Description:** Menyiapkan infrastruktur pengujian otomatis PHPUnit: konfigurasi `phpunit.xml`, basis class `tests/TestCase.php` (dengan helper `getAppInstance()`, `createRequest()`, `parseJson()`), penyesuaian middleware (`AuthMiddleware`, `TokenMiddleware`, `RateLimitMiddleware`) agar mengenali environment `TESTING`, serta unit test pertama untuk paginasi.
 
 **Acceptance criteria:**
-- [ ] File `phpunit.xml` dibuat dengan testsuite Feature dan Unit, serta env `ENVIRONMENT=TESTING`.
-- [ ] `tests/TestCase.php` dibuat untuk bootstrapping aplikasi Slim dalam lingkungan uji.
-- [ ] `TokenMiddleware` dan `AuthMiddleware` membypass autentikasi pada saat `ENVIRONMENT=TESTING`.
-- [ ] `RateLimitMiddleware` membypass throttling pada saat `ENVIRONMENT=TESTING`.
-- [ ] Unit tests `tests/Unit/PaginationHelperTest.php` dan `tests/Unit/PaginationValidatorTest.php` dibuat dan lulus 100%.
+- [x] File `phpunit.xml` dibuat dengan testsuite Feature dan Unit, serta env `ENVIRONMENT=TESTING`.
+- [x] `tests/TestCase.php` dibuat untuk bootstrapping aplikasi Slim dalam lingkungan uji.
+- [x] `TokenMiddleware` dan `AuthMiddleware` membypass autentikasi pada saat `ENVIRONMENT=TESTING`.
+- [x] `RateLimitMiddleware` membypass throttling pada saat `ENVIRONMENT=TESTING`.
+- [x] Unit tests `tests/Unit/PaginationHelperTest.php` dan `tests/Unit/PaginationValidatorTest.php` dibuat dan lulus 100%.
 
 **Verification:**
-- [ ] Perintah `composer test:unit` atau `vendor/bin/phpunit --testsuite Unit` lulus tanpa kegagalan.
+- [x] Perintah `composer test:unit` atau `vendor/bin/phpunit --testsuite Unit` lulus tanpa kegagalan.
 
 **Dependencies:** Task 1, Task 4, Task 7
 **Files likely touched:**
@@ -205,26 +206,26 @@
 
 ---
 
-## Checkpoint 3: Helpers & Test Harness Functional
-- [ ] Helper paginasi dan utilitas siap pakai.
-- [ ] Test harness PHPUnit berjalan normal (`composer test:unit` green).
+## Checkpoint 3: Helpers & Test Harness Functional ✅
+- [x] Helper paginasi dan utilitas siap pakai.
+- [x] Test harness PHPUnit berjalan normal (`composer test:unit` green).
 
 ---
 
 ## Phase 4: Core Framework Modules Refactoring
 
-### Task 9: Refactor Modul AdminAuth & SettingUser
+### Task 9: Refactor Modul AdminAuth & SettingUser ✅
 **Description:** Merefaktor modul otentikasi admin (`AdminAuth`) dan manajemen user/roles (`AdminSettingUser`) ke arsitektur baru: PHP 8 Constructor Property Promotion (DI auto-wiring), `Rakit\Validation\Validator`, format respons `ApiResponse`, dan pembuatan feature test.
 
 **Acceptance criteria:**
-- [ ] `AdminAuthController`, `AdminAuthService`, `AdminAuthValidator` menggunakan standar baru.
-- [ ] `AdminSettingUserController`, `AdminSettingUserService`, `AdminSettingUserValidator` menggunakan standar baru.
-- [ ] Endpoint list user dan roles mendukung paginasi `{ items, pagination }`.
-- [ ] Feature tests `tests/Feature/AdminAuthTest.php` dan `tests/Feature/AdminSettingUserTest.php` dibuat dan lulus.
+- [x] `AdminAuthController`, `AdminAuthService`, `AdminAuthValidator` menggunakan standar baru.
+- [x] `AdminSettingUserController`, `AdminSettingUserService`, `AdminSettingUserValidator` menggunakan standar baru.
+- [x] Endpoint list user dan roles mendukung paginasi `{ items, pagination }`.
+- [x] Feature tests `tests/Feature/AdminAuthTest.php` dan `tests/Feature/AdminSettingUserTest.php` dibuat dan lulus.
 
 **Verification:**
-- [ ] `vendor/bin/phpunit tests/Feature/AdminAuthTest.php` lulus.
-- [ ] `vendor/bin/phpunit tests/Feature/AdminSettingUserTest.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/AdminAuthTest.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/AdminSettingUserTest.php` lulus.
 
 **Dependencies:** Task 8
 **Files likely touched:**
@@ -240,19 +241,19 @@
 
 ---
 
-### Task 10: Refactor Modul Content (FAQ, Gallery, Contact, Team)
+### Task 10: Refactor Modul Content (FAQ, Gallery, Contact, Team) ✅
 **Description:** Merefaktor modul konten bawaan untuk Admin dan Client (FAQ, Gallery, Contact, dan Team - Opsi A dipertahankan) ke standar baru: DI auto-wiring, Rakit validation, ApiResponse, paginasi pada endpoint list, dan feature tests.
 
 **Acceptance criteria:**
-- [ ] Modul Content FAQ (Admin & Client) direfaktor ke standar baru.
-- [ ] Modul Content Gallery (Admin & Client) direfaktor ke standar baru.
-- [ ] Modul Content Contact (Admin & Client) direfaktor ke standar baru.
-- [ ] Modul Content Team (Admin & Client) direfaktor ke standar baru (sesuai Opsi A).
-- [ ] Seluruh endpoint list mengembalikan format bersarang `{ items: [], pagination: {} }`.
-- [ ] Feature tests untuk masing-masing modul dibuat dan lulus 100%.
+- [x] Modul Content FAQ (Admin & Client) direfaktor ke standar baru.
+- [x] Modul Content Gallery (Admin & Client) direfaktor ke standar baru.
+- [x] Modul Content Contact (Admin & Client) direfaktor ke standar baru.
+- [x] Modul Content Team (Admin & Client) direfaktor ke standar baru (sesuai Opsi A).
+- [x] Seluruh endpoint list mengembalikan format bersarang `{ items: [], pagination: {} }`.
+- [x] Feature tests untuk masing-masing modul dibuat dan lulus 100%.
 
 **Verification:**
-- [ ] `vendor/bin/phpunit tests/Feature/AdminContent*Test.php` dan `ClientContent*Test.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/AdminContent*Test.php` dan `ClientContent*Test.php` lulus.
 
 **Dependencies:** Task 8, Task 9
 **Files likely touched:**
@@ -267,24 +268,24 @@
 
 ---
 
-## Checkpoint 4: Core Framework Modules 100% Green
-- [ ] Seluruh modul bawaan (Auth, User, FAQ, Gallery, Contact, Team) telah bermigrasi.
-- [ ] Seluruh feature test modul dasar lulus hijau.
+## Checkpoint 4: Core Framework Modules 100% Green ✅
+- [x] Seluruh modul bawaan (Auth, User, FAQ, Gallery, Contact, Team) telah bermigrasi.
+- [x] Seluruh feature test modul dasar lulus hijau.
 
 ---
 
 ## Phase 5: Database Schema Alignment (Multi-site, Article Agent, Article Stats)
 
-### Task 11: Database Migrations untuk Multi-site, Article Agent & Article Stats
+### Task 11: Database Migrations untuk Multi-site, Article Agent & Article Stats ✅
 **Description:** Menyelaraskan skema database untuk mendukung fungsionalitas artikel modern: menambahkan kolom `site` pada `tb_article` dan `tb_article_category` (Opsi A), menambahkan tabel `tb_article_stats`, dan menambahkan migrasi tabel `tb_article_agent`.
 
 **Acceptance criteria:**
-- [ ] Migrasi `20260109155110_create_tables.php` diperbarui untuk menyertakan kolom `site` (limit 250, default `'default'`) pada `tb_article` dan `tb_article_category`.
-- [ ] Tabel `tb_article_stats` didefinisikan (dengan field `site`, `slug`, `ip_address`, `user_agent`, `country`, `country_code`, dsb) beserta indeksnya.
-- [ ] File migrasi `src/migrations/20260120143000_create_article_agent_table.php` ditambahkan untuk tabel `tb_article_agent`.
+- [x] Migrasi `20260109155110_create_tables.php` diperbarui untuk menyertakan kolom `site` (limit 250, default `'default'`) pada `tb_article` dan `tb_article_category`.
+- [x] Tabel `tb_article_stats` didefinisikan (dengan field `site`, `slug`, `ip_address`, `user_agent`, `country`, `country_code`, dsb) beserta indeksnya.
+- [x] File migrasi `src/migrations/20260120143000_create_article_agent_table.php` ditambahkan untuk tabel `tb_article_agent`.
 
 **Verification:**
-- [ ] `composer migrate:status` atau validasi migrasi Phinx berhasil mengenali skema baru.
+- [x] `composer migrate:status` atau validasi migrasi Phinx berhasil mengenali skema baru.
 
 **Dependencies:** Task 1
 **Files likely touched:**
@@ -294,17 +295,17 @@
 
 ---
 
-### Task 12: Eloquent Models Alignment
+### Task 12: Eloquent Models Alignment ✅
 **Description:** Memperbarui model Eloquent yang ada (`Article`, `ArticleCategory`) dan menambahkan model baru (`ArticleAgent`, `ArticleStats`) dengan relasi dan casting yang tepat.
 
 **Acceptance criteria:**
-- [ ] `src/models/Article.php` diperbarui dengan relasi `category`, `picture`, `authorUser`, `seoMeta`, `articleAgent`, `cronhooks`, dan cast `featured` array.
-- [ ] `src/models/ArticleCategory.php` diperbarui.
-- [ ] `src/models/ArticleAgent.php` dibuat dengan casts `brainstorming_options` dan `selected_option_data`.
-- [ ] `src/models/ArticleStats.php` dibuat.
+- [x] `src/models/Article.php` diperbarui dengan relasi `category`, `picture`, `authorUser`, `seoMeta`, `articleAgent`, `cronhooks`, dan cast `featured` array.
+- [x] `src/models/ArticleCategory.php` diperbarui.
+- [x] `src/models/ArticleAgent.php` dibuat dengan casts `brainstorming_options` dan `selected_option_data`.
+- [x] `src/models/ArticleStats.php` dibuat.
 
 **Verification:**
-- [ ] Semua model Eloquent dapat di-load tanpa error.
+- [x] Semua model Eloquent dapat di-load tanpa error.
 
 **Dependencies:** Task 11
 **Files likely touched:**
@@ -316,26 +317,26 @@
 
 ---
 
-## Checkpoint 5: Database & Models Aligned
-- [ ] Skema database Phinx terdefinisi dengan rapi.
-- [ ] Seluruh Model Eloquent tersinkronisasi.
+## Checkpoint 5: Database & Models Aligned ✅
+- [x] Skema database Phinx terdefinisi dengan rapi.
+- [x] Seluruh Model Eloquent tersinkronisasi.
 
 ---
 
 ## Phase 6: Article & Article Category System v2
 
-### Task 13: Porting Modul Admin Article & Article Category v2
+### Task 13: Porting Modul Admin Article & Article Category v2 ✅
 **Description:** Mengganti modul Admin Article dan Article Category di `kit/api` dengan versi modern dari `news/api`: DI auto-wiring, Rakit validation, ApiResponse, paginasi dengan caching Valkey, sorting (`orderBy`, `orderDir`), filter status/site/featured/category, method `statusChange`, `publishChange`, integrasi `NextRevalidator`, dan pembuatan feature tests.
 
 **Acceptance criteria:**
-- [ ] `AdminArticleController`, `AdminArticleService`, `AdminArticleValidator` mengimplementasikan seluruh fitur v2.
-- [ ] `AdminArticleCategoryController`, `AdminArticleCategoryService`, `AdminArticleCategoryValidator` mengimplementasikan seluruh fitur v2.
-- [ ] Cache key Valkey memuat parameter paginasi dan filter secara dinamis.
-- [ ] Feature tests `tests/Feature/AdminArticleTest.php` dan `tests/Feature/AdminArticleCategoryTest.php` dibuat dan lulus.
+- [x] `AdminArticleController`, `AdminArticleService`, `AdminArticleValidator` mengimplementasikan seluruh fitur v2.
+- [x] `AdminArticleCategoryController`, `AdminArticleCategoryService`, `AdminArticleCategoryValidator` mengimplementasikan seluruh fitur v2.
+- [x] Cache key Valkey memuat parameter paginasi dan filter secara dinamis.
+- [x] Feature tests `tests/Feature/AdminArticleTest.php` dan `tests/Feature/AdminArticleCategoryTest.php` dibuat dan lulus.
 
 **Verification:**
-- [ ] `vendor/bin/phpunit tests/Feature/AdminArticleTest.php` lulus.
-- [ ] `vendor/bin/phpunit tests/Feature/AdminArticleCategoryTest.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/AdminArticleTest.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/AdminArticleCategoryTest.php` lulus.
 
 **Dependencies:** Task 12
 **Files likely touched:**

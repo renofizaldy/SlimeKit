@@ -12,15 +12,12 @@ use App\Models\Picture;
 
 class AdminContentGalleryService
 {
-  private $helper;
-  private $cloudinary;
-  private $tableMain = 'tb_content_gallery';
+  private string $tableMain = 'tb_content_gallery';
 
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-  }
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary
+  ) {}
 
   private function checkExist(array $input)
   {
@@ -31,25 +28,26 @@ class AdminContentGalleryService
     return $check;
   }
 
-  public function list()
+  public function list(array $input = [])
   {
-    $data = [];
+    $page     = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? 10));
 
-    $query = ContentGallery::with(['picture:id,original,thumbnail'])->get();
-    if (!$query->isEmpty()) {
-      foreach($query as $row) {
-        $data[] = [
-          'id'          => $row->id,
-          'title'       => $row->name,
-          'description' => $row->description,
-          'updated_at'  => $row->updated_at,
-          'original'    => $row->picture->original ?? null,
-          'thumbnail'   => $row->picture->thumbnail ?? null,
-        ];
-      }
-    }
+    $query = ContentGallery::with(['picture:id,original,thumbnail'])->orderBy('id', 'desc');
 
-    return $data;
+    return $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => [
+        'id'          => $row->id,
+        'title'       => $row->name,
+        'description' => $row->description,
+        'updated_at'  => $row->updated_at,
+        'original'    => $row->picture->original ?? null,
+        'thumbnail'   => $row->picture->thumbnail ?? null,
+      ]
+    );
   }
 
   public function add(array $input, array $user)
@@ -69,7 +67,7 @@ class AdminContentGalleryService
       //? INSERT TO table
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT');
+        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT', $this->helper->logRecordChanges($insert));
       //? LOG Record
 
       DB::commit();
@@ -82,6 +80,8 @@ class AdminContentGalleryService
 
   public function edit(array $input, array $user)
   {
+    $check = $this->checkExist($input);
+
     DB::beginTransaction();
     try {
       //? PICTURE UPLOAD
@@ -100,7 +100,7 @@ class AdminContentGalleryService
       //? UPDATE ON table
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $this->helper->logUpdateChanges($check, $updateData));
       //? LOG Record
 
       DB::commit();
@@ -126,7 +126,7 @@ class AdminContentGalleryService
       //? DELETE PICTURE
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $check->id, 'DELETE');
+        $this->helper->addLog($user, $this->tableMain, (int) $check->id, 'DELETE', $this->helper->logRecordChanges($check));
       //? LOG Record
 
       DB::commit();

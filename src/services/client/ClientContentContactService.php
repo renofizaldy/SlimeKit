@@ -11,18 +11,24 @@ use App\Models\ContentContact;
 
 class ClientContentContactService
 {
-  private $helper;
-  private $cloudinary;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-  }
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary
+  ) {}
 
   public function list(array $input)
   {
-    return ContentContact::all()->toArray();
+    $page = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? ($input['limit'] ?? 10)));
+
+    $query = ContentContact::orderBy('id', 'asc');
+
+    return $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => $row->toArray()
+    );
   }
 
   public function detail(array $input)

@@ -6,235 +6,187 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Exception;
 use App\Helpers\General;
+use App\Helpers\ApiResponse;
 use App\Services\Admin\AdminArticleService;
 use App\Validators\Admin\AdminArticleValidator;
 
 class AdminArticleController
 {
-  private $helper;
-  private $service;
-  private $validator;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->service = new AdminArticleService;
-    $this->validator = new AdminArticleValidator;
-  }
+  public function __construct(
+    private General $helper,
+    private AdminArticleService $service,
+    private AdminArticleValidator $validator,
+    private ApiResponse $apiResponse
+  ) {}
 
   public function list(Request $request, Response $response)
   {
-    $input = $request->getQueryParams();
     try {
-      //* VALIDATION
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
       $this->validator->validate('list', $input);
-      //* SERVICES
+
+      //* SERVICE
       $data = $this->service->list($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
-    } catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->success($response, $data);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
   }
 
   public function detail(Request $request, Response $response)
   {
-    $input = $request->getQueryParams();
     try {
-      //* VALIDATION
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
       $this->validator->validate('detail', $input);
-      //* SERVICES
+
+      //* SERVICE
       $data = $this->service->detail($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
-    } catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->success($response, $data);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
   }
 
   public function add(Request $request, Response $response)
   {
-    $input = $request->getParsedBody();
-    $user  = [
-      'user'       => $request->getAttribute('user'),
-      'user_agent' => $request->getHeaderLine('User-Agent'),
-      'ip_address' => $this->helper->getClientIp($request),
-    ];
     try {
-      //* VALIDATION
+      //* INPUT
+      $input = (array) $request->getParsedBody();
+
+      //* VALIDATOR
       $this->validator->validate('add', $input);
-      //* SERVICES
-      $data = $this->service->add($input, $user);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
-    } catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      //* SERVICE
+      $data = $this->service->add($input, $this->helper->getUserContext($request));
+
+      return $this->apiResponse->success($response, $data);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
   }
 
   public function edit(Request $request, Response $response)
   {
-    $input = $request->getParsedBody();
-    $user  = [
-      'user'       => $request->getAttribute('user'),
-      'user_agent' => $request->getHeaderLine('User-Agent'),
-      'ip_address' => $this->helper->getClientIp($request),
-    ];
     try {
-      //* VALIDATION
+      //* INPUT
+      $input = (array) $request->getParsedBody();
+
+      //* VALIDATOR
       $this->validator->validate('edit', $input);
-      //* SERVICES
-      $data = $this->service->edit($input, $user);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
-    } catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      //* SERVICE
+      $data = $this->service->edit($input, $this->helper->getUserContext($request));
+
+      return $this->apiResponse->success($response, $data);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
   }
 
   public function drop(Request $request, Response $response)
   {
-    $input = $request->getParsedBody();
-    $user  = [
-      'user'       => $request->getAttribute('user'),
-      'user_agent' => $request->getHeaderLine('User-Agent'),
-      'ip_address' => $this->helper->getClientIp($request),
-    ];
     try {
-      //* VALIDATION
+      //* INPUT
+      $input = (array) $request->getParsedBody();
+
+      //* VALIDATOR
       $this->validator->validate('drop', $input);
-      //* SERVICES
-      $data = $this->service->drop($input, $user);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
-    } catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      //* SERVICE
+      $data = $this->service->drop($input, $this->helper->getUserContext($request));
+
+      return $this->apiResponse->success($response, $data);
     }
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
+  }
 
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
+  public function statusChange(Request $request, Response $response)
+  {
+    try {
+      //* INPUT
+      $input = (array) $request->getParsedBody();
+
+      //* VALIDATOR
+      $this->validator->validate('status_change', $input);
+
+      //* SERVICE
+      $data = $this->service->statusChange($input, $this->helper->getUserContext($request));
+
+      return $this->apiResponse->success($response, $data);
+    }
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
+  }
+
+  public function publishChange(Request $request, Response $response)
+  {
+    try {
+      //* INPUT
+      $input = (array) $request->getParsedBody();
+
+      //* VALIDATOR
+      $this->validator->validate('publish_change', $input);
+
+      //* SERVICE
+      $data = $this->service->publishChange($input, $this->helper->getUserContext($request));
+
+      return $this->apiResponse->success($response, $data);
+    }
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
   }
 
   public function checkSlug(Request $request, Response $response)
   {
-    $input = $request->getParsedBody();
-    $user  = [
-      'user'       => $request->getAttribute('user'),
-      'user_agent' => $request->getHeaderLine('User-Agent'),
-      'ip_address' => $this->helper->getClientIp($request),
-    ];
     try {
-      //* VALIDATION
-      $this->validator->validate('check_slug', $input);
-      //* SERVICES
-      $data = $this->service->checkSlug($input, $user);
+      //* INPUT
+      $input = (array) $request->getParsedBody();
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      //* VALIDATOR
+      $this->validator->validate('check_slug', $input);
+
+      //* SERVICE
+      $data = $this->service->checkSlug($input, $this->helper->getUserContext($request));
+
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
   }
 
   public function addPicture(Request $request, Response $response)
   {
-    $input = $request->getParsedBody();
-    $user  = [
-      'user'       => $request->getAttribute('user'),
-      'user_agent' => $request->getHeaderLine('User-Agent'),
-      'ip_address' => $this->helper->getClientIp($request),
-    ];
     try {
-      //* VALIDATION
-      $this->validator->validate('add_picture', $input);
-      //* SERVICES
-      $data = $this->service->addPicture($input, $user);
+      //* INPUT
+      $input = (array) $request->getParsedBody();
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      //* VALIDATOR
+      $this->validator->validate('add_picture', $input);
+
+      //* SERVICE
+      $data = $this->service->addPicture($input, $this->helper->getUserContext($request));
+
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
   }
 }

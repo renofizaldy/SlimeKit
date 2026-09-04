@@ -3,72 +3,81 @@
 namespace App\Validators\Admin;
 
 use Exception;
+use Rakit\Validation\Validator;
 use App\Helpers\General;
 
 class AdminSettingUserValidator
 {
-  private $helper;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-  }
+  public function __construct(
+    private Validator $validator,
+    private General $helper
+  ) {}
 
   public function validate(string $type, array $input)
   {
     switch ($type) {
+      case 'list':
+        $rules = $this->helper->paginationRules();
+        break;
       case 'add':
         $rules = [
-          'fullname' => 'required|not_empty',
-          'username' => 'required|string|not_empty',
-          'password' => 'required|string|not_empty',
+          'fullname' => 'required',
+          'username' => 'required',
+          'password' => 'required',
           'status'   => 'required',
-          'role'     => 'required|not_empty'
+          'role'     => 'required'
         ];
-      break;
+        break;
       case 'edit':
         $rules = [
-          'id'       => 'required|not_empty',
-          'fullname' => 'required|string|not_empty',
-          'username' => 'required|string|not_empty',
+          'id'       => 'required',
+          'fullname' => 'required',
+          'username' => 'required',
           'status'   => 'required',
-          'role'     => 'required|not_empty'
+          'role'     => 'required'
         ];
-      break;
+        break;
       case 'pass':
         $rules = [
-          'id'       => 'required|not_empty',
-          'password' => 'required|string|not_empty'
+          'id'       => 'required',
+          'password' => 'required'
         ];
-      break;
+        break;
       case 'drop':
         $rules = [
-          'id' => 'required|not_empty'
+          'id' => 'required'
         ];
-      break;
+        break;
       case 'roles_add':
         $rules = [
-          'label' => 'required|string|not_empty',
-          'role'  => 'required|not_empty'
+          'label' => 'required',
+          'role'  => 'required'
         ];
-      break;
+        break;
       case 'roles_edit':
         $rules = [
-          'id'    => 'required|not_empty',
-          'label' => 'required|string|not_empty',
-          'role'  => 'required|not_empty'
+          'id'    => 'required',
+          'label' => 'required',
+          'role'  => 'required'
         ];
-      break;
+        break;
       case 'roles_drop':
         $rules = [
-          'id' => 'required|not_empty'
+          'id' => 'required'
         ];
-      break;
+        break;
       default:
-        throw new Exception('Can\'t validate some field', 400);
-      break;
+        throw new Exception('Unknown validation type', 400);
     }
-    $this->helper->validateByRules($input, $rules);
+
+    $validation = $this->validator->make($input, $rules);
+    $validation->validate();
+
+    if ($validation->fails()) {
+      $errors = $validation->errors()->firstOfAll();
+      throw new Exception(json_encode(['validation_errors' => $errors]), 400);
+    }
+
     return true;
   }
 }

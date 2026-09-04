@@ -10,15 +10,12 @@ use App\Models\UserRole;
 
 class AdminSettingUserService
 {
-  private $db;
-  private $helper;
   private $tableMain = 'tb_user';
   private $tableRole = 'tb_user_role';
 
-  public function __construct()
-  {
-    $this->helper = new General;
-  }
+  public function __construct(
+    private General $helper
+  ) {}
 
   public function checkExist(array $input)
   {
@@ -29,26 +26,29 @@ class AdminSettingUserService
     return $check;
   }
 
-  public function list()
+  public function list(array $input = [])
   {
-    $data  = [];
-    $query = User::with(['userRole:id,label'])->get();
-    if (!$query->isEmpty()) {
-      foreach ($query as $row) {
-        $data[] = [
-          'id'         => $row->id,
-          'fullname'   => $row->name,
-          'telepon'    => $row->phone,
-          'email'      => $row->email,
-          'username'   => $row->username,
-          'role'       => $row->id_user_role,
-          'peran'      => $row->userRole->label ?? null,
-          'status'     => $row->status,
-          'last_login' => $row->last_login,
-        ];
-      }
-    }
-    return $data;
+    $page = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? 10));
+
+    $query = User::with(['userRole:id,label'])->orderBy('id', 'asc');
+
+    return $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => [
+        'id'         => $row->id,
+        'fullname'   => $row->name,
+        'telepon'    => $row->phone,
+        'email'      => $row->email,
+        'username'   => $row->username,
+        'role'       => $row->id_user_role,
+        'peran'      => $row->userRole->label ?? null,
+        'status'     => $row->status,
+        'last_login' => $row->last_login,
+      ]
+    );
   }
 
   public function add(array $input, array $user)
@@ -72,7 +72,7 @@ class AdminSettingUserService
       ]);
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT');
+        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT', $this->helper->logRecordChanges($insert));
       //? LOG Record
 
       DB::commit();
@@ -89,15 +89,16 @@ class AdminSettingUserService
 
     DB::beginTransaction();
     try {
-      User::where('id', $check->id)->update([
+      $updateData = [
         'name'         => $input['fullname'],
         'username'     => $input['username'],
         'id_user_role' => $input['role'],
         'status'       => $input['status'],
-      ]);
+      ];
+      User::where('id', $check->id)->update($updateData);
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, $check['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableMain, $check['id'], 'UPDATE', $this->helper->logUpdateChanges($check, $updateData));
       //? LOG Record
 
       DB::commit();
@@ -119,7 +120,10 @@ class AdminSettingUserService
       ]);
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, $check['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableMain, $check['id'], 'UPDATE', [
+          'before' => ['password' => '[hidden]'],
+          'after'  => ['password' => '[changed]'],
+        ]);
       //? LOG Record
 
       DB::commit();
@@ -139,7 +143,7 @@ class AdminSettingUserService
       User::where('id', $check->id)->delete();
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'DELETE');
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'DELETE', $this->helper->logRecordChanges($check));
       //? LOG Record
 
       DB::commit();
@@ -168,7 +172,7 @@ class AdminSettingUserService
       ]);
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableRole, $insert->id, 'INSERT');
+        $this->helper->addLog($user, $this->tableRole, $insert->id, 'INSERT', $this->helper->logRecordChanges($insert));
       //? LOG Record
 
       DB::commit();
@@ -181,16 +185,19 @@ class AdminSettingUserService
 
   public function editRoles(array $input, array $user)
   {
+    $check = UserRole::where('id', $input['id'])->first();
+
     DB::beginTransaction();
     try {
-      UserRole::where('id', $input['id'])->update([
+      $updateData = [
         'label'      => $input['label'],
         'role'       => json_encode($input['role']),
         'updated_at' => date('Y-m-d H:i:s'),
-      ]);
+      ];
+      UserRole::where('id', $input['id'])->update($updateData);
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableRole, $input['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableRole, $input['id'], 'UPDATE', $this->helper->logUpdateChanges($check ?? [], $updateData));
       //? LOG Record
 
       DB::commit();
@@ -208,6 +215,7 @@ class AdminSettingUserService
       if ($check) {
         throw new Exception('Role is in use', 409);
       }
+      $role = UserRole::where('id', $input['id'])->first();
     //* CHECK USER RELATION
 
     DB::beginTransaction();
@@ -215,7 +223,7 @@ class AdminSettingUserService
       UserRole::where('id', $input['id'])->delete();
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableRole, (int) $input['id'], 'DELETE');
+        $this->helper->addLog($user, $this->tableRole, (int) $input['id'], 'DELETE', $this->helper->logRecordChanges($role ?? []));
       //? LOG Record
 
       DB::commit();

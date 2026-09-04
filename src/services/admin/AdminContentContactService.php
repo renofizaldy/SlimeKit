@@ -11,16 +11,12 @@ use App\Models\ContentContact;
 
 class AdminContentContactService
 {
-  private $db;
-  private $helper;
-  private $cloudinary;
-  private $tableMain = 'tb_content_contact';
+  private string $tableMain = 'tb_content_contact';
 
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-  }
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary
+  ) {}
 
   private function checkExist(array $input)
   {
@@ -31,9 +27,19 @@ class AdminContentContactService
     return $check;
   }
 
-  public function list(array $input)
+  public function list(array $input = [])
   {
-    return ContentContact::all()->toArray();
+    $page     = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? 10));
+
+    $query = ContentContact::orderBy('id', 'asc');
+
+    return $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => $row->toArray()
+    );
   }
 
   public function add(array $input, array $user)
@@ -48,7 +54,7 @@ class AdminContentContactService
       //? INSERT TO table
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT');
+        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT', $this->helper->logRecordChanges($insert));
       //? LOG Record
 
       DB::commit();
@@ -61,16 +67,19 @@ class AdminContentContactService
 
   public function edit(array $input, array $user)
   {
+    $check = $this->checkExist($input);
+
     DB::beginTransaction();
     try {
       //? UPDATE ON table
-        ContentContact::where('id', (int) $input['id'])->update([
+        $updateData = [
           'value' => $input['value']
-        ]);
+        ];
+        ContentContact::where('id', (int) $input['id'])->update($updateData);
       //? UPDATE ON table
 
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $this->helper->logUpdateChanges($check, $updateData));
       //? LOG Record
 
       DB::commit();
@@ -90,7 +99,7 @@ class AdminContentContactService
         ContentContact::where('id', (int) $check->id)->delete();
       //? DELETE table
       //? LOG Record
-        $this->helper->addLog($user, $this->tableMain, (int) $check->id, 'DELETE');
+        $this->helper->addLog($user, $this->tableMain, (int) $check->id, 'DELETE', $this->helper->logRecordChanges($check));
       //? LOG Record
       DB::commit();
     }

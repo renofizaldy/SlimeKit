@@ -6,45 +6,35 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Exception;
 use App\Helpers\General;
+use App\Helpers\ApiResponse;
 use App\Services\Client\ClientContentTeamService;
 use App\Validators\Client\ClientContentTeamValidator;
 
 class ClientContentTeamController
 {
-  private $helper;
-  private $service;
-  private $validator;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->service = new ClientContentTeamService;
-    $this->validator = new ClientContentTeamValidator;
-  }
+  public function __construct(
+    private General $helper,
+    private ClientContentTeamService $service,
+    private ClientContentTeamValidator $validator,
+    private ApiResponse $apiResponse
+  ) {}
 
   public function list(Request $request, Response $response)
   {
-    $input = $request->getQueryParams();
     try {
-      //* SERVICES
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
+      $this->validator->validate('list', $input);
+
+      //* SERVICE
       $data = $this->service->list($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
   }
 }

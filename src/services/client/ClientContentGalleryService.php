@@ -11,39 +11,32 @@ use App\Models\ContentGallery;
 
 class ClientContentGalleryService
 {
-  private $helper;
-  private $cloudinary;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-  }
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary
+  ) {}
 
   public function list(array $input)
   {
-    $data  = [];
-    $limit = max(0, (int) ($input['limit'] ?? 10));
+    $page = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? ($input['limit'] ?? 10)));
 
     $query = ContentGallery::with(['picture:id,original,thumbnail'])
-      ->orderBy('created_at', 'DESC')
-      ->limit($limit > 0 ? $limit : null)
-      ->get();
+      ->orderBy('created_at', 'DESC');
 
-    if (!$query->isEmpty()) {
-      foreach ($query as $row) {
-        $data[] = [
-          'created_at'  => date('Y-m-d H:i:s', strtotime($row->created_at)),
-          'name'        => $row->name,
-          'description' => $row->description,
-          'picture'     => [
-            'original'  => $row->picture->original,
-            'thumbnail' => $row->picture->thumbnail
-          ]
-        ];
-      }
-    }
-
-    return $data;
+    return $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => [
+        'created_at'  => date('Y-m-d H:i:s', strtotime($row->created_at)),
+        'name'        => $row->name,
+        'description' => $row->description,
+        'picture'     => [
+          'original'  => $row->picture->original ?? null,
+          'thumbnail' => $row->picture->thumbnail ?? null
+        ]
+      ]
+    );
   }
 }

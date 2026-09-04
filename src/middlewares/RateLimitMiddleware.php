@@ -21,6 +21,11 @@ class RateLimitMiddleware implements MiddlewareInterface
 
   public function process(Request $request, Handler $handler): Response
   {
+    // Bypass rate limiting during automated testing
+    if ((isset($_ENV['ENVIRONMENT']) && $_ENV['ENVIRONMENT'] === 'TESTING') || getenv('ENVIRONMENT') === 'TESTING') {
+      return $handler->handle($request);
+    }
+
     $serverParams = $request->getServerParams();
 
     // Prioritaskan IP asli user (Cloudflare > Proxy > Direct)

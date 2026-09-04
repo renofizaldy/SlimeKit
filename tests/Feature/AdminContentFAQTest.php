@@ -1,0 +1,266 @@
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Services\Admin\AdminContentFAQService;
+use Exception;
+
+class AdminContentFAQTest extends TestCase
+{
+  //* =================== 1. LIST ===================
+
+  public function test_list_fails_service()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('list')->willThrowException(new Exception('Service Error', 500));
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('GET', '/admin/content_faq/list');
+    $response = $app->handle($request);
+
+    $this->assertEquals(500, $response->getStatusCode());
+    $body = $this->parseJson($response);
+    $this->assertEquals('error', $body['status']);
+    $this->assertEquals('Service Error', $body['message']);
+  }
+
+  public function test_list_success()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('list')->willReturn([
+      'items' => [
+        ['id' => 1, 'title' => 'FAQ 1', 'description' => 'Desc 1'],
+      ],
+      'pagination' => [
+        'page'       => 1,
+        'pageSize'   => 10,
+        'total'      => 1,
+        'totalPages' => 1,
+      ],
+    ]);
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('GET', '/admin/content_faq/list');
+    $response = $app->handle($request);
+
+    $this->assertEquals(200, $response->getStatusCode());
+    $body = $this->parseJson($response);
+    $this->assertEquals('Ok', $body['message']);
+    $this->assertArrayHasKey('items', $body['data']);
+    $this->assertArrayHasKey('pagination', $body['data']);
+  }
+
+  public function test_list_with_pagination_params_success()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->expects($this->once())
+      ->method('list')
+      ->with($this->callback(function ($input) {
+        return $input['page'] === '2' && $input['pageSize'] === '5';
+      }))
+      ->willReturn([
+        'items' => [],
+        'pagination' => [
+          'page'       => 2,
+          'pageSize'   => 5,
+          'total'      => 8,
+          'totalPages' => 2,
+        ],
+      ]);
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('GET', '/admin/content_faq/list')->withQueryParams([
+      'page'     => '2',
+      'pageSize' => '5',
+    ]);
+    $response = $app->handle($request);
+
+    $this->assertEquals(200, $response->getStatusCode());
+    $body = $this->parseJson($response);
+    $this->assertEquals(2, $body['data']['pagination']['page']);
+  }
+
+  //* =================== 2. ADD ===================
+  public function test_add_fails_validation()
+  {
+    $app = $this->getAppInstance();
+    $request = $this->createRequest('POST', '/admin/content_faq/add');
+    $request = $request->withParsedBody([]);
+    
+    $response = $app->handle($request);
+    
+    $this->assertEquals(422, $response->getStatusCode());
+  }
+
+  public function test_add_fails_service()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('add')->willThrowException(new Exception('Service Error', 500));
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/admin/content_faq/add');
+    $request = $request->withParsedBody(['title' => 'FAQ 1', 'description' => 'Answer 1']);
+    $response = $app->handle($request);
+
+    $this->assertEquals(500, $response->getStatusCode());
+  }
+
+  public function test_add_success()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('add')->willReturn(true);
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/admin/content_faq/add');
+    $request = $request->withParsedBody(['title' => 'FAQ 1', 'description' => 'Answer 1']);
+    $response = $app->handle($request);
+
+    $this->assertEquals(200, $response->getStatusCode());
+  }
+
+  //* =================== 3. EDIT ===================
+  public function test_edit_fails_validation()
+  {
+    $app = $this->getAppInstance();
+    $request = $this->createRequest('POST', '/admin/content_faq/edit');
+    $request = $request->withParsedBody([]);
+    
+    $response = $app->handle($request);
+    
+    $this->assertEquals(422, $response->getStatusCode());
+  }
+
+  public function test_edit_fails_service()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('edit')->willThrowException(new Exception('Service Error', 500));
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/admin/content_faq/edit');
+    $request = $request->withParsedBody(['id' => 1, 'title' => 'FAQ 1', 'description' => 'Answer 1']);
+    $response = $app->handle($request);
+
+    $this->assertEquals(500, $response->getStatusCode());
+  }
+
+  public function test_edit_success()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('edit')->willReturn(true);
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/admin/content_faq/edit');
+    $request = $request->withParsedBody(['id' => 1, 'title' => 'FAQ 1', 'description' => 'Answer 1']);
+    $response = $app->handle($request);
+
+    $this->assertEquals(200, $response->getStatusCode());
+  }
+
+  //* =================== 4. SORT ===================
+  public function test_sort_fails_validation()
+  {
+    $app = $this->getAppInstance();
+    $request = $this->createRequest('POST', '/admin/content_faq/sort');
+    $request = $request->withParsedBody([]);
+    
+    $response = $app->handle($request);
+    
+    $this->assertEquals(422, $response->getStatusCode());
+  }
+
+  public function test_sort_fails_service()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('sort')->willThrowException(new Exception('Service Error', 500));
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/admin/content_faq/sort');
+    $request = $request->withParsedBody(['order' => [1, 2, 3]]);
+    $response = $app->handle($request);
+
+    $this->assertEquals(500, $response->getStatusCode());
+  }
+
+  public function test_sort_success()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('sort')->willReturn(true);
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/admin/content_faq/sort');
+    $request = $request->withParsedBody(['order' => [1, 2, 3]]);
+    $response = $app->handle($request);
+
+    $this->assertEquals(200, $response->getStatusCode());
+  }
+
+  //* =================== 5. DROP ===================
+  public function test_drop_fails_validation()
+  {
+    $app = $this->getAppInstance();
+    $request = $this->createRequest('POST', '/admin/content_faq/drop');
+    $request = $request->withParsedBody([]);
+    $response = $app->handle($request);
+    $this->assertEquals(422, $response->getStatusCode());
+  }
+
+  public function test_drop_fails_service()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('drop')->willThrowException(new Exception('Service Error', 500));
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/admin/content_faq/drop');
+    $request = $request->withParsedBody(['id' => 1]);
+    $response = $app->handle($request);
+
+    $this->assertEquals(500, $response->getStatusCode());
+  }
+
+  public function test_drop_success()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(AdminContentFAQService::class);
+    $mockService->method('drop')->willReturn(true);
+    $container->set(AdminContentFAQService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/admin/content_faq/drop');
+    $request = $request->withParsedBody(['id' => 1]);
+    $response = $app->handle($request);
+
+    $this->assertEquals(200, $response->getStatusCode());
+  }
+}

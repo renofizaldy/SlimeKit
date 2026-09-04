@@ -11,34 +11,27 @@ use App\Models\ContentFAQ;
 
 class ClientContentFAQService
 {
-  private $helper;
-  private $cloudinary;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-  }
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary
+  ) {}
 
   public function list(array $input)
   {
-    $data  = [];
-    $limit = max(0, (int) ($input['limit'] ?? 10));
+    $page = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? ($input['limit'] ?? 10)));
 
-    $query = ContentFAQ::orderBy('sort', 'ASC')
-      ->limit($limit > 0 ? $limit : null)
-      ->get();
+    $query = ContentFAQ::orderBy('sort', 'ASC');
 
-    if (!$query->isEmpty()) {
-      foreach($query as $row) {
-        $data[] = [
-          'sort'        => (int) $row->sort,
-          'title'       => $row->title,
-          'description' => $row->description
-        ];
-      }
-    }
-
-    return $data;
+    return $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => [
+        'sort'        => (int) $row->sort,
+        'title'       => $row->title,
+        'description' => $row->description
+      ]
+    );
   }
 }

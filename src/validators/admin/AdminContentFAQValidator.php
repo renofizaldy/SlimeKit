@@ -2,49 +2,58 @@
 
 namespace App\Validators\Admin;
 
-use Exception;
+use Rakit\Validation\Validator;
 use App\Helpers\General;
+use Exception;
 
 class AdminContentFAQValidator
 {
-  private $helper;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-  }
+  public function __construct(
+    private Validator $validator,
+    private General $helper
+  ) {}
 
   public function validate(string $type, array $input)
   {
     switch ($type) {
+      case 'list':
+        $rules = $this->helper->paginationRules();
+        break;
       case 'add':
         $rules = [
-          'title'       => 'required|not_empty',
-          'description' => 'required|not_empty',
+          'title'       => 'required',
+          'description' => 'required'
         ];
-      break;
+        break;
       case 'edit':
         $rules = [
-          'id'          => 'required|not_empty',
-          'title'       => 'required|not_empty',
-          'description' => 'required|not_empty',
+          'id'          => 'required|numeric',
+          'title'       => 'required',
+          'description' => 'required'
         ];
-      break;
+        break;
       case 'sort':
         $rules = [
-          'order' => 'required|not_empty'
+          'order' => 'required|array'
         ];
-      break;
+        break;
       case 'drop':
         $rules = [
-          'id' => 'required|not_empty'
+          'id' => 'required|numeric'
         ];
-      break;
+        break;
       default:
         throw new Exception('Can\'t validate some field', 400);
-      break;
     }
-    $this->helper->validateByRules($input, $rules);
+
+    $validation = $this->validator->make($input, $rules);
+    $validation->validate();
+
+    if ($validation->fails()) {
+      $errors = $validation->errors()->toArray();
+      throw new Exception(json_encode(['validation_errors' => $errors]), 400);
+    }
+
     return true;
   }
 }

@@ -3,144 +3,115 @@
 namespace App\Services\Admin;
 
 use Exception;
-use App\Lib\Database;
+use Illuminate\Database\Capsule\Manager as DB;
 use App\Helpers\General;
 use App\Lib\Cloudinary;
 
+use App\Models\ContentTeam;
+use App\Models\Picture;
+
 class AdminContentTeamService
 {
-  private $db;
-  private $helper;
-  private $cloudinary;
-  private $tableMain = 'tb_content_team';
+  private string $tableMain = 'tb_content_team';
 
-  public function __construct()
-  {
-    $this->db = (new Database())->getConnection();
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-  }
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary
+  ) {}
 
   private function checkExist(array $input)
   {
-    $check = $this->db->createQueryBuilder()
-      ->select('*')
-      ->from($this->tableMain)
-      ->where('id = :id')
-      ->setParameter('id', (int) $input['id'])
-      ->fetchAssociative();
+    $check = ContentTeam::where('id', (int) $input['id'])->first();
     if (!$check) {
       throw new Exception('Not Found', 404);
     }
     return $check;
   }
 
-  public function list(array $input)
+  public function list(array $input = [])
   {
-    $data = [];
+    $page     = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? 10));
 
-    $query = $this->db->createQueryBuilder()
-      ->select(
-        $this->tableMain.'.*',
-        'tb_picture.original AS original',
-        'tb_picture.thumbnail AS thumbnail'
-      )
-      ->from($this->tableMain)
-      ->leftJoin(
-        $this->tableMain,
-        'tb_picture',
-        'tb_picture',
-        $this->tableMain.'.id_picture = tb_picture.id'
-      )
-      ->executeQuery()
-      ->fetchAllAssociative();
+    $query = ContentTeam::with(['picture:id,original,thumbnail'])->orderBy('id', 'desc');
 
-    if (!empty($query)) {
-      $data = $query;
-    }
-
-    return $data;
+    return $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => [
+        'id'          => $row->id,
+        'name'        => $row->name,
+        'title'       => $row->title,
+        'link'        => $row->link,
+        'updated_at'  => $row->updated_at,
+        'original'    => $row->picture->original ?? null,
+        'thumbnail'   => $row->picture->thumbnail ?? null,
+      ]
+    );
   }
 
   public function add(array $input, array $user)
   {
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? PICTURE UPLOAD
-        $picture_id = $this->helper->pictureUpload($this->db, $this->cloudinary, $input['picture'] ?? null);
+        $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null);
       //? PICTURE UPLOAD
 
       //? INSERT TO table
-        $this->db->createQueryBuilder()
-          ->insert($this->tableMain)
-          ->values([
-            'id_picture' => ':id_picture',
-            'name'       => ':name',
-            'title'      => ':title',
-            'link'       => ':link',
-          ])
-          ->setParameters([
-            'id_picture' => $picture_id['id'],
-            'name'       => $input['name'],
-            'title'      => $input['title'],
-            'link'       => null,
-          ])
-          ->executeStatement();
+        $insert = ContentTeam::create([
+          'name'        => $input['name'],
+          'title'       => $input['title'],
+          'link'        => $input['link'] ?? null,
+          'id_picture'  => $picture_id['id'] ?? null,
+        ]);
       //? INSERT TO table
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, $this->db->lastInsertId(), 'INSERT');
+        $this->helper->addLog($user, $this->tableMain, $insert->id, 'INSERT', $this->helper->logRecordChanges($insert));
       //? LOG Record
 
-      $this->db->commit();
+      DB::commit();
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
 
   public function edit(array $input, array $user)
   {
-    $this->db->beginTransaction();
+    $check = $this->checkExist($input);
+
+    DB::beginTransaction();
     try {
       //? PICTURE UPLOAD
-        $picture_id = $this->helper->pictureUpload($this->db, $this->cloudinary, $input['picture'] ?? null);
+        $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null);
       //? PICTURE UPLOAD
 
       //? UPDATE ON table
-        $update = $this->db->createQueryBuilder()
-          ->update($this->tableMain)
-          ->set('name', ':name')
-          ->set('title', ':title')
-          ->set('link', ':link')
-          ->set('updated_at', ':updated_at')
-          ->where('id = :id')
-          ->setParameters([
-            'id'         => (int) $input['id'],
-            'name'       => $input['name'],
-            'title'      => $input['title'],
-            'link'       => null,
-            'updated_at' => date('Y-m-d H:i:s')
-          ]);
-        if (!empty($picture_id)) {
-          $update->set('id_picture', ':id_picture')->setParameter('id_picture', $picture_id['id']);
+        $updateData = [
+          'name'  => $input['name'],
+          'title' => $input['title'],
+        ];
+        if (array_key_exists('link', $input)) {
+          $updateData['link'] = $input['link'];
         }
-        $update->executeStatement();
+        if (!empty($picture_id['id'])) {
+          $updateData['id_picture'] = $picture_id['id'];
+        }
+        ContentTeam::where('id', (int) $input['id'])->update($updateData);
       //? UPDATE ON table
 
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $input['id'], 'UPDATE');
+        $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $this->helper->logUpdateChanges($check, $updateData));
       //? LOG Record
 
-      $this->db->commit();
+      DB::commit();
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }
@@ -149,26 +120,26 @@ class AdminContentTeamService
   {
     $check = $this->checkExist($input);
 
-    $this->db->beginTransaction();
+    DB::beginTransaction();
     try {
       //? DELETE table
-        $this->db->createQueryBuilder()
-          ->delete($this->tableMain)
-          ->where('id = :id')
-          ->setParameter('id', $check['id'])
-          ->executeStatement();
+        ContentTeam::where('id', (int) $check->id)->delete();
       //? DELETE table
 
+      //? DELETE PICTURE
+        if (!empty($check->id_picture)) {
+          Picture::where('id', (int) $check->id_picture)->delete();
+        }
+      //? DELETE PICTURE
+
       //? LOG Record
-        $this->helper->addLog($this->db, $user, $this->tableMain, (int) $check['id'], 'DELETE');
+        $this->helper->addLog($user, $this->tableMain, (int) $check->id, 'DELETE', $this->helper->logRecordChanges($check));
       //? LOG Record
 
-      $this->db->commit();
+      DB::commit();
     }
     catch (Exception $e) {
-      if ($this->db->isTransactionActive()) {
-        $this->db->rollBack();
-      }
+      DB::rollBack();
       throw $e;
     }
   }

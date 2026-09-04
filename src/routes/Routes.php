@@ -51,6 +51,8 @@ return function ($app) {
       $group->post('/drop', [$controller, 'drop'])->add(new AuthMiddleware('admin', 'article:crud'));
       $group->post('/check_slug', [$controller, 'checkSlug'])->add(new AuthMiddleware('admin', 'article:crud'));
       $group->post('/add_picture', [$controller, 'addPicture'])->add(new AuthMiddleware('admin', 'article:crud'))->add(new GzipDecoderMiddleware());
+      $group->post('/status_change', [$controller, 'statusChange'])->add(new AuthMiddleware('admin', 'article:crud'));
+      $group->post('/publish_change', [$controller, 'publishChange'])->add(new AuthMiddleware('admin', 'article:crud'));
     })->add(TokenMiddleware::class);
 
     //! Article - Category

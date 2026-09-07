@@ -29,6 +29,9 @@ use App\Controllers\Client\ClientContentFAQController;
 use App\Controllers\Client\ClientContentGalleryController;
 use App\Controllers\Client\ClientContentTeamController;
 
+//* JOB
+use App\Controllers\JobController;
+
 return function ($app) {
   //* ADMIN
   $app->group('/admin', function(RouteCollectorProxy $groupAdmin) {
@@ -200,6 +203,17 @@ return function ($app) {
       $group->get('/detail', [$controller, 'detail']);
     });
 
+  })
+  ->add(new GzipEncoder())
+  ->add(new RateLimitMiddleware(60, 60));
+
+  //* JOB
+  $app->group('/job', function(RouteCollectorProxy $groupJob) {
+    $controller = JobController::class;
+
+    $groupJob->post('/article_publish', [$controller, 'articlePublish']);
+    $groupJob->post('/article_sync_stats', [$controller, 'articleSyncStats']);
+    $groupJob->post('/article_track_stats', [$controller, 'articleTrackStats']);
   })
   ->add(new GzipEncoder())
   ->add(new RateLimitMiddleware(60, 60));

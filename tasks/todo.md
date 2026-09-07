@@ -464,17 +464,17 @@
 
 ---
 
-### Task 18: Job Automation System (`JobController` & `JobService`)
+### Task 18: Job Automation System (`JobController` & `JobService`) ✅
 **Description:** Mengimplementasikan modul background job dan webhook callback: `NextRevalidator` (invalidation cache frontend ISR Next.js), `JobController`, `JobService`, dan `JobValidator` untuk memproses auto-publish artikel dari Cronhooks, sinkronisasi antrean kunjungan Valkey ke tabel `tb_article_stats`, dan pelacakan kunjungan via antrean Valkey.
 
 **Acceptance criteria:**
-- [ ] `src/lib/NextRevalidator.php` dibuat untuk revalidasi cache Next.js.
-- [ ] `src/controllers/JobController.php`, `src/services/JobService.php`, dan `src/validators/JobValidator.php` dibuat.
-- [ ] Endpoint `/job/article_publish`, `/job/article_sync_stats`, dan `/job/article_track_stats` tersedia.
-- [ ] Feature test `tests/Feature/JobTest.php` dibuat dan lulus.
+- [x] `src/lib/NextRevalidator.php` dibuat untuk revalidasi cache Next.js.
+- [x] `src/controllers/JobController.php`, `src/services/JobService.php`, dan `src/validators/JobValidator.php` dibuat.
+- [x] Endpoint `/job/article_publish`, `/job/article_sync_stats`, dan `/job/article_track_stats` tersedia.
+- [x] Feature test `tests/Feature/JobTest.php` dibuat dan lulus.
 
 **Verification:**
-- [ ] `vendor/bin/phpunit tests/Feature/JobTest.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/JobTest.php` lulus.
 
 **Dependencies:** Task 12, Task 17
 **Files likely touched:**
@@ -482,35 +482,37 @@
 - `src/controllers/JobController.php` (baru)
 - `src/services/JobService.php` (baru)
 - `src/validators/JobValidator.php` (baru)
+- `src/routes/Routes.php`
 - `tests/Feature/JobTest.php` (baru)
 **Estimated scope:** Medium (5 files)
 
 ---
 
-## Checkpoint 8: Stats & Job System Verified
-- [ ] Statistik kunjungan dan audit log bekerja dengan paginasi.
-- [ ] Sistem job publish dan sinkronisasi stats berjalan dengan baik dan teruji.
+## Checkpoint 8: Stats & Job System Verified ✅
+- [x] Statistik kunjungan dan audit log bekerja dengan paginasi.
+- [x] Sistem job publish dan sinkronisasi stats berjalan dengan baik dan teruji.
 
 ---
 
 ## Phase 9: Routing, Code Generator CLI & Final Polish
 
-### Task 19: Routes Modernization (`Routes.php`)
+### Task 19: Routes Modernization (`Routes.php`) ✅
 **Description:** Memperbarui `src/routes/Routes.php` untuk memanfaatkan auto-wiring penuh (menggunakan class-string `[AdminArticleController::class, 'method']` alih-alih instantiasi manual `$controller = new ...`), mendaftarkan rute baru untuk `article_agent`, `job`, rute baru `stats`, serta memastikan rute `content_team` tetap terintegrasi secara rapi.
 
 **Acceptance criteria:**
-- [ ] Semua controller di `Routes.php` dipanggil dengan format class string (`Controller::class`).
-- [ ] Rute grup `/admin/article_agent` didaftarkan.
-- [ ] Rute grup `/job` didaftarkan.
-- [ ] Rute grup `/admin/content_team` dan `/client/content_team` menggunakan standar baru.
-- [ ] `TokenMiddleware::class` digunakan untuk auto-wiring.
+- [x] Semua controller di `Routes.php` dipanggil dengan format class string (`Controller::class`).
+- [x] Rute grup `/admin/article_agent` didaftarkan.
+- [x] Rute grup `/job` didaftarkan.
+- [x] Rute grup `/admin/content_team` dan `/client/content_team` menggunakan standar baru.
+- [x] `TokenMiddleware::class` digunakan untuk auto-wiring.
 
 **Verification:**
-- [ ] Seluruh endpoint dalam route map dapat di-resolve oleh router Slim tanpa error.
+- [x] Seluruh endpoint dalam route map dapat di-resolve oleh router Slim tanpa error.
 
 **Dependencies:** Task 4, Task 10, Task 14, Task 16, Task 18
 **Files likely touched:**
 - `src/routes/Routes.php`
+- `tests/Feature/RoutesTest.php` (baru)
 **Estimated scope:** Medium (1 file)
 
 ---

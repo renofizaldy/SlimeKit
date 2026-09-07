@@ -295,26 +295,20 @@ Seluruh pengujian dirancang untuk memverifikasi:
 
 ---
 
-## ☁️ Deployment ke Google Cloud Run (via OpenTofu)
+## ☁️ Deployment ke Google Cloud Run (Docker & GitHub Actions)
 
-Berikut adalah panduan lengkap menyiapkan infrastruktur *serverless container* di Google Cloud Run menggunakan OpenTofu:
+SlimeKit v2 menggunakan alur deployment modern langsung ke **Google Cloud Run** melalui container image Docker di **Google Artifact Registry** dan automasi CI/CD via **GitHub Actions** (tanpa dependensi OpenTofu/Terraform).
 
-### 1. Install OpenTofu
-Unduh dan pasang OpenTofu melalui panduan resmi di [opentofu.org](https://opentofu.org/docs/intro/install/).
-
-### 2. Konfigurasi Variabel OpenTofu Lokal
-- Masuk ke direktori `tofu/`.
-- Salin `tofu/terraform.tfvars.example` menjadi `tofu/terraform.tfvars`.
-- Isi seluruh variabel kredensial yang dibutuhkan.
-
-### 3. Otomatisasi GitHub Actions
-- Salin file `.github/workflows/deploy.yml` ke repositori root: `.github/workflows/deploy.yml`.
-- Sesuaikan konfigurasi build dan target Cloud Run.
-
-### 4. Setup Google Cloud CLI
+### 1. Setup Google Cloud CLI
 ```bash
 # Login ke Google Cloud
 gcloud auth login
+
+# Set Project ID aktif
+gcloud config set project <PROJECT-ID>
+
+# Aktifkan API yang dibutuhkan
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com
 
 # Buat Repository Artifact Registry untuk Docker image
 gcloud artifacts repositories create <NAMA-REPO> \
@@ -325,76 +319,67 @@ gcloud artifacts repositories create <NAMA-REPO> \
 
 # Autentikasi Docker ke GCP Artifact Registry
 gcloud auth configure-docker asia-southeast1-docker.pkg.dev
-
-# Buat Google Cloud Storage Bucket untuk remote state OpenTofu
-gcloud storage buckets create gs://<NAMA-BUCKET-UNIK> \
-  --project=<PROJECT-ID> \
-  --default-storage-class=STANDARD \
-  --location=us-west1 \
-  --uniform-bucket-level-access
-
-# Aktifkan versioning pada bucket
-gcloud storage buckets update gs://<NAMA-BUCKET-UNIK> --versioning
 ```
 
-### 5. Atur Lifecycle Rule Google Cloud Storage
-Tambahkan aturan *Lifecycle Management* agar versi `terraform.tfstate` lama dibersihkan secara otomatis:
-1. Buka Bucket di GCP Console > tab **Lifecycle**.
-2. Klik **Add a rule** > Action: **Delete Object**.
-3. Conditions: atur batas versi pada **Number of newer versions** (misal: 10).
-4. Klik **Create**.
+### 2. Konfigurasi Service Account Google Cloud
+1. Masuk ke **IAM & Admin > Service Accounts** di Google Cloud Console.
+2. Buat Service Account baru (misal: `github-actions-deployer`).
+3. Berikan Roles (Izin) berikut:
+   - **Cloud Run Admin**: Mengelola deployment dan revisi service Cloud Run.
+   - **Service Account User**: Menjalankan service dengan identitas service account.
+   - **Artifact Registry Administrator**: Mengunggah dan mengelola image container di Artifact Registry.
+4. Pada tab **Keys**, klik **Add Key > Create new key > JSON**, unduh filenya untuk disalin ke GitHub Secrets.
 
-### 6. Konfigurasi GitHub Repository Secrets & Variables
-Tambahkan kredensial di **Settings > Secrets and variables > Actions**:
+### 3. Konfigurasi GitHub Repository Secrets & Variables
+Tambahkan kredensial di repositori GitHub Anda: **Settings > Secrets and variables > Actions**:
 
-#### Secrets:
-- `GCP_CREDENTIALS`: Isi dengan isi file Service Account JSON Key.
-- `IMAGE_TAG`: Tag image Docker (contoh: `latest`).
+#### Repository Secrets:
+- `GCP_CREDENTIALS`: Isi dengan seluruh teks JSON key dari Service Account.
+- `DB_PASS`: Password database produksi (digunakan untuk migrasi otomatis).
 - `SYM_KEY`: JWT Symmetric key rahasia.
 - `CLOUDINARY_URL`: URL konfigurasi Cloudinary.
 - `SMTP_USER` & `SMTP_PASS`: Kredensial SMTP Mailjet.
 - `R2_ACCESS_KEY_ID` & `R2_SECRET_ACCESS_KEY`: Kredensial Cloudflare R2.
 - `VALKEY_USERNAME` & `VALKEY_PASSWORD`: Kredensial Valkey / Upstash.
 - `CRONHOOKS_API_KEY`: API Key Cronhooks.
-- `GEMINI_API_KEY`: Google Gemini API Key.
-- `TAVILY_API_KEY`: Tavily Search API Key.
-- `OPENAI_API_KEY`: OpenAI API Key.
+- `GEMINI_API_KEY`, `OPENAI_API_KEY`, `TAVILY_API_KEY`: API Key AI Services.
 
-#### Variables:
-- `GCP_PROJECT_ID`: ID Proyek Google Cloud.
+#### Repository Variables:
+- `GCP_PROJECT_ID`: ID Proyek Google Cloud Anda.
 - `GCP_REGION`: Region Cloud Run (misal: `asia-southeast1`).
-- `GCS_BUCKET_NAME`: Nama bucket GCS untuk OpenTofu remote state.
 - `REPO_NAME`: Nama repository Artifact Registry.
 - `CLOUD_RUN_NAME`: Nama service Cloud Run (misal: `slimekit-api`).
-- `ENVIRONMENT`: `production`.
-- `BASE_PATH`: `/`.
-- `APP_NAME`: `SlimeKit`.
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_CLIENT`: Koneksi database produksi.
 
-### 7. Build, Push & Deploy Image Manual
+### 4. Otomatisasi Deployment via GitHub Actions
+Salin file template workflow dari `assets/.github/workflows/deploy.yml` ke `.github/workflows/deploy.yml`:
 ```bash
-# Build image Docker (Gunakan argumen platform untuk kompabilitas Cloud Run)
-docker build --platform linux/amd64 -f Dockerfile.prod -t asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest .
-
-# Push image ke Artifact Registry
-docker push asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<NAMA-IMAGE>:latest
-
-# Eksekusi OpenTofu
-cd tofu
-tofu init
-tofu plan
-tofu apply
+mkdir -p .github/workflows
+cp assets/.github/workflows/deploy.yml .github/workflows/deploy.yml
 ```
+Setiap *push* ke branch `main`, GitHub Actions akan otomatis:
+1. Mengautentikasi ke Google Cloud via `GCP_CREDENTIALS`.
+2. Membangun image Docker menggunakan `Dockerfile.prod`.
+3. Mendorong image ke Artifact Registry.
+4. Men-deploy service baru ke Google Cloud Run dengan flag `--allow-unauthenticated`.
+5. Menjalankan migrasi database Phinx (`composer migrate`) secara otomatis.
 
-### 8. Konfigurasi Service Account Google Cloud
-1. Masuk ke **IAM & Admin > Service Accounts** di Google Cloud Console.
-2. Buat Service Account baru (misal: `github-actions-deployer`).
-3. Berikan permission (Roles) berikut:
-   - **Cloud Run Admin**: Mengelola deployment dan revisi service Cloud Run.
-   - **Service Account User**: Menjalankan service dengan identitas service account.
-   - **Artifact Registry Administrator**: Mengunggah dan mengelola image container.
-   - **Storage Object Admin**: Membaca dan memperbarui `terraform.tfstate` pada Google Cloud Storage.
-4. Pada tab **Keys**, klik **Add Key > Create new key > JSON**, unduh dan simpan nilainya ke GitHub Secret `GCP_CREDENTIALS`.
+### 5. Build, Push & Deploy Manual (Opsional)
+Jika ingin melakukan deployment manual dari CLI lokal:
+```bash
+# 1. Build image dengan platform linux/amd64 untuk Cloud Run
+docker build --platform linux/amd64 -f Dockerfile.prod -t asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<CLOUD-RUN-NAME>:latest .
+
+# 2. Push image ke Artifact Registry
+docker push asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<CLOUD-RUN-NAME>:latest
+
+# 3. Deploy langsung ke Cloud Run
+gcloud run deploy <CLOUD-RUN-NAME> \
+  --image=asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<CLOUD-RUN-NAME>:latest \
+  --region=asia-southeast1 \
+  --platform=managed \
+  --allow-unauthenticated
+```
 
 ---
 

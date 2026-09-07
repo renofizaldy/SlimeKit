@@ -18,5 +18,8 @@
     </testsuites>
     <php>
         <env name="ENVIRONMENT" value="TESTING"/>
+        <env name="GEMINI_API_KEY" value="test-gemini-key"/>
+        <env name="TAVILY_API_KEY" value="test-tavily-key"/>
+        <env name="OPENAI_API_KEY" value="test-openai-key"/>
     </php>
 </phpunit>

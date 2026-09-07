@@ -410,31 +410,32 @@
 
 ---
 
-### Task 16: Porting Modul Admin Article Agent
+### Task 16: Porting Modul Admin Article Agent ✅
 **Description:** Mengimplementasikan modul `AdminArticleAgent` lengkap (Controller, Service, Validator) untuk alur kerja pembuatan artikel berbasis AI (3 langkah: brainstorming topik dengan strategi SEO gap/cluster/formula, riset web Tavily dengan sanitasi otomatis, dan penulisan artikel lengkap) beserta feature tests.
 
 **Acceptance criteria:**
-- [ ] `AdminArticleAgentController` dibuat dengan endpoint `step1_inputTopic`, `step1_inputSelection`, `step2_doResearch`, `step3_doWrite`, dan `detail`.
-- [ ] `AdminArticleAgentService` dibuat dengan integrasi Gemini, OpenAI, dan Tavily.
-- [ ] `AdminArticleAgentValidator` dibuat dengan aturan validasi tiap step via Rakit Validator.
-- [ ] Feature test `tests/Feature/AdminArticleAgentTest.php` dibuat dan lulus.
+- [x] `AdminArticleAgentController` dibuat dengan endpoint `step1_inputTopic`, `step1_inputSelection`, `step2_doResearch`, `step3_doWrite`, dan `detail`.
+- [x] `AdminArticleAgentService` dibuat dengan integrasi Gemini, OpenAI, dan Tavily.
+- [x] `AdminArticleAgentValidator` dibuat dengan aturan validasi tiap step via Rakit Validator.
+- [x] Feature test `tests/Feature/AdminArticleAgentTest.php` dibuat dan lulus.
 
 **Verification:**
-- [ ] `vendor/bin/phpunit tests/Feature/AdminArticleAgentTest.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/AdminArticleAgentTest.php` lulus.
 
 **Dependencies:** Task 12, Task 15
 **Files likely touched:**
 - `src/controllers/admin/AdminArticleAgentController.php` (baru)
 - `src/services/admin/AdminArticleAgentService.php` (baru)
 - `src/validators/admin/AdminArticleAgentValidator.php` (baru)
+- `src/routes/Routes.php`
 - `tests/Feature/AdminArticleAgentTest.php` (baru)
 **Estimated scope:** Medium (4 files)
 
 ---
 
-## Checkpoint 7: AI Article Agent Operational
-- [ ] Library klien AI siap pakai.
-- [ ] Alur 3-step Article Agent berfungsi dan teruji via automated test.
+## Checkpoint 7: AI Article Agent Operational ✅
+- [x] Library klien AI siap pakai.
+- [x] Alur 3-step Article Agent berfungsi dan teruji via automated test.
 
 ---
 

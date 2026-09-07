@@ -12,6 +12,7 @@ use Middlewares\GzipEncoder;
 //* ADMIN
 use App\Controllers\Admin\AdminAuthController;
 use App\Controllers\Admin\AdminArticleController;
+use App\Controllers\Admin\AdminArticleAgentController;
 use App\Controllers\Admin\AdminArticleCategoryController;
 use App\Controllers\Admin\AdminContentGalleryController;
 use App\Controllers\Admin\AdminContentFAQController;
@@ -53,6 +54,17 @@ return function ($app) {
       $group->post('/add_picture', [$controller, 'addPicture'])->add(new AuthMiddleware('admin', 'article:crud'))->add(new GzipDecoderMiddleware());
       $group->post('/status_change', [$controller, 'statusChange'])->add(new AuthMiddleware('admin', 'article:crud'));
       $group->post('/publish_change', [$controller, 'publishChange'])->add(new AuthMiddleware('admin', 'article:crud'));
+    })->add(TokenMiddleware::class);
+
+    //! Article Agent
+    $groupAdmin->group('/article_agent', function(RouteCollectorProxy $group) {
+      $controller = AdminArticleAgentController::class;
+
+      $group->post('/step1_input_topic', [$controller, 'step1_inputTopic'])->add(new AuthMiddleware('admin', 'article_agent:crud'));
+      $group->post('/step1_input_selection', [$controller, 'step1_inputSelection'])->add(new AuthMiddleware('admin', 'article_agent:crud'));
+      $group->post('/step2_do_research', [$controller, 'step2_doResearch'])->add(new AuthMiddleware('admin', 'article_agent:crud'));
+      $group->post('/step3_do_write', [$controller, 'step3_doWrite'])->add(new AuthMiddleware('admin', 'article_agent:crud'))->add(new GzipDecoderMiddleware());
+      $group->get('/detail', [$controller, 'detail'])->add(new AuthMiddleware('admin', 'article_agent:crud'));
     })->add(TokenMiddleware::class);
 
     //! Article - Category

@@ -79,3 +79,114 @@ Refactor `Routes.php` (auto-wiring class strings), penyelarasan CLI generator `m
 | **Ketergantungan ke API Pihak ke-3 (Gemini, OpenAI, Tavily, Valkey)** | Sedang | Pengecekan koneksi dilakukan aman dengan error handling yang jelas. Pada unit/feature test, service eksternal di-mocking melalui container. |
 | **Penghapusan OpenTofu merusak workflow deploy** | Rendah | Mengganti file `deploy.yml` dengan pipeline Docker Cloud Run standar yang bersih dari dependensi Terraform/Tofu. |
 | **Regresi pada modul bawaan (ContentTeam, Auth)** | Rendah | Setiap modul dibuatkan feature tests (HTTP simulation) sebelum dinyatakan selesai. |
+
+---
+
+## Future Architectural Roadmap: Route Middleware Ergonomics
+
+### Konteks & Latar Belakang
+Saat ini di `src/routes/Routes.php`, seluruh Controller telah 100% menggunakan format class-string (`[$controller, 'method']`) yang di-auto-wire oleh container PHP-DI, dan middleware tanpa dependensi/argumen seperti `TokenMiddleware::class` juga telah menggunakan auto-wiring. Namun, middleware yang membutuhkan argumen dinamis per rute (`AuthMiddleware` dan `RateLimitMiddleware`) serta middleware kompresi masih ditulis menggunakan `new`:
+```php
+$group->get('/list', [$controller, 'list'])->add(new AuthMiddleware('admin', 'article:view'));
+$group->post('/add', [$controller, 'add'])->add(new AuthMiddleware('admin', 'article:crud'))->add(new GzipDecoderMiddleware());
+$app->group('/admin', ...)->add(new GzipEncoder())->add(new RateLimitMiddleware(100, 60));
+```
+
+Untuk meningkatkan keterbacaan (*readability*), kebersihan kode, dan standarisasi arsitektur, berikut 2 rencana tugas terpisah:
+
+---
+
+### Task 22 (Future): Route Middleware Ergonomics - Pilihan Pragmatis (Helper Closures)
+
+**Tujuan:**
+Menyederhanakan dan memperpendek penulisan rute di `src/routes/Routes.php` secara cepat dan pragmatis menggunakan *local helper closures / function factories* tanpa memodifikasi class middleware itu sendiri.
+
+**File yang Harus Diubah:**
+1. `src/routes/Routes.php` — Menambahkan helper closures di awal fungsi routing dan mengganti instansiasi `new AuthMiddleware` serta `new RateLimitMiddleware`.
+2. `tests/Feature/RoutesTest.php` — Menyesuaikan pengujian integritas rute jika diperlukan.
+
+**Alur Logika & Cara Kerja:**
+1. **Definisi Factory Closure:** Di awal return closure `Routes.php`, didefinisikan arrow function ringkas:
+   ```php
+   $adminAuth = fn(string $perm) => new AuthMiddleware('admin', $perm);
+   $rateLimit = fn(int $limit, int $period = 60) => new RateLimitMiddleware($limit, $period);
+   ```
+2. **Refactor Endpoint Auth:** Mengganti baris rute yang sebelumnya berulang-ulang menulis `new AuthMiddleware('admin', '...')` menjadi lebih ringkas:
+   ```php
+   $group->get('/list', [$controller, 'list'])->add($adminAuth('article:view'));
+   $group->post('/add', [$controller, 'add'])->add($adminAuth('article:crud'))->add(GzipDecoderMiddleware::class);
+   ```
+3. **Refactor Rate Limiter & Gzip:**
+   - Mengganti `new RateLimitMiddleware(100, 60)` menjadi `$rateLimit(100, 60)` pada grup admin.
+   - Mengganti `new RateLimitMiddleware(60, 60)` menjadi `$rateLimit(60, 60)` pada grup client.
+   - Mengganti `new GzipDecoderMiddleware()` dan `new GzipEncoder()` menjadi class-string `GzipDecoderMiddleware::class` dan `GzipEncoder::class` untuk resolusi otomatis via container.
+4. **Karakteristik Pendekatan:** Sangat cepat diimplementasikan (hanya menyentuh 1 file rute), kode menjadi jauh lebih pendek, namun closure bersifat lokal pada file `Routes.php`.
+
+---
+
+### Task 23 (Future): Route Middleware Ergonomics - Pilihan Standar Enterprise (Named Constructors / Static Factory)
+
+**Tujuan:**
+Menerapkan standar rekayasa perangkat lunak kelas enterprise Silicon Valley (*Domain-Driven Design / Clean OOP*) dengan menambahkan *Named Constructor / Static Factory Method* langsung pada class middleware. Membuat middleware bersifat *self-contained*, memiliki *IDE autocomplete* penuh, *type safety* tinggi, serta menjadikan file `Routes.php` deklaratif dan bersih dari keyword `new` maupun closure lokal.
+
+**File yang Harus Diubah:**
+1. `src/middlewares/AuthMiddleware.php` — Menambahkan static factory methods (`::admin()`, `::client()`, `::hasRole()`).
+2. `src/middlewares/RateLimitMiddleware.php` — Menambahkan static preset factory methods (`::admin()`, `::client()`, `::custom()`).
+3. `src/routes/Routes.php` — Mengadopsi static factory method pada seluruh pipeline rute.
+4. `tests/Feature/RoutesTest.php` — Memvalidasi endpoint resolution dengan pipeline static factory baru.
+5. `tests/Unit/AuthMiddlewareTest.php` (baru/update) — Unit test untuk memastikan instance yang dihasilkan static method valid.
+
+**Alur Logika & Cara Kerja:**
+1. **Peningkatan `AuthMiddleware`:**
+   Menambahkan static constructor yang mengembalikan instance `self`:
+   ```php
+   public static function admin(string $permission): self
+   {
+       return new self('admin', $permission);
+   }
+
+   public static function client(string $permission): self
+   {
+       return new self('client', $permission);
+   }
+
+   public static function hasRole(string $role, string $permission): self
+   {
+       return new self($role, $permission);
+   }
+   ```
+2. **Peningkatan `RateLimitMiddleware`:**
+   Menambahkan preset konfigurasi standar:
+   ```php
+   public static function admin(): self
+   {
+       return new self(100, 60);
+   }
+
+   public static function client(): self
+   {
+       return new self(60, 60);
+   }
+
+   public static function custom(int $limit, int $period = 60): self
+   {
+       return new self($limit, $period);
+   }
+   ```
+3. **Penyelarasan `Routes.php`:**
+   Menghapus closure ad-hoc dan menulis route secara deklaratif:
+   ```php
+   $group->get('/list', [$controller, 'list'])->add(AuthMiddleware::admin('article:view'));
+   $group->post('/add', [$controller, 'add'])->add(AuthMiddleware::admin('article:crud'))->add(GzipDecoderMiddleware::class);
+   ```
+   Dan di level grup:
+   ```php
+   $app->group('/admin', ...)
+     ->add(GzipEncoder::class)
+     ->add(RateLimitMiddleware::admin());
+   ```
+4. **Karakteristik Pendekatan:**
+   - **High Cohesion:** Tanggung jawab pembuatan instance berada di class middleware itu sendiri.
+   - **Reusability:** Jika route nantinya dipecah ke multiple file (misal `AdminRoutes.php`, `ClientRoutes.php`), method factory langsung dapat dipakai tanpa copy-paste closure.
+   - **Audit Keamanan Eksplisit:** Developer dan auditor keamanan langsung membaca permission rute secara jelas tanpa perlu melacak definisi closure di atas.
+   - **Autocomplete IDE Penuh:** Mengetik `AuthMiddleware::` langsung memunculkan saran method `admin()` atau `client()` beserta dokumentasi tipenya.

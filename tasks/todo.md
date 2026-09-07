@@ -561,3 +561,80 @@
 - [x] Seluruh 21 Task terselesaikan.
 - [x] Rangkaian test suite otomatis 100% green.
 - [x] Framework siap digunakan sebagai fondasi proyek-proyek masa depan.
+
+---
+
+## Future Enhancements: Route Middleware Ergonomics (Backlog)
+
+### Task 22: Route Middleware Ergonomics - Pilihan Pragmatis (Helper Closures) ✅
+**Description:** Menyederhanakan dan memperpendek penulisan middleware berparameter di `src/routes/Routes.php` secara cepat dan pragmatis menggunakan *local helper closures / function factories* (`$adminAuth` dan `$rateLimit`), serta mengganti middleware tanpa parameter ke class-string auto-wiring, tanpa memodifikasi class middleware itu sendiri.
+
+**Alur Logika:**
+1. Di awal return closure `src/routes/Routes.php`, definisikan helper closure:
+   ```php
+   $adminAuth = fn(string $perm) => new AuthMiddleware('admin', $perm);
+   $rateLimit = fn(int $limit, int $period = 60) => new RateLimitMiddleware($limit, $period);
+   ```
+2. Ganti seluruh penulisan berulang `new AuthMiddleware('admin', '...')` dengan `$adminAuth('...')`.
+3. Ganti `new RateLimitMiddleware(100, 60)` dengan `$rateLimit(100, 60)` pada grup admin dan `$rateLimit(60, 60)` pada grup client.
+4. Ganti `new GzipDecoderMiddleware()` dan `new GzipEncoder()` menjadi `GzipDecoderMiddleware::class` dan `GzipEncoder::class` agar di-resolve melalui DI container.
+
+**Acceptance criteria:**
+- [x] Helper closure `$adminAuth` dan `$rateLimit` didefinisikan dan digunakan di `src/routes/Routes.php`.
+- [x] Seluruh pemanggilan `new AuthMiddleware('admin', ...)` di `Routes.php` diganti dengan `$adminAuth(...)`.
+- [x] Pemanggilan `new RateLimitMiddleware(...)` diganti dengan `$rateLimit(...)`.
+- [x] `GzipDecoderMiddleware::class` dan `GzipEncoder::class` digunakan menggantikan `new`.
+
+**Verification:**
+- [x] `vendor/bin/phpunit tests/Feature/RoutesTest.php` lulus 100%.
+- [x] Seluruh automated test suite (246 tests) tetap 100% green.
+
+**Dependencies:** Task 19
+**Files likely touched:**
+- `src/routes/Routes.php`
+- `tests/Feature/RoutesTest.php`
+**Estimated scope:** Small (2 files)
+
+---
+
+### Task 23 (Future): Route Middleware Ergonomics - Pilihan Standar Enterprise (Named Constructors / Static Factory)
+**Description:** Menerapkan standar arsitektur kelas enterprise Silicon Valley (*Domain-Driven Design / Clean OOP*) dengan menambahkan *Named Constructor / Static Factory Method* langsung pada class middleware (`AuthMiddleware` dan `RateLimitMiddleware`), sehingga middleware bersifat *self-contained*, *type-safe*, memiliki *IDE autocomplete* penuh, serta file `Routes.php` deklaratif dan bersih dari keyword `new` maupun closure lokal.
+
+**Alur Logika:**
+1. Buka `src/middlewares/AuthMiddleware.php`, tambahkan static constructors:
+   ```php
+   public static function admin(string $permission): self { return new self('admin', $permission); }
+   public static function client(string $permission): self { return new self('client', $permission); }
+   public static function hasRole(string $role, string $permission): self { return new self($role, $permission); }
+   ```
+2. Buka `src/middlewares/RateLimitMiddleware.php`, tambahkan static preset factory methods:
+   ```php
+   public static function admin(): self { return new self(100, 60); }
+   public static function client(): self { return new self(60, 60); }
+   public static function custom(int $limit, int $period = 60): self { return new self($limit, $period); }
+   ```
+3. Buka `src/routes/Routes.php`:
+   - Hapus helper closure lokal jika ada.
+   - Ganti pemanggilan rute menjadi deklaratif: `AuthMiddleware::admin('article:view')`, `RateLimitMiddleware::admin()`, `RateLimitMiddleware::client()`.
+   - Pastikan `GzipDecoderMiddleware::class` dan `GzipEncoder::class` tetap menggunakan class-string.
+4. Perbarui atau tambahkan unit test middleware untuk menguji static factory method.
+
+**Acceptance criteria:**
+- [ ] Static factory method `AuthMiddleware::admin()`, `::client()`, `::hasRole()` tersedia di `src/middlewares/AuthMiddleware.php`.
+- [ ] Static factory method `RateLimitMiddleware::admin()`, `::client()`, `::custom()` tersedia di `src/middlewares/RateLimitMiddleware.php`.
+- [ ] Seluruh endpoint di `src/routes/Routes.php` menggunakan pemanggilan static factory yang deklaratif tanpa keyword `new`.
+- [ ] Autocomplete IDE dan static analysis (PHPStan / Psalm) bekerja optimal pada route pipeline.
+
+**Verification:**
+- [ ] Unit test untuk static factory methods middleware lulus.
+- [ ] `vendor/bin/phpunit tests/Feature/RoutesTest.php` lulus 100%.
+- [ ] Rangkaian automated test suite (`vendor/bin/phpunit`) 100% green (0 errors, 0 failures).
+
+**Dependencies:** Task 19 (atau Task 22 jika diimplementasikan bertahap)
+**Files likely touched:**
+- `src/middlewares/AuthMiddleware.php`
+- `src/middlewares/RateLimitMiddleware.php`
+- `src/routes/Routes.php`
+- `tests/Feature/RoutesTest.php`
+- `tests/Unit/AuthMiddlewareTest.php` (baru)
+**Estimated scope:** Medium (5 files)

@@ -441,23 +441,24 @@
 
 ## Phase 8: Stats System & Job Automation
 
-### Task 17: Porting Modul Admin Stats v2
+### Task 17: Porting Modul Admin Stats v2 ✅
 **Description:** Memperbarui modul `AdminStats` (Controller, Service, Validator) di `kit/api` dengan seluruh kapabilitas v2: log audit dengan paginasi dan formatting diff perubahan data, `articleCount`, `listCronArticle` (jadwal cron yang tertunda), `listArticleVisits` (grafik kunjungan harian dengan zero-filling), dan `listArticleVisitsBySlug` (peringkat kunjungan per slug artikel), serta feature tests.
 
 **Acceptance criteria:**
-- [ ] `AdminStatsController` mengimplementasikan method `listLog`, `dropLog`, `articleCount`, `listCronArticle`, `listArticleVisits`, dan `listArticleVisitsBySlug`.
-- [ ] `AdminStatsService` menerapkan paginasi dan kalkulasi date range zero-filling.
-- [ ] `AdminStatsValidator` memvalidasi parameter tanggal dan input query via Rakit.
-- [ ] Feature test `tests/Feature/AdminStatsTest.php` dibuat dan lulus.
+- [x] `AdminStatsController` mengimplementasikan method `listLog`, `dropLog`, `articleCount`, `listCronArticle`, `listArticleVisits`, dan `listArticleVisitsBySlug`.
+- [x] `AdminStatsService` menerapkan paginasi dan kalkulasi date range zero-filling.
+- [x] `AdminStatsValidator` memvalidasi parameter tanggal dan input query via Rakit.
+- [x] Feature test `tests/Feature/AdminStatsTest.php` dibuat dan lulus.
 
 **Verification:**
-- [ ] `vendor/bin/phpunit tests/Feature/AdminStatsTest.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/AdminStatsTest.php` lulus.
 
 **Dependencies:** Task 12
 **Files likely touched:**
 - `src/controllers/admin/AdminStatsController.php`
 - `src/services/admin/AdminStatsService.php`
 - `src/validators/admin/AdminStatsValidator.php`
+- `src/routes/Routes.php`
 - `tests/Feature/AdminStatsTest.php` (baru)
 **Estimated scope:** Medium (4 files)
 

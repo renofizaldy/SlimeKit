@@ -6,101 +6,130 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Exception;
 use App\Helpers\General;
+use App\Helpers\ApiResponse;
 use App\Services\Admin\AdminStatsService;
 use App\Validators\Admin\AdminStatsValidator;
 
 class AdminStatsController
 {
-  private $helper;
-  private $service;
-  private $validator;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->service = new AdminStatsService;
-    $this->validator = new AdminStatsValidator;
-  }
+  public function __construct(
+    private General $helper,
+    private AdminStatsService $service,
+    private AdminStatsValidator $validator,
+    private ApiResponse $apiResponse
+  ) {}
 
   public function listLog(Request $request, Response $response)
   {
-    $input = $request->getQueryParams();
     try {
-      //* VALIDATION
-      $this->validator->validate('listLog', $input);
-      //* SERVICES
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
+      $this->validator->validate('list_log', $input);
+
+      //* SERVICE
       $data = $this->service->listLog($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
   }
 
   public function dropLog(Request $request, Response $response)
   {
-    $input = $request->getParsedBody();
     try {
-      //* VALIDATION
-      $this->validator->validate('dropLog', $input);
-      //* SERVICES
+      //* INPUT
+      $input = (array) $request->getParsedBody();
+
+      //* VALIDATOR
+      $this->validator->validate('drop_log', $input);
+
+      //* SERVICE
       $data = $this->service->dropLog($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
+  }
 
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
+  public function articleCount(Request $request, Response $response)
+  {
+    try {
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
+      $this->validator->validate('total_article', $input);
+
+      //* SERVICE
+      $data = $this->service->totalArticle($input);
+
+      return $this->apiResponse->success($response, $data);
+    }
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
   }
 
   public function listCronArticle(Request $request, Response $response)
   {
-    $input = $request->getQueryParams();
     try {
-      //* SERVICES
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
+      $this->validator->validate('list_cron', $input);
+
+      //* SERVICE
       $data = $this->service->listCronArticle($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
+  }
 
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
+  public function listArticleVisits(Request $request, Response $response)
+  {
+    try {
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
+      $this->validator->validate('list_visits', $input);
+
+      //* SERVICE
+      $data = $this->service->listArticleVisits($input);
+
+      return $this->apiResponse->success($response, $data);
+    }
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
+  }
+
+  public function listArticleVisitsBySlug(Request $request, Response $response)
+  {
+    try {
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
+      $this->validator->validate('list_visits_slug', $input);
+
+      //* SERVICE
+      $data = $this->service->listArticleVisitsBySlug($input);
+
+      return $this->apiResponse->success($response, $data);
+    }
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
   }
 }

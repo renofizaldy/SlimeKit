@@ -140,7 +140,11 @@ return function ($app) {
       $controller = AdminStatsController::class;
 
       $group->get('/log', [$controller, 'listLog'])->add(new AuthMiddleware('admin', 'dashboard:view'));
+      $group->post('/log_drop', [$controller, 'dropLog'])->add(new AuthMiddleware('admin', 'dashboard:crud'));
+      $group->get('/count_article', [$controller, 'articleCount'])->add(new AuthMiddleware('admin', 'dashboard:view'));
       $group->get('/cron', [$controller, 'listCronArticle'])->add(new AuthMiddleware('admin', 'dashboard:view'));
+      $group->get('/article_visits', [$controller, 'listArticleVisits'])->add(new AuthMiddleware('admin', 'dashboard:view'));
+      $group->get('/article_visits_by_slug', [$controller, 'listArticleVisitsBySlug'])->add(new AuthMiddleware('admin', 'dashboard:view'));
     })->add(TokenMiddleware::class);
 
   })

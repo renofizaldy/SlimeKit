@@ -12,27 +12,22 @@ use App\Models\ArticleCategory;
 
 class ClientArticleCategoryService
 {
-  private $helper;
-  private $cloudinary;
-  private $valkey;
   private $cacheKey = 'article_category';
   private $cacheExpired = (60 * 60 * 24); // 24 hours
 
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->cloudinary = new Cloudinary;
-    $this->valkey = new Valkey;
-  }
+  public function __construct(
+    private General $helper,
+    private Cloudinary $cloudinary,
+    private Valkey $valkey
+  ) {}
 
   public function list(array $input)
   {
-    $data = [
-      'list' => [],
-    ];
+    $page = max(1, (int) ($input['page'] ?? 1));
+    $pageSize = max(1, (int) ($input['pageSize'] ?? ($input['limit'] ?? 10)));
 
     //* GENERATE CACHE KEY
-      $cacheKey   = sprintf("{$this->cacheKey}:list");
+      $cacheKey   = sprintf("{$this->cacheKey}:list:site=%s:page=%d:pageSize=%d", $input['site'], $page, $pageSize);
       $cachedData = $this->valkey->get($cacheKey);
       if ($cachedData) {
         $data = json_decode($cachedData, true);
@@ -43,29 +38,32 @@ class ClientArticleCategoryService
 
     $query = ArticleCategory::with(['seoMeta:id,id_parent,meta_title,meta_description,meta_robots'])
       ->where('status', 'active')
-      ->get();
+      ->where('site', $input['site'])
+      ->orderBy('id', 'asc');
 
-    if (!$query->isEmpty()) {
-      foreach ($query as $row) {
-        $data['list'][] = [
-          'id'          => $row->id,
-          'site'        => $row->site,
-          'slug'        => $row->slug,
-          'title'       => $row->title,
-          'description' => $row->description,
-          'created_at'  => date('Y-m-d H:i:s', strtotime($row->created_at)),
-          'updated_at'  => date('Y-m-d H:i:s', strtotime($row->updated_at)),
-          'seo_meta'    => [
-            'meta_title'       => $row->seoMeta->meta_title ?? '',
-            'meta_description' => $row->seoMeta->meta_description ?? '',
-            'meta_robots'      => $row->seoMeta->meta_robots ?? '',
-          ]
-        ];
-      }
-    }
+    $data = $this->helper->paginateQuery(
+      $query,
+      $page,
+      $pageSize,
+      fn ($row) => [
+        'id'          => $row->id,
+        'site'        => $row->site,
+        'slug'        => $row->slug,
+        'title'       => $row->title,
+        'description' => $row->description,
+        'created_at'  => date('Y-m-d H:i:s', strtotime($row->created_at)),
+        'updated_at'  => date('Y-m-d H:i:s', strtotime($row->updated_at)),
+        'seo_meta'    => [
+          'meta_title'       => $row->seoMeta->meta_title ?? '',
+          'meta_description' => $row->seoMeta->meta_description ?? '',
+          'meta_robots'      => $row->seoMeta->meta_robots ?? '',
+        ]
+      ]
+    );
 
     //* SAVE TO CACHE
-    $this->valkey->set($cacheKey, json_encode($data), $this->cacheExpired-1); //! Valkey Expired
+      $this->valkey->set($cacheKey, json_encode($data), $this->cacheExpired - 1);
+    //* SAVE TO CACHE
 
     $data['source'] = 'db';
     return $data;
@@ -76,7 +74,7 @@ class ClientArticleCategoryService
     $data  = [];
 
     //* GENERATE CACHE KEY
-      $cacheKey   = sprintf("{$this->cacheKey}:detail:slug=%s", $input['slug']);
+      $cacheKey   = sprintf("{$this->cacheKey}:detail:site=%s:slug=%s", $input['site'], $input['slug']);
       $cachedData = $this->valkey->get($cacheKey);
       if ($cachedData) {
         $data = json_decode($cachedData, true);
@@ -87,6 +85,7 @@ class ClientArticleCategoryService
 
     $query = ArticleCategory::with(['seoMeta:id,id_parent,meta_title,meta_description,meta_robots'])
       ->where('status', 'active')
+      ->where('site', $input['site'])
       ->where('slug', $input['slug'])
       ->first();
 
@@ -112,7 +111,7 @@ class ClientArticleCategoryService
     //* SAVE TO CACHE
     $this->valkey->set($cacheKey, json_encode($data), $this->cacheExpired-1); //! Valkey Expired
 
-    $data['source'] = 'db';
+    $data['source'] = 'db'; // Indicate that the data is fetched from the database
     return $data;
   }
 }

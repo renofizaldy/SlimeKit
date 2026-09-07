@@ -6,108 +6,73 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Exception;
 use App\Helpers\General;
+use App\Helpers\ApiResponse;
 use App\Services\Client\ClientArticleService;
 use App\Validators\Client\ClientArticleValidator;
 
 class ClientArticleController
 {
-  private $helper;
-  private $service;
-  private $validator;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->service = new ClientArticleService;
-    $this->validator = new ClientArticleValidator;
-  }
+  public function __construct(
+    private General $helper,
+    private ClientArticleService $service,
+    private ClientArticleValidator $validator,
+    private ApiResponse $apiResponse
+  ) {}
 
   public function list(Request $request, Response $response)
   {
-    $input = $request->getQueryParams();
     try {
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
       //* VALIDATOR
       $this->validator->validate('list', $input);
-      //* SERVICES
+
+      //* SERVICE
       $data = $this->service->list($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
+  }
 
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
+  public function similar(Request $request, Response $response)
+  {
+    try {
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
+      $this->validator->validate('similar', $input);
+
+      //* SERVICE
+      $data = $this->service->similar($input);
+
+      return $this->apiResponse->success($response, $data);
+    }
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
   }
 
   public function detail(Request $request, Response $response)
   {
-    $input = $request->getQueryParams();
     try {
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
       //* VALIDATOR
       $this->validator->validate('detail', $input);
-      //* SERVICES
+
+      //* SERVICE
       $data = $this->service->detail($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
-  }
-
-  public function publish(Request $request, Response $response)
-  {
-    $input = $request->getParsedBody();
-    $user  = [
-      'user'       => null,
-      'user_agent' => $request->getHeaderLine('User-Agent'),
-      'ip_address' => $this->helper->getClientIp($request),
-    ];
-    try {
-      //* VALIDATOR
-      $this->validator->validate('publish', $input);
-      //* SERVICES
-      $data = $this->service->publish($input, $user);
-
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
-    }
-    catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
-    }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
   }
 }

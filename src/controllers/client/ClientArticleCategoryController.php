@@ -6,73 +6,54 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Exception;
 use App\Helpers\General;
+use App\Helpers\ApiResponse;
 use App\Services\Client\ClientArticleCategoryService;
 use App\Validators\Client\ClientArticleCategoryValidator;
 
 class ClientArticleCategoryController
 {
-  private $helper;
-  private $service;
-  private $validator;
-
-  public function __construct()
-  {
-    $this->helper = new General;
-    $this->service = new ClientArticleCategoryService;
-    $this->validator = new ClientArticleCategoryValidator;
-  }
+  public function __construct(
+    private General $helper,
+    private ClientArticleCategoryService $service,
+    private ClientArticleCategoryValidator $validator,
+    private ApiResponse $apiResponse
+  ) {}
 
   public function list(Request $request, Response $response)
   {
-    $input = $request->getQueryParams();
     try {
-      //* SERVICES
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
+      //* VALIDATOR
+      $this->validator->validate('list', $input);
+
+      //* SERVICE
       $data = $this->service->list($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
   }
 
   public function detail(Request $request, Response $response)
   {
-    $input = $request->getQueryParams();
     try {
+      //* INPUT
+      $input = (array) $request->getQueryParams();
+
       //* VALIDATOR
       $this->validator->validate('detail', $input);
-      //* SERVICES
+
+      //* SERVICE
       $data = $this->service->detail($input);
 
-      $result = [
-        'data'    => $data,
-        'message' => 'Ok',
-        'status'  => 200
-      ];
+      return $this->apiResponse->success($response, $data);
     }
     catch (Exception $e) {
-      $result = [
-        'message' => 'Error: ' . $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
-      ];
+      return $this->apiResponse->handleException($response, $e);
     }
-
-    $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
-    return $response
-      ->withHeader('Content-type', 'application/json')
-      ->withStatus($result['status']);
   }
 }

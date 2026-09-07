@@ -352,18 +352,18 @@
 
 ---
 
-### Task 14: Porting Modul Client Article & Article Category v2
+### Task 14: Porting Modul Client Article & Article Category v2 ✅
 **Description:** Mengganti modul Client Article dan Article Category di `kit/api` dengan versi modern: DI auto-wiring, ApiResponse, paginasi `{ items, pagination }`, filter pencarian, filter kategori & featured, endpoint `similar` (artikel terkait), caching Valkey, dan feature tests.
 
 **Acceptance criteria:**
-- [ ] `ClientArticleController`, `ClientArticleService`, `ClientArticleValidator` mengimplementasikan fitur v2 (termasuk method `similar`).
-- [ ] Endpoint `/client/article/publish` lama dilepas (karena dipindahkan ke `JobController`).
-- [ ] `ClientArticleCategoryController`, `ClientArticleCategoryService`, `ClientArticleCategoryValidator` mengimplementasikan fitur v2.
-- [ ] Feature tests `tests/Feature/ClientArticleTest.php` dan `tests/Feature/ClientArticleCategoryTest.php` dibuat dan lulus.
+- [x] `ClientArticleController`, `ClientArticleService`, `ClientArticleValidator` mengimplementasikan fitur v2 (termasuk method `similar`).
+- [x] Endpoint `/client/article/publish` lama dilepas (karena dipindahkan ke `JobController`).
+- [x] `ClientArticleCategoryController`, `ClientArticleCategoryService`, `ClientArticleCategoryValidator` mengimplementasikan fitur v2.
+- [x] Feature tests `tests/Feature/ClientArticleTest.php` dan `tests/Feature/ClientArticleCategoryTest.php` dibuat dan lulus.
 
 **Verification:**
-- [ ] `vendor/bin/phpunit tests/Feature/ClientArticleTest.php` lulus.
-- [ ] `vendor/bin/phpunit tests/Feature/ClientArticleCategoryTest.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/ClientArticleTest.php` lulus.
+- [x] `vendor/bin/phpunit tests/Feature/ClientArticleCategoryTest.php` lulus.
 
 **Dependencies:** Task 13
 **Files likely touched:**
@@ -379,25 +379,25 @@
 
 ---
 
-## Checkpoint 6: Article & Category Modules Functional & Tested
-- [ ] Seluruh endpoint Admin & Client Article bekerja dengan pagination, caching, dan filtering.
-- [ ] Automated tests Article & Category 100% green.
+## Checkpoint 6: Article & Category Modules Functional & Tested ✅
+- [x] Seluruh endpoint Admin & Client Article bekerja dengan pagination, caching, dan filtering.
+- [x] Automated tests Article & Category 100% green.
 
 ---
 
 ## Phase 7: Article Agent (AI Writer) System
 
-### Task 15: Integrasi AI Clients di `src/lib`
+### Task 15: Integrasi AI Clients di `src/lib` ✅
 **Description:** Memindahkan library klien AI dari `news/api` ke `kit/api`: `GeminiClient.php` (Google Gemini API), `OpenAIClient.php` (OpenAI API), dan `TavilyClient.php` (Tavily Search API).
 
 **Acceptance criteria:**
-- [ ] `src/lib/GeminiClient.php` dibuat dan mendukung generasi teks AI.
-- [ ] `src/lib/OpenAIClient.php` dibuat dan mendukung generasi teks AI.
-- [ ] `src/lib/TavilyClient.php` dibuat dan mendukung web search kontekstual.
-- [ ] Klien-klien AI terdaftar dalam container `src/config/dependencies.php`.
+- [x] `src/lib/GeminiClient.php` dibuat dan mendukung generasi teks AI.
+- [x] `src/lib/OpenAIClient.php` dibuat dan mendukung generasi teks AI.
+- [x] `src/lib/TavilyClient.php` dibuat dan mendukung web search kontekstual.
+- [x] Klien-klien AI terdaftar dalam container `src/config/dependencies.php`.
 
 **Verification:**
-- [ ] Class library dapat di-instantiate via container PHP-DI.
+- [x] Class library dapat di-instantiate via container PHP-DI.
 
 **Dependencies:** Task 2
 **Files likely touched:**
@@ -405,6 +405,7 @@
 - `src/lib/OpenAIClient.php` (baru)
 - `src/lib/TavilyClient.php` (baru)
 - `src/config/dependencies.php`
+- `tests/Unit/AiClientsTest.php` (baru)
 **Estimated scope:** Small (4 files)
 
 ---

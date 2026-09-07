@@ -143,8 +143,8 @@ return function ($app) {
       $controller = ClientArticleController::class;
 
       $group->get('/list', [$controller, 'list']);
+      $group->get('/similar', [$controller, 'similar']);
       $group->get('/detail', [$controller, 'detail']);
-      $group->post('/publish', [$controller, 'publish']);
     });
 
     //! Article Category

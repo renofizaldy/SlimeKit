@@ -517,16 +517,16 @@
 
 ---
 
-### Task 20: Unified CLI Generator (`assets/make_module.php`)
+### Task 20: Unified CLI Generator (`assets/make_module.php`) ✅
 **Description:** Menyatukan generator modul CLI lama (`make_module_admin.php` dan `make_module_client.php`) menjadi satu script generator modern `assets/make_module.php` yang menghasilkan template Controller, Service, dan Validator sesuai standar arsitektur baru (PHP 8 constructor promotion, DI auto-wiring, Rakit validator, dan ApiResponse).
 
 **Acceptance criteria:**
-- [ ] `assets/make_module.php` dibuat, mendukung argumen `admin` dan `client`.
-- [ ] `composer.json` mengarahkan `make:module:admin` dan `make:module:client` ke `make_module.php`.
-- [ ] File generator lama (`make_module_admin.php`, `make_module_client.php`) dihapus.
+- [x] `assets/make_module.php` dibuat, mendukung argumen `admin` dan `client`.
+- [x] `composer.json` mengarahkan `make:module:admin` dan `make:module:client` ke `make_module.php`.
+- [x] File generator lama (`make_module_admin.php`, `make_module_client.php`) dihapus.
 
 **Verification:**
-- [ ] Perintah `php assets/make_module.php admin TestDummy` menghasilkan file berarsitektur modern tanpa error sintaks.
+- [x] Perintah `php assets/make_module.php admin TestDummy` menghasilkan file berarsitektur modern tanpa error sintaks.
 
 **Dependencies:** Task 1, Task 10
 **Files likely touched:**

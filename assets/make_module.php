@@ -1,17 +1,27 @@
 #!/usr/bin/env php
 <?php
 
-if ($argc < 2) {
-  echo "Usage: composer make:module <ModuleName>\n";
+if ($argc < 3) {
+  echo "Usage: php assets/make_module.php <admin|client> <ModuleName>\n";
+  echo "   or: composer make:module:<admin|client> <ModuleName>\n";
   exit(1);
 }
 
-$moduleName  = ucfirst($argv[1]);
+$type = strtolower($argv[1]);
+if (!in_array($type, ['admin', 'client'])) {
+  echo "Type must be 'admin' or 'client'\n";
+  exit(1);
+}
+
+$moduleName    = ucfirst($argv[2]);
+$namespaceType = ucfirst($type);
+$dirType       = strtolower($type);
+
 $baseDir     = __DIR__ . '/../src';
 $directories = [
-  "$baseDir/controllers",
-  "$baseDir/services",
-  "$baseDir/validators"
+  "$baseDir/controllers/$dirType",
+  "$baseDir/services/$dirType",
+  "$baseDir/validators/$dirType"
 ];
 foreach ($directories as $dir) {
   if (!is_dir($dir)) {
@@ -20,187 +30,124 @@ foreach ($directories as $dir) {
 }
 
 //! Create Controller
-$controllerPath = "$baseDir/controllers/{$moduleName}Controller.php";
+$controllerPath = "$baseDir/controllers/$dirType/{$moduleName}Controller.php";
 if (!file_exists($controllerPath)) {
 
   $controllerCode = <<<EOD
   <?php
 
-  namespace App\Controllers;
+  namespace App\Controllers\\{$namespaceType};
 
   use Psr\Http\Message\ResponseInterface as Response;
   use Psr\Http\Message\ServerRequestInterface as Request;
   use Exception;
   use App\Helpers\General;
-  use App\Services\\{$moduleName}Service;
-  use App\Validators\\{$moduleName}Validator;
+  use App\Helpers\ApiResponse;
+  use App\Services\\{$namespaceType}\\{$moduleName}Service;
+  use App\Validators\\{$namespaceType}\\{$moduleName}Validator;
 
   class {$moduleName}Controller
   {
-    private \$helper;
-    private \$service;
-    private \$validator;
-
-    public function __construct()
-    {
-      \$this->helper = new General;
-      \$this->service = new {$moduleName}Service;
-      \$this->validator = new {$moduleName}Validator;
-    }
+    public function __construct(
+      private General \$helper,
+      private {$moduleName}Service \$service,
+      private {$moduleName}Validator \$validator,
+      private ApiResponse \$apiResponse
+    ) {}
 
     public function list(Request \$request, Response \$response)
     {
-      \$input = \$request->getQueryParams();
       try {
+        //* INPUT
+        \$input = \$request->getQueryParams();
+
         //* VALIDATOR
         \$this->validator->validate('list', \$input);
-        //* SERVICES
+
+        //* SERVICE
         \$data = \$this->service->list(\$input);
 
-        \$result = [
-          'data'    => \$data,
-          'message' => 'Ok',
-          'status'  => 200
-        ];
+        return \$this->apiResponse->success(\$response, \$data);
       }
       catch (Exception \$e) {
-        \$result = [
-          'message' => 'Error: ' . \$e->getMessage(),
-          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-        ];
+        return \$this->apiResponse->handleException(\$response, \$e);
       }
-
-      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-      return \$response
-        ->withHeader('Content-type', 'application/json')
-        ->withStatus(\$result['status']);
     }
 
     public function detail(Request \$request, Response \$response)
     {
-      \$input = \$request->getQueryParams();
       try {
+        //* INPUT
+        \$input = \$request->getQueryParams();
+
         //* VALIDATOR
         \$this->validator->validate('detail', \$input);
-        //* SERVICES
+
+        //* SERVICE
         \$data = \$this->service->detail(\$input);
 
-        \$result = [
-          'data'    => \$data,
-          'message' => 'Ok',
-          'status'  => 200
-        ];
+        return \$this->apiResponse->success(\$response, \$data);
       }
       catch (Exception \$e) {
-        \$result = [
-          'message' => 'Error: ' . \$e->getMessage(),
-          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-        ];
+        return \$this->apiResponse->handleException(\$response, \$e);
       }
-
-      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-      return \$response
-        ->withHeader('Content-type', 'application/json')
-        ->withStatus(\$result['status']);
     }
 
     public function add(Request \$request, Response \$response)
     {
-      \$input = \$request->getParsedBody();
-      \$user  = [
-        'user'       => \$request->getAttribute('user'),
-        'user_agent' => \$request->getHeaderLine('User-Agent'),
-        'ip_address' => \$this->helper->getClientIp(\$request),
-      ];
       try {
+        //* INPUT
+        \$input = \$request->getParsedBody();
+
         //* VALIDATOR
         \$this->validator->validate('add', \$input);
-        //* SERVICES
-        \$data = \$this->service->add(\$input, \$user);
 
-        \$result = [
-          'data'    => \$data,
-          'message' => 'Ok',
-          'status'  => 200
-        ];
+        //* SERVICE
+        \$data = \$this->service->add(\$input, \$this->helper->getUserContext(\$request));
+
+        return \$this->apiResponse->success(\$response, \$data);
       }
       catch (Exception \$e) {
-        \$result = [
-          'message' => 'Error: ' . \$e->getMessage(),
-          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-        ];
+        return \$this->apiResponse->handleException(\$response, \$e);
       }
-
-      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-      return \$response
-        ->withHeader('Content-type', 'application/json')
-        ->withStatus(\$result['status']);
     }
 
     public function edit(Request \$request, Response \$response)
     {
-      \$input = \$request->getParsedBody();
-      \$user  = [
-        'user'       => \$request->getAttribute('user'),
-        'user_agent' => \$request->getHeaderLine('User-Agent'),
-        'ip_address' => \$this->helper->getClientIp(\$request),
-      ];
       try {
+        //* INPUT
+        \$input = \$request->getParsedBody();
+
         //* VALIDATOR
         \$this->validator->validate('edit', \$input);
-        //* SERVICES
-        \$data = \$this->service->edit(\$input, \$user);
 
-        \$result = [
-          'data'    => \$data,
-          'message' => 'Ok',
-          'status'  => 200
-        ];
+        //* SERVICE
+        \$data = \$this->service->edit(\$input, \$this->helper->getUserContext(\$request));
+
+        return \$this->apiResponse->success(\$response, \$data);
       }
       catch (Exception \$e) {
-        \$result = [
-          'message' => 'Error: ' . \$e->getMessage(),
-          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-        ];
+        return \$this->apiResponse->handleException(\$response, \$e);
       }
-
-      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-      return \$response
-        ->withHeader('Content-type', 'application/json')
-        ->withStatus(\$result['status']);
     }
 
     public function drop(Request \$request, Response \$response)
     {
-      \$input = \$request->getParsedBody();
-      \$user  = [
-        'user'       => \$request->getAttribute('user'),
-        'user_agent' => \$request->getHeaderLine('User-Agent'),
-        'ip_address' => \$this->helper->getClientIp(\$request),
-      ];
       try {
+        //* INPUT
+        \$input = \$request->getParsedBody();
+
         //* VALIDATOR
         \$this->validator->validate('drop', \$input);
-        //* SERVICES
-        \$data = \$this->service->drop(\$input, \$user);
 
-        \$result = [
-          'data'    => \$data,
-          'message' => 'Ok',
-          'status'  => 200
-        ];
+        //* SERVICE
+        \$data = \$this->service->drop(\$input, \$this->helper->getUserContext(\$request));
+
+        return \$this->apiResponse->success(\$response, \$data);
       }
       catch (Exception \$e) {
-        \$result = [
-          'message' => 'Error: ' . \$e->getMessage(),
-          'status'  => \$this->helper->normalizeHttpStatus(\$e->getCode())
-        ];
+        return \$this->apiResponse->handleException(\$response, \$e);
       }
-
-      \$response->getBody()->write(json_encode(\$result, JSON_UNESCAPED_UNICODE));
-      return \$response
-        ->withHeader('Content-type', 'application/json')
-        ->withStatus(\$result['status']);
     }
   }
   EOD;
@@ -211,29 +158,26 @@ if (!file_exists($controllerPath)) {
 }
 
 //! Create Service
-$servicePath = "$baseDir/services/{$moduleName}Service.php";
+$servicePath = "$baseDir/services/$dirType/{$moduleName}Service.php";
 if (!file_exists($servicePath)) {
 
   $serviceCode = <<<EOD
   <?php
 
-  namespace App\Services;
+  namespace App\Services\\{$namespaceType};
 
   use Exception;
-  use App\Models\Model;
+  use Illuminate\Database\Capsule\Manager as DB;
   use App\Helpers\General;
   use App\Lib\Cloudinary;
+  use App\Models\Model;
 
   class {$moduleName}Service
   {
-    private \$helper;
-    private \$cloudinary;
-
-    public function __construct()
-    {
-      \$this->helper = new General;
-      \$this->cloudinary = new Cloudinary;
-    }
+    public function __construct(
+      private General \$helper,
+      private Cloudinary \$cloudinary
+    ) {}
 
     private function checkExist(array \$input)
     {
@@ -244,10 +188,10 @@ if (!file_exists($servicePath)) {
       return \$check;
     }
 
-    public function list(array \$input)
+    public function list(array \$input = [])
     {
       \$data  = [];
-      \$query = Model::where('id', (int) \$input['id'])->get();
+      \$query = Model::where('id', (int) (\$input['id'] ?? 0))->get();
 
       foreach (\$query as \$row) {
         \$data[] = \$row->toArray();
@@ -294,6 +238,7 @@ if (!file_exists($servicePath)) {
     public function edit(array \$input, array \$user)
     {
       \$check = \$this->checkExist(\$input);
+
       DB::beginTransaction();
       try {
         //? PICTURE UPLOAD
@@ -301,14 +246,13 @@ if (!file_exists($servicePath)) {
         //? PICTURE UPLOAD
 
         //? UPDATE ON table
-
           \$data = [
             'column' => (int) \$input['field'],
           ];
           if (!empty(\$picture_id)) {
             \$data['id_picture'] = \$picture_id;
           }
-          \$update = Model::where('id', (int) \$input['id'])->update();
+          \$update = Model::where('id', (int) \$input['id'])->update(\$data);
         //? UPDATE ON table
 
         //? LOG Record
@@ -353,61 +297,67 @@ if (!file_exists($servicePath)) {
 }
 
 //! Create Validator
-$validatorPath = "$baseDir/validators/{$moduleName}Validator.php";
+$validatorPath = "$baseDir/validators/$dirType/{$moduleName}Validator.php";
 if (!file_exists($validatorPath)) {
 
   $validatorCode = <<<EOD
   <?php
 
-  namespace App\Validators;
+  namespace App\Validators\\{$namespaceType};
 
   use Exception;
+  use Rakit\Validation\Validator;
   use App\Helpers\General;
 
   class {$moduleName}Validator
   {
-    private \$helper;
-
-    public function __construct()
-    {
-      \$this->helper = new General;
-    }
+    public function __construct(
+      private Validator \$validator,
+      private General \$helper
+    ) {}
 
     public function validate(string \$type, array \$input)
     {
       switch (\$type) {
         case 'list':
           \$rules = [
-            'field' => 'required|string|not_empty',
+            'field' => 'required',
           ];
-        break;
+          break;
         case 'detail':
           \$rules = [
-            'id'    => 'required|integer|not_empty',
-            'field' => 'required|string|not_empty',
+            'id'    => 'required|numeric',
+            'field' => 'required',
           ];
-        break;
+          break;
         case 'add':
           \$rules = [
-            'field' => 'required|string|not_empty',
+            'field' => 'required',
           ];
-        break;
+          break;
         case 'edit':
           \$rules = [
-            'id'    => 'required|integer|not_empty',
-            'field' => 'required|string|not_empty',
+            'id'    => 'required|numeric',
+            'field' => 'required',
           ];
-        break;
+          break;
         case 'drop':
           \$rules = [
-            'id' => 'required|integer|not_empty'
+            'id' => 'required|numeric'
           ];
-        break;
+          break;
         default:
           throw new Exception('Can\\'t validate some field', 400);
-        break;
       }
-      \$this->helper->validateByRules(\$input, \$rules);
+
+      \$validation = \$this->validator->make(\$input, \$rules);
+      \$validation->validate();
+
+      if (\$validation->fails()) {
+        \$errors = \$validation->errors()->toArray();
+        throw new Exception(json_encode(['validation_errors' => \$errors]), 400);
+      }
+
       return true;
     }
   }
@@ -418,4 +368,4 @@ if (!file_exists($validatorPath)) {
   echo "✅ Created: $validatorPath\n";
 }
 
-echo "🎉 Module {$moduleName} created successfully!\n";
+echo "🎉 Module {$namespaceType}\\{$moduleName} created successfully!\n";

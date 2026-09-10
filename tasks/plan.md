@@ -124,7 +124,7 @@ Menyederhanakan dan memperpendek penulisan rute di `src/routes/Routes.php` secar
 
 ---
 
-### Task 23 (Future): Route Middleware Ergonomics - Pilihan Standar Enterprise (Named Constructors / Static Factory)
+### Task 23: Route Middleware Ergonomics - Pilihan Standar Enterprise (Named Constructors / Static Factory) ✅
 
 **Tujuan:**
 Menerapkan standar rekayasa perangkat lunak kelas enterprise Silicon Valley (*Domain-Driven Design / Clean OOP*) dengan menambahkan *Named Constructor / Static Factory Method* langsung pada class middleware. Membuat middleware bersifat *self-contained*, memiliki *IDE autocomplete* penuh, *type safety* tinggi, serta menjadikan file `Routes.php` deklaratif dan bersih dari keyword `new` maupun closure lokal.

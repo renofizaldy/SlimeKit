@@ -14,11 +14,38 @@ class AuthMiddleware
   private $helper;
   private $service;
   private $permission;
+  private string $role;
 
   public function __construct($admin = 'client', $permission = null) {
     $this->helper = new General;
     $this->service = $admin == 'admin' ? new AdminAuthService() : null;
     $this->permission = $permission;
+    $this->role = (string) $admin;
+  }
+
+  public static function admin(string $permission): self
+  {
+    return new self('admin', $permission);
+  }
+
+  public static function client(?string $permission = null): self
+  {
+    return new self('client', $permission);
+  }
+
+  public static function hasRole(string $role, ?string $permission = null): self
+  {
+    return new self($role, $permission);
+  }
+
+  public function getPermission(): ?string
+  {
+    return $this->permission;
+  }
+
+  public function getRole(): string
+  {
+    return $this->role;
   }
 
   public function __invoke(Request $request, RequestHandler $handler): Response

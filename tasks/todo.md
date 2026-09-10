@@ -597,7 +597,7 @@
 
 ---
 
-### Task 23 (Future): Route Middleware Ergonomics - Pilihan Standar Enterprise (Named Constructors / Static Factory)
+### Task 23: Route Middleware Ergonomics - Pilihan Standar Enterprise (Named Constructors / Static Factory) ✅
 **Description:** Menerapkan standar arsitektur kelas enterprise Silicon Valley (*Domain-Driven Design / Clean OOP*) dengan menambahkan *Named Constructor / Static Factory Method* langsung pada class middleware (`AuthMiddleware` dan `RateLimitMiddleware`), sehingga middleware bersifat *self-contained*, *type-safe*, memiliki *IDE autocomplete* penuh, serta file `Routes.php` deklaratif dan bersih dari keyword `new` maupun closure lokal.
 
 **Alur Logika:**
@@ -620,15 +620,15 @@
 4. Perbarui atau tambahkan unit test middleware untuk menguji static factory method.
 
 **Acceptance criteria:**
-- [ ] Static factory method `AuthMiddleware::admin()`, `::client()`, `::hasRole()` tersedia di `src/middlewares/AuthMiddleware.php`.
-- [ ] Static factory method `RateLimitMiddleware::admin()`, `::client()`, `::custom()` tersedia di `src/middlewares/RateLimitMiddleware.php`.
-- [ ] Seluruh endpoint di `src/routes/Routes.php` menggunakan pemanggilan static factory yang deklaratif tanpa keyword `new`.
-- [ ] Autocomplete IDE dan static analysis (PHPStan / Psalm) bekerja optimal pada route pipeline.
+- [x] Static factory method `AuthMiddleware::admin()`, `::client()`, `::hasRole()` tersedia di `src/middlewares/AuthMiddleware.php`.
+- [x] Static factory method `RateLimitMiddleware::admin()`, `::client()`, `::custom()` tersedia di `src/middlewares/RateLimitMiddleware.php`.
+- [x] Seluruh endpoint di `src/routes/Routes.php` menggunakan pemanggilan static factory yang deklaratif tanpa keyword `new`.
+- [x] Autocomplete IDE dan static analysis (PHPStan / Psalm) bekerja optimal pada route pipeline.
 
 **Verification:**
-- [ ] Unit test untuk static factory methods middleware lulus.
-- [ ] `vendor/bin/phpunit tests/Feature/RoutesTest.php` lulus 100%.
-- [ ] Rangkaian automated test suite (`vendor/bin/phpunit`) 100% green (0 errors, 0 failures).
+- [x] Unit test untuk static factory methods middleware lulus (`tests/Unit/AuthMiddlewareTest.php` dan `tests/Unit/RateLimitMiddlewareTest.php`).
+- [x] `vendor/bin/phpunit tests/Feature/RoutesTest.php` lulus 100%.
+- [x] Rangkaian automated test suite (`vendor/bin/phpunit`) 100% green (254 tests, 686 assertions, 0 errors, 0 failures).
 
 **Dependencies:** Task 19 (atau Task 22 jika diimplementasikan bertahap)
 **Files likely touched:**
@@ -637,4 +637,5 @@
 - `src/routes/Routes.php`
 - `tests/Feature/RoutesTest.php`
 - `tests/Unit/AuthMiddlewareTest.php` (baru)
+- `tests/Unit/RateLimitMiddlewareTest.php` (baru)
 **Estimated scope:** Medium (5 files)

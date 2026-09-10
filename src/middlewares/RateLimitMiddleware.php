@@ -19,6 +19,31 @@ class RateLimitMiddleware implements MiddlewareInterface
     $this->timeWindow = $timeWindow;
   }
 
+  public static function admin(): self
+  {
+    return new self(100, 60);
+  }
+
+  public static function client(): self
+  {
+    return new self(60, 60);
+  }
+
+  public static function custom(int $limit, int $period = 60): self
+  {
+    return new self($limit, $period);
+  }
+
+  public function getLimit(): int
+  {
+    return $this->limit;
+  }
+
+  public function getTimeWindow(): int
+  {
+    return $this->timeWindow;
+  }
+
   public function process(Request $request, Handler $handler): Response
   {
     // Bypass rate limiting during automated testing

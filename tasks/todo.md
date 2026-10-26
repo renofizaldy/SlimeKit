@@ -1,641 +1,366 @@
-# Task List: Penyelarasan kit/api dari news/api (SlimeKit v2)
+# Todo: Penyelarasan SlimeKit v2.1 dari SlimeNews/api
+
+Panduan eksekusi teknis terstruktur per-task dengan kriteria keberhasilan dan perintah verifikasi mandiri.
 
 ---
 
-## Phase 1: Foundation & Dependencies Alignment
+## Phase 1: Core Infrastructure Resilience & Security Hardening
 
-### Task 1: Composer & Dependencies Modernization ✅
-**Description:** Memperbarui `composer.json` untuk menggantikan library usang `uma/dic` dengan `php-di/php-di`, menambahkan `monolog/monolog`, `rakit/validation`, `ramsey/uuid`, serta dependensi dev `phpunit/phpunit`. Menambahkan autoload dev `Tests\\` dan scripts pengujian.
+### Task 1: Valkey Circuit Breaker & Connection Resilience
+
+**Description:**
+Menambahkan mekanisme *Circuit Breaker* pada client Valkey/Redis untuk mencegah *thread/connection stall* saat server Valkey sedang down. Ketika terjadi exception koneksi, file marker `valkey_down.marker` dibuat di direktori temp OS, dan permintaan berikutnya selama periode cooldown (30 detik) langsung menganggap koneksi offline tanpa mencoba menyambung ulang yang berakibat lambatnya waktu respon. Menambahkan juga method alias `incr()`.
 
 **Acceptance criteria:**
-- [x] `uma/dic` dihapus dari `composer.json`.
-- [x] `php-di/php-di: ^7.1`, `monolog/monolog: ^3.10`, `rakit/validation: ^1.4`, `ramsey/uuid: ^4.7` ditambahkan ke `require`.
-- [x] `phpunit/phpunit: ^11.0` ditambahkan ke `require-dev`.
-- [x] `autoload-dev` memetakan `"Tests\\": "tests/"`.
-- [x] Scripts `test`, `test:feature`, `test:unit`, `test:filter` tersedia di `composer.json`.
+- [ ] `src/lib/Valkey.php` memiliki konstanta `DOWN_COOLDOWN = 30`.
+- [ ] Implementasi method `isCircuitBreakerOpen(): bool`, `markDown(?Exception $e): void`, `markUp(): void`, `getCircuitBreakerFile(): ?string`, dan `setCircuitBreakerFile(string $path): void`.
+- [ ] Operasi set/get/del/scan/flushdb otomatis memanggil `markDown()` saat terjadi Exception dan `markUp()` saat berhasil.
+- [ ] Method `incr($key)` tersedia sebagai alias untuk `increment($key)`.
+- [ ] Unit test `tests/Unit/ValkeyTest.php` disalin dari SlimeNews dan lulus 100%.
 
 **Verification:**
-- [x] Menjalankan `composer validate` memastikan sintaks `composer.json` valid.
-- [x] Menjalankan `composer update` menginstal seluruh dependensi (`PHP-DI`, `Monolog`, `Rakit`, `Ramsey UUID`, `PHPUnit 11`).
+- [ ] Pemeriksaan sintaks: `php -l src/lib/Valkey.php`
+- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/ValkeyTest.php`
 
 **Dependencies:** None
 **Files likely touched:**
-- `composer.json`
-**Estimated scope:** Small (1 file)
+- `src/lib/Valkey.php`
+- `tests/Unit/ValkeyTest.php`
+**Estimated scope:** Small (2 files)
 
 ---
 
-### Task 2: Service Registry, Dependency Injection Container & Library Overhaul ✅
-**Description:** Membuat konfigurasi DI container terpusat (`config/services.php` dan `config/dependencies.php`) menggunakan PHP-DI. Memusatkan pembacaan `$_ENV` di `services.php` dan mendaftarkan service, logger, validator, DB, cache, storage, Google services, AI clients, dan helper ke container. Menyelaraskan seluruh 14 file library di `src/lib/` agar 100% identik dengan `news/api/src/lib/` (murni IoC & dependency injection, tanpa pembacaan `$_ENV` di dalam class library).
+### Task 2: Database Connection & Pooler Hardening (PDO Emulate Prepares)
+
+**Description:**
+Menerapkan konfigurasi `PDO::ATTR_EMULATE_PREPARES => true` pada inisialisasi Capsule Eloquent ORM di `src/lib/Database.php` dan `src/config/services.php`. Konfigurasi ini krusial untuk mencegah kegagalan *prepared statements* saat SlimeKit dihubungkan ke connection pooler PostgreSQL tingkat produksi (seperti Supabase Connection Pooler / PgBouncer dalam mode transaksi).
 
 **Acceptance criteria:**
-- [x] `src/config/services.php` dibuat, memetakan seluruh konfigurasi dari `$_ENV`.
-- [x] `src/config/dependencies.php` dibuat, mendefinisikan LoggerInterface, Validator, Database, Valkey, Tokenize, Mailer, Storage, AI Clients, Google Services, dan General helper ke dalam `ContainerBuilder`.
-- [x] Seluruh 14 file library di `src/lib/` diselaraskan 1:1 identik dengan `news/api/src/lib/`:
-  - `Database.php`, `Valkey.php`, `Tokenize.php`, `CloudflareR2.php`, `Cloudinary.php`, `Mailer.php`, `Cronhooks.php`, `GoogleCloudStorage.php` (menghapus `GoogleCloud.php` usang).
-  - `GeminiClient.php`, `OpenAIClient.php`, `TavilyClient.php`, `NextRevalidator.php`.
-  - `GoogleAnalytics.php`, `GoogleApps.php`.
-- [x] Dependensi `google/apiclient`, `google/apiclient-services`, dan `google/analytics-data` ditambahkan ke `composer.json`.
+- [ ] `src/config/services.php` menambahkan opsi `\PDO::ATTR_EMULATE_PREPARES => true` di bawah kunci konfigurasi database.
+- [ ] `src/lib/Database.php` menggabungkan opsi konfigurasi PDO dengan default `ATTR_EMULATE_PREPARES => true` melalui `array_replace`.
+- [ ] Koneksi database Eloquent Capsule tetap berfungsi normal untuk semua operasi query.
 
 **Verification:**
-- [x] `git diff --no-index src/lib ../../news/api/src/lib` menghasilkan 0 diff (identik 100%).
-- [x] Seluruh 14 file library lulus uji sintaks `php -l`.
-- [x] Container dapat di-instantiate tanpa syntax error melalui script evaluasi PHP.
+- [ ] Pemeriksaan sintaks: `php -l src/lib/Database.php` dan `php -l src/config/services.php`
+- [ ] Menjalankan database test: `php vendor/bin/phpunit --filter RoutesTest`
 
-**Dependencies:** Task 1
+**Dependencies:** None
 **Files likely touched:**
-- `src/config/services.php` (baru)
-- `src/config/dependencies.php` (baru)
-- `src/lib/*.php` (14 file identik dengan `news/api/src/lib/`)
-- `composer.json`
-- `composer.lock`
-**Estimated scope:** Medium (16 files)
+- `src/lib/Database.php`
+- `src/config/services.php`
+**Estimated scope:** Small (2 files)
 
 ---
 
-### Task 3: Response Formatter, Error Handler & CORS Middleware ✅
-**Description:** Mengimplementasikan class helper `ApiResponse` untuk standardisasi balikan JSON, `ErrorHandlerMiddleware` untuk menangkap unhandled exception dan logging ke Monolog, serta `CorsMiddleware` untuk penanganan CORS terprogram. Membersihkan header CORS statis di `.htaccess`.
+### Task 3: Auth & Token Hardening (Tokenize Custom Expiration & AuthMiddleware DI Fix)
+
+**Description:**
+Menyempurnakan library `Tokenize` agar mendukung kustomisasi durasi kedaluwarsa token JWT (`$customExp`) yang diperlukan untuk static job worker token. Memperbaiki method `verify_time` dengan blok `try-catch` defensif. Pada `AuthMiddleware.php`, hapus pembuatan instansiasi manual `$this->helper = new General;` yang melanggar kontrak DI container PHP-DI dan standarisasi ekstraksi kode status HTTP error.
 
 **Acceptance criteria:**
-- [x] `src/helpers/ApiResponse.php` dibuat dengan method `success()`, `paginated()`, `error()`, dan `handleException()`.
-- [x] `handleException` otomatis mendeteksi error validasi dan mengembalikan status HTTP 422 dengan kode `VALIDATION_ERROR`.
-- [x] `src/middlewares/ErrorHandlerMiddleware.php` dibuat dengan integrasi `Psr\Log\LoggerInterface`.
-- [x] `src/middlewares/CorsMiddleware.php` dibuat dengan konfigurasi `ALLOWED_ORIGINS` dari environment.
-- [x] Header CORS di `src/public/.htaccess` dibersihkan agar tidak bentrok.
+- [ ] `Tokenize::encode(array $data = [], ?int $customExp = null)` mendukung durasi kedaluwarsa kustom.
+- [ ] `Tokenize::verify_time($token)` membungkus decode dalam `try-catch (\Throwable)` dan mengecek `isset($decode->exp)`.
+- [ ] `src/middlewares/AuthMiddleware.php` tidak lagi menginstansiasi `new General` secara manual.
+- [ ] Penanganan kode status HTTP pada exception di `AuthMiddleware` diverifikasi berada dalam rentang `100 - 599`.
+- [ ] Unit test `tests/Unit/TokenMiddlewareTest.php` disalin dan lulus 100%.
 
 **Verification:**
-- [x] Response helper mengembalikan format JSON yang konsisten dengan HTTP status code yang tepat.
+- [ ] Pemeriksaan sintaks: `php -l src/lib/Tokenize.php` dan `php -l src/middlewares/AuthMiddleware.php`
+- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/TokenMiddlewareTest.php` dan `php vendor/bin/phpunit tests/Feature/AdminAuthTest.php`
 
-**Dependencies:** Task 2
+**Dependencies:** Task 1, Task 2
 **Files likely touched:**
-- `src/helpers/ApiResponse.php` (baru)
-- `src/middlewares/ErrorHandlerMiddleware.php` (baru)
-- `src/middlewares/CorsMiddleware.php` (baru)
-- `src/public/.htaccess`
+- `src/lib/Tokenize.php`
+- `src/middlewares/AuthMiddleware.php`
+- `tests/Unit/TokenMiddlewareTest.php`
+**Estimated scope:** Small (3 files)
+
+---
+
+### Checkpoint: Foundation & Resilience (Tasks 1-3)
+- [ ] Seluruh file sintaks valid (`php -l`)
+- [ ] Unit test `ValkeyTest` dan `TokenMiddlewareTest` lulus
+- [ ] Tidak ada breaking change pada route admin auth eksisting
+
+---
+
+## Phase 2: Background Job Protection & Database Backup System
+
+### Task 4: Static Token Protection & CLI Generator for `/job/*`
+
+**Description:**
+Mengamankan grup endpoint `/job/*` di `src/routes/Routes.php` dengan `TokenMiddleware` sehingga hanya dapat dipanggil oleh background worker berlisensi dengan Bearer JWT valid. Membuat skrip CLI generator `assets/generate_job_token.php` dan mendaftarkan shortcut `"generate:job-token"` di `composer.json` untuk menghasilkan token 10 tahun bagi scheduler. Menambahkan konfigurasi `JOB_STATIC_TOKEN` pada `services.php` dan `.env.example`.
+
+**Acceptance criteria:**
+- [ ] Grup route `/job` di `src/routes/Routes.php` diproteksi dengan `->add(TokenMiddleware::class)`.
+- [ ] Skrip `assets/generate_job_token.php` dibuat dan berfungsi untuk minting static token JWT (10 tahun).
+- [ ] `composer.json` memuat script `"generate:job-token": "php assets/generate_job_token.php"`.
+- [ ] `src/config/services.php` dan `.env.example` memuat konfigurasi `job.token` dari `$_ENV['JOB_STATIC_TOKEN']`.
+
+**Verification:**
+- [ ] Menjalankan CLI generator: `php assets/generate_job_token.php`
+- [ ] Menjalankan feature test job: `php vendor/bin/phpunit tests/Feature/JobTest.php`
+
+**Dependencies:** Task 3
+**Files likely touched:**
+- `src/routes/Routes.php`
+- `assets/generate_job_token.php`
+- `composer.json`
+- `src/config/services.php`
+- `.env.example`
+**Estimated scope:** Medium (5 files)
+
+---
+
+### Task 5: Cloud Storage & Multi-Provider Backup Support
+
+**Description:**
+Memperkaya library storage provider agar mendukung penyimpanan file backup database. Menambahkan method `put($key, $input, $contentType)` pada `CloudflareR2.php` untuk upload langsung stream/file. Memperbaiki penanganan path kredensial dan default bucket pada `GoogleCloudStorage.php`. Menambahkan konfigurasi `backup_provider` pada `src/config/services.php`.
+
+**Acceptance criteria:**
+- [ ] `src/lib/CloudflareR2.php` memiliki method `put($key, $input, $contentType = 'application/gzip')`.
+- [ ] `src/lib/GoogleCloudStorage.php` mendukung penentuan bucket default dari konfigurasi dan resolusi path file credentials fleksibel.
+- [ ] `src/config/services.php` memuat blok konfigurasi `backup_provider` (`provider` => 'both'/'r2'/'gcs', `folder` => 'backup').
+- [ ] `src/config/dependencies.php` menginjeksikan dependency R2, GCS, dan servicesConfig ke `JobService`.
+
+**Verification:**
+- [ ] Pemeriksaan sintaks: `php -l src/lib/CloudflareR2.php`, `php -l src/lib/GoogleCloudStorage.php`, `php -l src/config/services.php`
+
+**Dependencies:** Task 4
+**Files likely touched:**
+- `src/lib/CloudflareR2.php`
+- `src/lib/GoogleCloudStorage.php`
+- `src/config/services.php`
+- `src/config/dependencies.php`
 **Estimated scope:** Medium (4 files)
 
 ---
 
-### Task 4: Application Bootstrap Refactoring ✅
-**Description:** Memperbarui file entri utama `src/public/index.php` untuk mengintegrasikan DI container PHP-DI, auto-binding ke Slim AppFactory, registrasi `CorsMiddleware`, dan `ErrorHandlerMiddleware`.
+### Task 6: Automated PostgreSQL Database Backup Endpoint (`/job/database_backup`)
+
+**Description:**
+Menerapkan endpoint background job `POST /job/database_backup` pada `JobController`, `JobService`, dan `JobValidator`. `JobService::databaseBackup` mengeksekusi `pg_dump` via `proc_open()` dengan proteksi kredensial environment, mengompresi stream secara on-the-fly ke file `.sql.gz` melalui chunking 64KB (`gzopen`/`gzwrite`), lalu mengunggahnya ke Cloudflare R2 dan/atau Google Cloud Storage, dan mencatat log eksekusi ke `tb_log`. Memperbarui `Dockerfile.dev` dan `Dockerfile.prod` dengan paket `postgresql-client`.
 
 **Acceptance criteria:**
-- [x] Slim `AppFactory::create(container: $container)` menerima container dari PHP-DI.
-- [x] `CorsMiddleware` dan `ErrorHandlerMiddleware` terpasang di pipeline middleware aplikasi.
-- [x] Inisialisasi `App\Lib\Database` dilakukan melalui container (`$container->get(App\Lib\Database::class)`).
+- [ ] Method `databaseBackup(Request $request, Response $response)` ditambahkan di `JobController.php`.
+- [ ] Aturan validasi `database_backup` ditambahkan di `src/validators/JobValidator.php` (opsional `provider` in r2,gcs,both).
+- [ ] Method `databaseBackup()` dan helper private (`executePgDump()`, `uploadToProviders()`, `formatBytes()`) diimplementasikan di `src/services/JobService.php`.
+- [ ] Route `POST /job/database_backup` terdaftar di `src/routes/Routes.php`.
+- [ ] Paket `postgresql-client` ditambahkan ke `Dockerfile.dev` dan `Dockerfile.prod`.
+- [ ] Unit test `tests/Unit/JobServiceDatabaseBackupTest.php` disalin dan lulus 100%.
 
 **Verification:**
-- [x] Server lokal dapat dinyalakan (`composer start`) dan merespons request tanpa fatal error.
-
-**Dependencies:** Task 2, Task 3
-**Files likely touched:**
-- `src/public/index.php`
-**Estimated scope:** Small (1 file)
-
----
-
-## Checkpoint 1: Foundation & App Bootstrap ✅
-- [x] `composer.json` valid dan dependensi terpasang bersih.
-- [x] DI Container terkonfigurasi.
-- [x] Middleware global terpasang.
-- [x] Server Slim dapat di-bootstrap tanpa error.
-
----
-
-## Phase 2: DevOps, OpenTofu Removal & Environment Setup
-
-### Task 5: Penghapusan OpenTofu & Pembaruan CI/CD Workflow ✅
-**Description:** Menghapus seluruh direktori dan artefak OpenTofu (`tofu/`) dari `kit/api`, serta memperbarui workflow GitHub Actions `deploy.yml` agar beralih ke deployment Docker dan Google Cloud Run standar tanpa OpenTofu.
-
-**Acceptance criteria:**
-- [x] Direktori `tofu/` beserta seluruh file (`*.tf`, `*.hcl`) dihapus.
-- [x] `assets/.github/workflows/deploy.yml` diperbarui: menghapus step `tofu init` & `tofu apply`, menggunakan deployment Cloud Run via env vars / secret.
-
-**Verification:**
-- [x] Direktori `tofu/` tidak lagi ada di filesystem.
-- [x] File `deploy.yml` bersih dari referensi OpenTofu.
-
-**Dependencies:** None
-**Files likely touched:**
-- `tofu/` (dihapus)
-- `assets/.github/workflows/deploy.yml`
-- `.gitignore`
-**Estimated scope:** Small (1 file + delete dir)
-
----
-
-### Task 6: Dual Environment & Docker Configuration ✅
-**Description:** Menyiapkan konfigurasi dual environment `.env.dev` dan `.env.prod`, membuat `Dockerfile.dev` dan `Dockerfile.prod`, memperbarui `.env.example`, memperbarui `docker-compose.yml`, dan menghapus `Dockerfile` lama.
-
-**Acceptance criteria:**
-- [x] `Dockerfile.dev` dibuat (menyalin `.env.dev` ke `.env` di container image).
-- [x] `Dockerfile.prod` dibuat (menyalin `.env.prod` ke `.env` di container image).
-- [x] `.env.dev` dan `.env.prod` template dibuat dengan variabel lengkap.
-- [x] `.env.example` diperbarui memuat seluruh konfigurasi (AI, NextRevalidate, Valkey, Logging, CORS).
-- [x] `docker-compose.yml` menunjuk ke `Dockerfile.dev`.
-- [x] File `Dockerfile` tunggal lama dihapus.
-
-**Verification:**
-- [x] Perintah `docker-compose config` memvalidasi konfigurasi tanpa error.
+- [ ] Menjalankan test unit backup: `php vendor/bin/phpunit tests/Unit/JobServiceDatabaseBackupTest.php`
+- [ ] Menjalankan feature test job: `php vendor/bin/phpunit tests/Feature/JobTest.php`
 
 **Dependencies:** Task 5
 **Files likely touched:**
-- `Dockerfile.dev` (baru)
-- `Dockerfile.prod` (baru)
-- `.env.dev` (baru)
-- `.env.prod` (baru)
-- `.env.example`
-- `docker-compose.yml`
-- `Dockerfile` (dihapus)
-**Estimated scope:** Medium (6 files)
+- `src/services/JobService.php`
+- `src/controllers/JobController.php`
+- `src/validators/JobValidator.php`
+- `src/routes/Routes.php`
+- `Dockerfile.dev`
+- `Dockerfile.prod`
+- `tests/Unit/JobServiceDatabaseBackupTest.php`
+**Estimated scope:** Large (7 files)
 
 ---
 
-## Checkpoint 2: DevOps & Environments Verified ✅
-- [x] OpenTofu telah bersih dihapus dari proyek.
-- [x] Dual environment `.env.dev` & `.env.prod` tersedia.
-- [x] Dockerfile.dev & Dockerfile.prod siap digunakan.
+### Checkpoint: Job & Backup Pipeline (Tasks 4-6)
+- [ ] Request ke `/job/database_backup` tanpa token memicu 401 Unauthorized
+- [ ] Request dengan valid static token mengeksekusi backup pipeline
+- [ ] Seluruh unit dan feature test pada grup `Job` berstatus hijau
 
 ---
 
-## Phase 3: Core Helper Expansion & Automated Testing Infrastructure
+## Phase 3: Communication & Media Platform Enhancements
 
-### Task 7: Reusable Helpers Expansion (`General.php`) ✅
-**Description:** Memperluas class `App\Helpers\General` dengan fungsi-fungsi esensial yang sudah teruji di `news/api`: pagination helpers (`paginateQuery`, `paginateArray`, `paginationRules`), user context & client IP extractor, GeoIP lookup via Valkey cache, audit logger helpers, Tavily context cleaner, slugify, dan datetime normalizer.
+### Task 7: Multi-Gateway WhatsApp Notification Service with Failover
+
+**Description:**
+Menyediakan integrasi gateway WhatsApp modern dengan failover otomatis. Menyalin `src/lib/WapitoClient.php` dan `src/lib/WappflyClient.php`. Mendaftarkan konfigurasi `wapito` dan `wappfly` di `services.php` dan DI container `dependencies.php`. Menambahkan method `General::sendWhatsApp($phone, $message, $user, $tableName, $recordId)` yang mencoba mengirim via Wapito, dan otomatis berpindah ke Wappfly jika gateway pertama gagal atau skipped.
 
 **Acceptance criteria:**
-- [x] Method paginasi (`paginateQuery`, `paginateArray`, `normalizePagination`, `paginationRules`) tersedia.
-- [x] Method `getUserContext`, `getClientIp`, dan `getGeoIp` tersedia.
-- [x] Method audit log (`addLog`, `normalizeLogRecord`, `logRecordChanges`, `logUpdateChanges`) tersedia.
-- [x] Method utilitas AI & data (`clean_tavily_context`, `normalize_datetime`, `slugify`, `getTopArticles`, `getCategoriesBySite`) tersedia.
+- [ ] `src/lib/WapitoClient.php` dan `src/lib/WappflyClient.php` tersedia di SlimeKit.
+- [ ] `src/config/services.php` memuat konfigurasi `wapito` dan `wappfly`.
+- [ ] `src/config/dependencies.php` menginjeksi kedua client ke class `General`.
+- [ ] `General::sendWhatsApp` melakukan failover secara mulus dan mencatat kegagalan ke log jika semua provider gagal.
+- [ ] Unit tests `WapitoClientTest`, `WappflyClientTest`, dan `GeneralWhatsAppFailoverTest` disalin dan lulus 100%.
 
 **Verification:**
-- [x] File `General.php` dapat di-load tanpa error kompilasi/linter.
+- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralWhatsAppFailoverTest.php tests/Unit/WapitoClientTest.php tests/Unit/WappflyClientTest.php`
 
-**Dependencies:** Task 2, Task 3
+**Dependencies:** Task 1, Task 2
+**Files likely touched:**
+- `src/lib/WapitoClient.php`
+- `src/lib/WappflyClient.php`
+- `src/helpers/General.php`
+- `src/config/services.php`
+- `src/config/dependencies.php`
+- `tests/Unit/GeneralWhatsAppFailoverTest.php`
+- `tests/Unit/WapitoClientTest.php`
+- `tests/Unit/WappflyClientTest.php`
+**Estimated scope:** Large (8 files)
+
+---
+
+### Task 8: Cloudinary Hardening & Google Discover 16:9 Image Variant
+
+**Description:**
+Menggantikan manipulasi URL Cloudinary rapuh `strpos(..., "/v")` dengan fungsi `formatCloudinaryUrl(string $url, string $transformation): string` berbasis regex aman di `General.php`. Memperbarui respon upload dan query artikel di `AdminArticleService.php` dan `ClientArticleService.php` (`list`, `detail`, `similar`) agar secara retroaktif memancarkan varian `picture.large` berukuran 1200x675 (`c_fill,w_1200,h_675,g_auto,q_auto,f_auto`) yang merupakan standar kartu Google Discover.
+
+**Acceptance criteria:**
+- [ ] Helper `formatCloudinaryUrl` aman terhadap URL Cloudinary dengan atau tanpa versi, serta mengembalikan URL asli jika bukan domain Cloudinary.
+- [ ] Respon endpoint `ClientArticleController` (`list`, `detail`, `similar`) memancarkan field `large` pada objek `picture`.
+- [ ] Respon endpoint `AdminArticleController` (`detail`, `add`, `edit`) memancarkan field `large`.
+- [ ] Unit test `tests/Unit/GeneralCloudinaryTest.php` dan `tests/Unit/ArticleLargeImageTest.php` lulus 100%.
+
+**Verification:**
+- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralCloudinaryTest.php tests/Unit/ArticleLargeImageTest.php`
+- [ ] Menjalankan feature test artikel: `php vendor/bin/phpunit tests/Feature/ClientArticleTest.php`
+
+**Dependencies:** None
 **Files likely touched:**
 - `src/helpers/General.php`
-- `src/models/ArticleStats.php` (baru)
-**Estimated scope:** Medium (1 file besar)
+- `src/services/admin/AdminArticleService.php`
+- `src/services/client/ClientArticleService.php`
+- `tests/Unit/GeneralCloudinaryTest.php`
+- `tests/Unit/ArticleLargeImageTest.php`
+**Estimated scope:** Medium (5 files)
 
 ---
 
-### Task 8: Inisialisasi PHPUnit & Test Suite Harness ✅
-**Description:** Menyiapkan infrastruktur pengujian otomatis PHPUnit: konfigurasi `phpunit.xml`, basis class `tests/TestCase.php` (dengan helper `getAppInstance()`, `createRequest()`, `parseJson()`), penyesuaian middleware (`AuthMiddleware`, `TokenMiddleware`, `RateLimitMiddleware`) agar mengenali environment `TESTING`, serta unit test pertama untuk paginasi.
+### Task 9: Multi-Site Sanitization & Whitelist Security
+
+**Description:**
+Menerapkan sistem validasi dan whitelisting parameter `site` di `src/helpers/General.php` melalui method `getAllowedSites(): array` dan `isValidSite(?string $site): bool`. Parameter site disanitasi terhadap regex `/^[a-zA-Z0-9_\-\.]+$/` untuk mencegah cache key poisoning atau karakter berbahaya masuk ke pola prefix Valkey. Menambahkan variabel `ALLOWED_SITES` di `.env.example`.
 
 **Acceptance criteria:**
-- [x] File `phpunit.xml` dibuat dengan testsuite Feature dan Unit, serta env `ENVIRONMENT=TESTING`.
-- [x] `tests/TestCase.php` dibuat untuk bootstrapping aplikasi Slim dalam lingkungan uji.
-- [x] `TokenMiddleware` dan `AuthMiddleware` membypass autentikasi pada saat `ENVIRONMENT=TESTING`.
-- [x] `RateLimitMiddleware` membypass throttling pada saat `ENVIRONMENT=TESTING`.
-- [x] Unit tests `tests/Unit/PaginationHelperTest.php` dan `tests/Unit/PaginationValidatorTest.php` dibuat dan lulus 100%.
+- [ ] Method `General::getAllowedSites()` membaca environment `ALLOWED_SITES` dan mengembalikan array nama site yang bersih.
+- [ ] Method `General::isValidSite(?string $site)` menolak string kosong, karakter ilegal, atau site di luar whitelist.
+- [ ] `.env.example` mendokumentasikan variabel `ALLOWED_SITES=default,site1,site2`.
+- [ ] Unit test `tests/Unit/GeneralSiteValidationTest.php` disalin dan lulus 100%.
 
 **Verification:**
-- [x] Perintah `composer test:unit` atau `vendor/bin/phpunit --testsuite Unit` lulus tanpa kegagalan.
+- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralSiteValidationTest.php`
 
-**Dependencies:** Task 1, Task 4, Task 7
+**Dependencies:** None
 **Files likely touched:**
-- `phpunit.xml` (baru)
-- `tests/TestCase.php` (baru)
-- `tests/Unit/PaginationHelperTest.php` (baru)
-- `tests/Unit/PaginationValidatorTest.php` (baru)
-- `src/middlewares/TokenMiddleware.php`
-- `src/middlewares/AuthMiddleware.php`
-- `src/middlewares/RateLimitMiddleware.php`
-**Estimated scope:** Medium (7 files)
+- `src/helpers/General.php`
+- `.env.example`
+- `tests/Unit/GeneralSiteValidationTest.php`
+**Estimated scope:** Small (3 files)
 
 ---
 
-## Checkpoint 3: Helpers & Test Harness Functional ✅
-- [x] Helper paginasi dan utilitas siap pakai.
-- [x] Test harness PHPUnit berjalan normal (`composer test:unit` green).
+### Checkpoint: Media, Communication & Security (Tasks 7-9)
+- [ ] WhatsApp notification failover terverifikasi
+- [ ] URL gambar artikel memenuhi standar Google Discover 16:9
+- [ ] Whitelist site memproteksi integritas cache key
 
 ---
 
-## Phase 4: Core Framework Modules Refactoring
+## Phase 4: Publishing Engine, Anti-Duplication & Transaction Cleanliness
 
-### Task 9: Refactor Modul AdminAuth & SettingUser ✅
-**Description:** Merefaktor modul otentikasi admin (`AdminAuth`) dan manajemen user/roles (`AdminSettingUser`) ke arsitektur baru: PHP 8 Constructor Property Promotion (DI auto-wiring), `Rakit\Validation\Validator`, format respons `ApiResponse`, dan pembuatan feature test.
+### Task 10: PostgreSQL Trigram Similarity & Composite Indexes Migration
+
+**Description:**
+Membuat file migrasi Phinx `AddTrgmAndPerformanceIndexesToArticles` untuk mengaktifkan ekstensi `pg_trgm`, menambahkan GIN index pada kolom judul `tb_article` (`USING gin (title gin_trgm_ops)`), serta menambahkan composite B-Tree index pada `(site, status, slug)` dan `(site, status, publish)`. Memperbarui query pencarian artikel serupa di `ClientArticleService::similar()` agar memanfaatkan operator similarity trigram `(title % ? OR similarity(title, ?) > 0.2)`.
 
 **Acceptance criteria:**
-- [x] `AdminAuthController`, `AdminAuthService`, `AdminAuthValidator` menggunakan standar baru.
-- [x] `AdminSettingUserController`, `AdminSettingUserService`, `AdminSettingUserValidator` menggunakan standar baru.
-- [x] Endpoint list user dan roles mendukung paginasi `{ items, pagination }`.
-- [x] Feature tests `tests/Feature/AdminAuthTest.php` dan `tests/Feature/AdminSettingUserTest.php` dibuat dan lulus.
+- [ ] File migrasi baru dibuat di `src/migrations/` dengan deklarasi indeks trigram dan komposit.
+- [ ] `ClientArticleService::similar()` memperbarui query dengan sintaks similarity yang teroptimasi.
+- [ ] Phinx status dan rollback bekerja dengan baik.
 
 **Verification:**
-- [x] `vendor/bin/phpunit tests/Feature/AdminAuthTest.php` lulus.
-- [x] `vendor/bin/phpunit tests/Feature/AdminSettingUserTest.php` lulus.
+- [ ] Pemeriksaan sintaks: `php -l src/services/client/ClientArticleService.php`
+- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Feature/ClientArticleTest.php`
 
 **Dependencies:** Task 8
 **Files likely touched:**
-- `src/controllers/admin/AdminAuthController.php`
-- `src/services/admin/AdminAuthService.php`
-- `src/validators/admin/AdminAuthValidator.php`
-- `src/controllers/admin/AdminSettingUserController.php`
-- `src/services/admin/AdminSettingUserService.php`
-- `src/validators/admin/AdminSettingUserValidator.php`
-- `tests/Feature/AdminAuthTest.php` (baru)
-- `tests/Feature/AdminSettingUserTest.php` (baru)
-**Estimated scope:** Medium-Large (8 files)
-
----
-
-### Task 10: Refactor Modul Content (FAQ, Gallery, Contact, Team) ✅
-**Description:** Merefaktor modul konten bawaan untuk Admin dan Client (FAQ, Gallery, Contact, dan Team - Opsi A dipertahankan) ke standar baru: DI auto-wiring, Rakit validation, ApiResponse, paginasi pada endpoint list, dan feature tests.
-
-**Acceptance criteria:**
-- [x] Modul Content FAQ (Admin & Client) direfaktor ke standar baru.
-- [x] Modul Content Gallery (Admin & Client) direfaktor ke standar baru.
-- [x] Modul Content Contact (Admin & Client) direfaktor ke standar baru.
-- [x] Modul Content Team (Admin & Client) direfaktor ke standar baru (sesuai Opsi A).
-- [x] Seluruh endpoint list mengembalikan format bersarang `{ items: [], pagination: {} }`.
-- [x] Feature tests untuk masing-masing modul dibuat dan lulus 100%.
-
-**Verification:**
-- [x] `vendor/bin/phpunit tests/Feature/AdminContent*Test.php` dan `ClientContent*Test.php` lulus.
-
-**Dependencies:** Task 8, Task 9
-**Files likely touched:**
-- `src/controllers/admin/AdminContent*Controller.php` (4 files)
-- `src/services/admin/AdminContent*Service.php` (4 files)
-- `src/validators/admin/AdminContent*Validator.php` (4 files)
-- `src/controllers/client/ClientContent*Controller.php` (4 files)
-- `src/services/client/ClientContent*Service.php` (4 files)
-- `src/validators/client/ClientContent*Validator.php` (4 files)
-- `tests/Feature/AdminContent*Test.php` & `ClientContent*Test.php` (test files)
-**Estimated scope:** Large (akan dieksekusi bertahap per modul)
-
----
-
-## Checkpoint 4: Core Framework Modules 100% Green ✅
-- [x] Seluruh modul bawaan (Auth, User, FAQ, Gallery, Contact, Team) telah bermigrasi.
-- [x] Seluruh feature test modul dasar lulus hijau.
-
----
-
-## Phase 5: Database Schema Alignment (Multi-site, Article Agent, Article Stats)
-
-### Task 11: Database Migrations untuk Multi-site, Article Agent & Article Stats ✅
-**Description:** Menyelaraskan skema database untuk mendukung fungsionalitas artikel modern: menambahkan kolom `site` pada `tb_article` dan `tb_article_category` (Opsi A), menambahkan tabel `tb_article_stats`, dan menambahkan migrasi tabel `tb_article_agent`.
-
-**Acceptance criteria:**
-- [x] Migrasi `20260109155110_create_tables.php` diperbarui untuk menyertakan kolom `site` (limit 250, default `'default'`) pada `tb_article` dan `tb_article_category`.
-- [x] Tabel `tb_article_stats` didefinisikan (dengan field `site`, `slug`, `ip_address`, `user_agent`, `country`, `country_code`, dsb) beserta indeksnya.
-- [x] File migrasi `src/migrations/20260120143000_create_article_agent_table.php` ditambahkan untuk tabel `tb_article_agent`.
-
-**Verification:**
-- [x] `composer migrate:status` atau validasi migrasi Phinx berhasil mengenali skema baru.
-
-**Dependencies:** Task 1
-**Files likely touched:**
-- `src/migrations/20260109155110_create_tables.php`
-- `src/migrations/20260120143000_create_article_agent_table.php` (baru)
-**Estimated scope:** Small (2 files)
-
----
-
-### Task 12: Eloquent Models Alignment ✅
-**Description:** Memperbarui model Eloquent yang ada (`Article`, `ArticleCategory`) dan menambahkan model baru (`ArticleAgent`, `ArticleStats`) dengan relasi dan casting yang tepat.
-
-**Acceptance criteria:**
-- [x] `src/models/Article.php` diperbarui dengan relasi `category`, `picture`, `authorUser`, `seoMeta`, `articleAgent`, `cronhooks`, dan cast `featured` array.
-- [x] `src/models/ArticleCategory.php` diperbarui.
-- [x] `src/models/ArticleAgent.php` dibuat dengan casts `brainstorming_options` dan `selected_option_data`.
-- [x] `src/models/ArticleStats.php` dibuat.
-
-**Verification:**
-- [x] Semua model Eloquent dapat di-load tanpa error.
-
-**Dependencies:** Task 11
-**Files likely touched:**
-- `src/models/Article.php`
-- `src/models/ArticleCategory.php`
-- `src/models/ArticleAgent.php` (baru)
-- `src/models/ArticleStats.php` (baru)
-**Estimated scope:** Small (4 files)
-
----
-
-## Checkpoint 5: Database & Models Aligned ✅
-- [x] Skema database Phinx terdefinisi dengan rapi.
-- [x] Seluruh Model Eloquent tersinkronisasi.
-
----
-
-## Phase 6: Article & Article Category System v2
-
-### Task 13: Porting Modul Admin Article & Article Category v2 ✅
-**Description:** Mengganti modul Admin Article dan Article Category di `kit/api` dengan versi modern dari `news/api`: DI auto-wiring, Rakit validation, ApiResponse, paginasi dengan caching Valkey, sorting (`orderBy`, `orderDir`), filter status/site/featured/category, method `statusChange`, `publishChange`, integrasi `NextRevalidator`, dan pembuatan feature tests.
-
-**Acceptance criteria:**
-- [x] `AdminArticleController`, `AdminArticleService`, `AdminArticleValidator` mengimplementasikan seluruh fitur v2.
-- [x] `AdminArticleCategoryController`, `AdminArticleCategoryService`, `AdminArticleCategoryValidator` mengimplementasikan seluruh fitur v2.
-- [x] Cache key Valkey memuat parameter paginasi dan filter secara dinamis.
-- [x] Feature tests `tests/Feature/AdminArticleTest.php` dan `tests/Feature/AdminArticleCategoryTest.php` dibuat dan lulus.
-
-**Verification:**
-- [x] `vendor/bin/phpunit tests/Feature/AdminArticleTest.php` lulus.
-- [x] `vendor/bin/phpunit tests/Feature/AdminArticleCategoryTest.php` lulus.
-
-**Dependencies:** Task 12
-**Files likely touched:**
-- `src/controllers/admin/AdminArticleController.php`
-- `src/services/admin/AdminArticleService.php`
-- `src/validators/admin/AdminArticleValidator.php`
-- `src/controllers/admin/AdminArticleCategoryController.php`
-- `src/services/admin/AdminArticleCategoryService.php`
-- `src/validators/admin/AdminArticleCategoryValidator.php`
-- `tests/Feature/AdminArticleTest.php` (baru)
-- `tests/Feature/AdminArticleCategoryTest.php` (baru)
-**Estimated scope:** Medium (8 files)
-
----
-
-### Task 14: Porting Modul Client Article & Article Category v2 ✅
-**Description:** Mengganti modul Client Article dan Article Category di `kit/api` dengan versi modern: DI auto-wiring, ApiResponse, paginasi `{ items, pagination }`, filter pencarian, filter kategori & featured, endpoint `similar` (artikel terkait), caching Valkey, dan feature tests.
-
-**Acceptance criteria:**
-- [x] `ClientArticleController`, `ClientArticleService`, `ClientArticleValidator` mengimplementasikan fitur v2 (termasuk method `similar`).
-- [x] Endpoint `/client/article/publish` lama dilepas (karena dipindahkan ke `JobController`).
-- [x] `ClientArticleCategoryController`, `ClientArticleCategoryService`, `ClientArticleCategoryValidator` mengimplementasikan fitur v2.
-- [x] Feature tests `tests/Feature/ClientArticleTest.php` dan `tests/Feature/ClientArticleCategoryTest.php` dibuat dan lulus.
-
-**Verification:**
-- [x] `vendor/bin/phpunit tests/Feature/ClientArticleTest.php` lulus.
-- [x] `vendor/bin/phpunit tests/Feature/ClientArticleCategoryTest.php` lulus.
-
-**Dependencies:** Task 13
-**Files likely touched:**
-- `src/controllers/client/ClientArticleController.php`
+- `src/migrations/20261026000000_add_trgm_and_performance_indexes_to_articles.php`
 - `src/services/client/ClientArticleService.php`
-- `src/validators/client/ClientArticleValidator.php`
-- `src/controllers/client/ClientArticleCategoryController.php`
-- `src/services/client/ClientArticleCategoryService.php`
-- `src/validators/client/ClientArticleCategoryValidator.php`
-- `tests/Feature/ClientArticleTest.php` (baru)
-- `tests/Feature/ClientArticleCategoryTest.php` (baru)
-**Estimated scope:** Medium (8 files)
-
----
-
-## Checkpoint 6: Article & Category Modules Functional & Tested ✅
-- [x] Seluruh endpoint Admin & Client Article bekerja dengan pagination, caching, dan filtering.
-- [x] Automated tests Article & Category 100% green.
-
----
-
-## Phase 7: Article Agent (AI Writer) System
-
-### Task 15: Integrasi AI Clients di `src/lib` ✅
-**Description:** Memindahkan library klien AI dari `news/api` ke `kit/api`: `GeminiClient.php` (Google Gemini API), `OpenAIClient.php` (OpenAI API), dan `TavilyClient.php` (Tavily Search API).
-
-**Acceptance criteria:**
-- [x] `src/lib/GeminiClient.php` dibuat dan mendukung generasi teks AI.
-- [x] `src/lib/OpenAIClient.php` dibuat dan mendukung generasi teks AI.
-- [x] `src/lib/TavilyClient.php` dibuat dan mendukung web search kontekstual.
-- [x] Klien-klien AI terdaftar dalam container `src/config/dependencies.php`.
-
-**Verification:**
-- [x] Class library dapat di-instantiate via container PHP-DI.
-
-**Dependencies:** Task 2
-**Files likely touched:**
-- `src/lib/GeminiClient.php` (baru)
-- `src/lib/OpenAIClient.php` (baru)
-- `src/lib/TavilyClient.php` (baru)
-- `src/config/dependencies.php`
-- `tests/Unit/AiClientsTest.php` (baru)
-**Estimated scope:** Small (4 files)
-
----
-
-### Task 16: Porting Modul Admin Article Agent ✅
-**Description:** Mengimplementasikan modul `AdminArticleAgent` lengkap (Controller, Service, Validator) untuk alur kerja pembuatan artikel berbasis AI (3 langkah: brainstorming topik dengan strategi SEO gap/cluster/formula, riset web Tavily dengan sanitasi otomatis, dan penulisan artikel lengkap) beserta feature tests.
-
-**Acceptance criteria:**
-- [x] `AdminArticleAgentController` dibuat dengan endpoint `step1_inputTopic`, `step1_inputSelection`, `step2_doResearch`, `step3_doWrite`, dan `detail`.
-- [x] `AdminArticleAgentService` dibuat dengan integrasi Gemini, OpenAI, dan Tavily.
-- [x] `AdminArticleAgentValidator` dibuat dengan aturan validasi tiap step via Rakit Validator.
-- [x] Feature test `tests/Feature/AdminArticleAgentTest.php` dibuat dan lulus.
-
-**Verification:**
-- [x] `vendor/bin/phpunit tests/Feature/AdminArticleAgentTest.php` lulus.
-
-**Dependencies:** Task 12, Task 15
-**Files likely touched:**
-- `src/controllers/admin/AdminArticleAgentController.php` (baru)
-- `src/services/admin/AdminArticleAgentService.php` (baru)
-- `src/validators/admin/AdminArticleAgentValidator.php` (baru)
-- `src/routes/Routes.php`
-- `tests/Feature/AdminArticleAgentTest.php` (baru)
-**Estimated scope:** Medium (4 files)
-
----
-
-## Checkpoint 7: AI Article Agent Operational ✅
-- [x] Library klien AI siap pakai.
-- [x] Alur 3-step Article Agent berfungsi dan teruji via automated test.
-
----
-
-## Phase 8: Stats System & Job Automation
-
-### Task 17: Porting Modul Admin Stats v2 ✅
-**Description:** Memperbarui modul `AdminStats` (Controller, Service, Validator) di `kit/api` dengan seluruh kapabilitas v2: log audit dengan paginasi dan formatting diff perubahan data, `articleCount`, `listCronArticle` (jadwal cron yang tertunda), `listArticleVisits` (grafik kunjungan harian dengan zero-filling), dan `listArticleVisitsBySlug` (peringkat kunjungan per slug artikel), serta feature tests.
-
-**Acceptance criteria:**
-- [x] `AdminStatsController` mengimplementasikan method `listLog`, `dropLog`, `articleCount`, `listCronArticle`, `listArticleVisits`, dan `listArticleVisitsBySlug`.
-- [x] `AdminStatsService` menerapkan paginasi dan kalkulasi date range zero-filling.
-- [x] `AdminStatsValidator` memvalidasi parameter tanggal dan input query via Rakit.
-- [x] Feature test `tests/Feature/AdminStatsTest.php` dibuat dan lulus.
-
-**Verification:**
-- [x] `vendor/bin/phpunit tests/Feature/AdminStatsTest.php` lulus.
-
-**Dependencies:** Task 12
-**Files likely touched:**
-- `src/controllers/admin/AdminStatsController.php`
-- `src/services/admin/AdminStatsService.php`
-- `src/validators/admin/AdminStatsValidator.php`
-- `src/routes/Routes.php`
-- `tests/Feature/AdminStatsTest.php` (baru)
-**Estimated scope:** Medium (4 files)
-
----
-
-### Task 18: Job Automation System (`JobController` & `JobService`) ✅
-**Description:** Mengimplementasikan modul background job dan webhook callback: `NextRevalidator` (invalidation cache frontend ISR Next.js), `JobController`, `JobService`, dan `JobValidator` untuk memproses auto-publish artikel dari Cronhooks, sinkronisasi antrean kunjungan Valkey ke tabel `tb_article_stats`, dan pelacakan kunjungan via antrean Valkey.
-
-**Acceptance criteria:**
-- [x] `src/lib/NextRevalidator.php` dibuat untuk revalidasi cache Next.js.
-- [x] `src/controllers/JobController.php`, `src/services/JobService.php`, dan `src/validators/JobValidator.php` dibuat.
-- [x] Endpoint `/job/article_publish`, `/job/article_sync_stats`, dan `/job/article_track_stats` tersedia.
-- [x] Feature test `tests/Feature/JobTest.php` dibuat dan lulus.
-
-**Verification:**
-- [x] `vendor/bin/phpunit tests/Feature/JobTest.php` lulus.
-
-**Dependencies:** Task 12, Task 17
-**Files likely touched:**
-- `src/lib/NextRevalidator.php` (baru)
-- `src/controllers/JobController.php` (baru)
-- `src/services/JobService.php` (baru)
-- `src/validators/JobValidator.php` (baru)
-- `src/routes/Routes.php`
-- `tests/Feature/JobTest.php` (baru)
-**Estimated scope:** Medium (5 files)
-
----
-
-## Checkpoint 8: Stats & Job System Verified ✅
-- [x] Statistik kunjungan dan audit log bekerja dengan paginasi.
-- [x] Sistem job publish dan sinkronisasi stats berjalan dengan baik dan teruji.
-
----
-
-## Phase 9: Routing, Code Generator CLI & Final Polish
-
-### Task 19: Routes Modernization (`Routes.php`) ✅
-**Description:** Memperbarui `src/routes/Routes.php` untuk memanfaatkan auto-wiring penuh (menggunakan class-string `[AdminArticleController::class, 'method']` alih-alih instantiasi manual `$controller = new ...`), mendaftarkan rute baru untuk `article_agent`, `job`, rute baru `stats`, serta memastikan rute `content_team` tetap terintegrasi secara rapi.
-
-**Acceptance criteria:**
-- [x] Semua controller di `Routes.php` dipanggil dengan format class string (`Controller::class`).
-- [x] Rute grup `/admin/article_agent` didaftarkan.
-- [x] Rute grup `/job` didaftarkan.
-- [x] Rute grup `/admin/content_team` dan `/client/content_team` menggunakan standar baru.
-- [x] `TokenMiddleware::class` digunakan untuk auto-wiring.
-
-**Verification:**
-- [x] Seluruh endpoint dalam route map dapat di-resolve oleh router Slim tanpa error.
-
-**Dependencies:** Task 4, Task 10, Task 14, Task 16, Task 18
-**Files likely touched:**
-- `src/routes/Routes.php`
-- `tests/Feature/RoutesTest.php` (baru)
-**Estimated scope:** Medium (1 file)
-
----
-
-### Task 20: Unified CLI Generator (`assets/make_module.php`) ✅
-**Description:** Menyatukan generator modul CLI lama (`make_module_admin.php` dan `make_module_client.php`) menjadi satu script generator modern `assets/make_module.php` yang menghasilkan template Controller, Service, dan Validator sesuai standar arsitektur baru (PHP 8 constructor promotion, DI auto-wiring, Rakit validator, dan ApiResponse).
-
-**Acceptance criteria:**
-- [x] `assets/make_module.php` dibuat, mendukung argumen `admin` dan `client`.
-- [x] `composer.json` mengarahkan `make:module:admin` dan `make:module:client` ke `make_module.php`.
-- [x] File generator lama (`make_module_admin.php`, `make_module_client.php`) dihapus.
-
-**Verification:**
-- [x] Perintah `php assets/make_module.php admin TestDummy` menghasilkan file berarsitektur modern tanpa error sintaks.
-
-**Dependencies:** Task 1, Task 10
-**Files likely touched:**
-- `assets/make_module.php` (baru)
-- `assets/make_module_admin.php` (dihapus)
-- `assets/make_module_client.php` (dihapus)
-- `composer.json`
-**Estimated scope:** Small (4 files)
-
----
-
-### Task 21: Full Test Suite Verification & Dokumentasi SlimeKit v2 ✅
-**Description:** Menjalankan seluruh rangkaian tes otomatis (Unit & Feature tests) untuk memvalidasi bahwa tidak ada regresi atau kegagalan. Memperbarui `README.md` dengan dokumentasi resmi arsitektur SlimeKit v2, panduan Dockerfile.dev/prod, konfigurasi environment, AI Article Agent, dan panduan CLI.
-
-**Acceptance criteria:**
-- [x] Perintah `composer test` (atau `vendor/bin/phpunit`) berjalan dan **100% test lulus** (0 failure, 0 error).
-- [x] File `README.md` diperbarui mencerminkan arsitektur SlimeKit v2 dan petunjuk penggunaan terperinci.
-- [x] Workspace bersih dari file sementara atau artefak yang tidak diinginkan.
-
-**Verification:**
-- [x] Seluruh automated test suite lulus hijau.
-- [x] Status git clean dan siap untuk commit versi rilis.
-
-**Dependencies:** Task 1 s/d Task 20
-**Files likely touched:**
-- `README.md`
-**Estimated scope:** Small (1 file)
-
----
-
-## Final Checkpoint: SlimeKit v2 Complete & Verified ✅
-- [x] Seluruh 21 Task terselesaikan.
-- [x] Rangkaian test suite otomatis 100% green.
-- [x] Framework siap digunakan sebagai fondasi proyek-proyek masa depan.
-
----
-
-## Future Enhancements: Route Middleware Ergonomics (Backlog)
-
-### Task 22: Route Middleware Ergonomics - Pilihan Pragmatis (Helper Closures) ✅
-**Description:** Menyederhanakan dan memperpendek penulisan middleware berparameter di `src/routes/Routes.php` secara cepat dan pragmatis menggunakan *local helper closures / function factories* (`$adminAuth` dan `$rateLimit`), serta mengganti middleware tanpa parameter ke class-string auto-wiring, tanpa memodifikasi class middleware itu sendiri.
-
-**Alur Logika:**
-1. Di awal return closure `src/routes/Routes.php`, definisikan helper closure:
-   ```php
-   $adminAuth = fn(string $perm) => new AuthMiddleware('admin', $perm);
-   $rateLimit = fn(int $limit, int $period = 60) => new RateLimitMiddleware($limit, $period);
-   ```
-2. Ganti seluruh penulisan berulang `new AuthMiddleware('admin', '...')` dengan `$adminAuth('...')`.
-3. Ganti `new RateLimitMiddleware(100, 60)` dengan `$rateLimit(100, 60)` pada grup admin dan `$rateLimit(60, 60)` pada grup client.
-4. Ganti `new GzipDecoderMiddleware()` dan `new GzipEncoder()` menjadi `GzipDecoderMiddleware::class` dan `GzipEncoder::class` agar di-resolve melalui DI container.
-
-**Acceptance criteria:**
-- [x] Helper closure `$adminAuth` dan `$rateLimit` didefinisikan dan digunakan di `src/routes/Routes.php`.
-- [x] Seluruh pemanggilan `new AuthMiddleware('admin', ...)` di `Routes.php` diganti dengan `$adminAuth(...)`.
-- [x] Pemanggilan `new RateLimitMiddleware(...)` diganti dengan `$rateLimit(...)`.
-- [x] `GzipDecoderMiddleware::class` dan `GzipEncoder::class` digunakan menggantikan `new`.
-
-**Verification:**
-- [x] `vendor/bin/phpunit tests/Feature/RoutesTest.php` lulus 100%.
-- [x] Seluruh automated test suite (246 tests) tetap 100% green.
-
-**Dependencies:** Task 19
-**Files likely touched:**
-- `src/routes/Routes.php`
-- `tests/Feature/RoutesTest.php`
 **Estimated scope:** Small (2 files)
 
 ---
 
-### Task 23: Route Middleware Ergonomics - Pilihan Standar Enterprise (Named Constructors / Static Factory) ✅
-**Description:** Menerapkan standar arsitektur kelas enterprise Silicon Valley (*Domain-Driven Design / Clean OOP*) dengan menambahkan *Named Constructor / Static Factory Method* langsung pada class middleware (`AuthMiddleware` dan `RateLimitMiddleware`), sehingga middleware bersifat *self-contained*, *type-safe*, memiliki *IDE autocomplete* penuh, serta file `Routes.php` deklaratif dan bersih dari keyword `new` maupun closure lokal.
+### Task 11: Transaction Boundaries, Search Filtering & Cache Invalidation Coherence
 
-**Alur Logika:**
-1. Buka `src/middlewares/AuthMiddleware.php`, tambahkan static constructors:
-   ```php
-   public static function admin(string $permission): self { return new self('admin', $permission); }
-   public static function client(string $permission): self { return new self('client', $permission); }
-   public static function hasRole(string $role, string $permission): self { return new self($role, $permission); }
-   ```
-2. Buka `src/middlewares/RateLimitMiddleware.php`, tambahkan static preset factory methods:
-   ```php
-   public static function admin(): self { return new self(100, 60); }
-   public static function client(): self { return new self(60, 60); }
-   public static function custom(int $limit, int $period = 60): self { return new self($limit, $period); }
-   ```
-3. Buka `src/routes/Routes.php`:
-   - Hapus helper closure lokal jika ada.
-   - Ganti pemanggilan rute menjadi deklaratif: `AuthMiddleware::admin('article:view')`, `RateLimitMiddleware::admin()`, `RateLimitMiddleware::client()`.
-   - Pastikan `GzipDecoderMiddleware::class` dan `GzipEncoder::class` tetap menggunakan class-string.
-4. Perbarui atau tambahkan unit test middleware untuk menguji static factory method.
+**Description:**
+Merefaktor `AdminArticleService.php` dan `AdminArticleCategoryService.php` untuk memisahkan batasan transaksi database secara ketat: upload media Cloudinary dilakukan sebelum `DB::beginTransaction()` (dengan kompensasi delete jika error), penghapusan aset cloud dilakukan setelah `DB::commit()`, serta penghapusan cache Valkey dan Next.js revalidation dilakukan setelah commit. Menambahkan fitur filter pencarian teks `search` pada `AdminArticleService::list()` dan membuat method terpusat `invalidateArticleCache()` serta `invalidateCategoryAndArticleCache()`.
 
 **Acceptance criteria:**
-- [x] Static factory method `AuthMiddleware::admin()`, `::client()`, `::hasRole()` tersedia di `src/middlewares/AuthMiddleware.php`.
-- [x] Static factory method `RateLimitMiddleware::admin()`, `::client()`, `::custom()` tersedia di `src/middlewares/RateLimitMiddleware.php`.
-- [x] Seluruh endpoint di `src/routes/Routes.php` menggunakan pemanggilan static factory yang deklaratif tanpa keyword `new`.
-- [x] Autocomplete IDE dan static analysis (PHPStan / Psalm) bekerja optimal pada route pipeline.
+- [ ] Upload gambar berada di luar transaksi DB; jika DB gagal, file Cloudinary di-rollback/dihapus.
+- [ ] Penghapusan cloud dan pembersihan cache dieksekusi setelah `DB::commit()`.
+- [ ] Method `AdminArticleService::list()` mendukung parameter query `search` (mencari pada `title`, `author`, `slug`) dan memasukkannya ke dalam cache key.
+- [ ] Unit tests `AdminArticleCacheInvalidationTest` dan `AdminArticleCategoryCacheInvalidationTest` disalin dan lulus 100%.
 
 **Verification:**
-- [x] Unit test untuk static factory methods middleware lulus (`tests/Unit/AuthMiddlewareTest.php` dan `tests/Unit/RateLimitMiddlewareTest.php`).
-- [x] `vendor/bin/phpunit tests/Feature/RoutesTest.php` lulus 100%.
-- [x] Rangkaian automated test suite (`vendor/bin/phpunit`) 100% green (254 tests, 686 assertions, 0 errors, 0 failures).
+- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/AdminArticleCacheInvalidationTest.php tests/Unit/AdminArticleCategoryCacheInvalidationTest.php`
+- [ ] Menjalankan feature tests: `php vendor/bin/phpunit tests/Feature/AdminArticleTest.php tests/Feature/AdminArticleCategoryTest.php`
 
-**Dependencies:** Task 19 (atau Task 22 jika diimplementasikan bertahap)
+**Dependencies:** Task 1, Task 8
 **Files likely touched:**
-- `src/middlewares/AuthMiddleware.php`
-- `src/middlewares/RateLimitMiddleware.php`
-- `src/routes/Routes.php`
-- `tests/Feature/RoutesTest.php`
-- `tests/Unit/AuthMiddlewareTest.php` (baru)
-- `tests/Unit/RateLimitMiddlewareTest.php` (baru)
+- `src/services/admin/AdminArticleService.php`
+- `src/services/admin/AdminArticleCategoryService.php`
+- `src/services/JobService.php`
+- `tests/Unit/AdminArticleCacheInvalidationTest.php`
+- `tests/Unit/AdminArticleCategoryCacheInvalidationTest.php`
 **Estimated scope:** Medium (5 files)
+
+---
+
+### Task 12: AI Content Agent Anti-Duplication & Negative Context
+
+**Description:**
+Menambahkan helper `General::getRecentArticlesBySite(string $site, int $limit)` untuk mengambil daftar artikel terbaru beserta target keyword-nya. Memperbarui `AdminArticleAgentService.php` agar secara dinamis menyuntikkan daftar artikel eksisting sebagai *negative context* (anti-kanibalisasi topik) ke dalam prompt LLM OpenAI / Gemini saat brainstorming, serta menambahkan dynamic angles pool dan relevansi periode bulan/tahun terkini.
+
+**Acceptance criteria:**
+- [ ] Method `General::getRecentArticlesBySite()` tersedia dan mengembalikan array title & keyword.
+- [ ] `AdminArticleAgentService::brainstorm()` menyuntikkan negative context dan dynamic angle pool ke prompt saat mode `auto` + `free`.
+- [ ] Konfigurasi model AI OpenAI diperbarui untuk kompatibilitas model mutakhir.
+- [ ] Unit tests `GeneralRecentArticlesTest` dan `AdminArticleAgentServiceBrainstormTest` disalin dan lulus 100%.
+
+**Verification:**
+- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralRecentArticlesTest.php tests/Unit/AdminArticleAgentServiceBrainstormTest.php`
+- [ ] Menjalankan feature test: `php vendor/bin/phpunit tests/Feature/AdminArticleAgentTest.php`
+
+**Dependencies:** Task 7, Task 9
+**Files likely touched:**
+- `src/helpers/General.php`
+- `src/services/admin/AdminArticleAgentService.php`
+- `tests/Unit/GeneralRecentArticlesTest.php`
+- `tests/Unit/AdminArticleAgentServiceBrainstormTest.php`
+**Estimated scope:** Medium (4 files)
+
+---
+
+### Task 13: Content Team Module Refinement & Full Suite Verification
+
+**Description:**
+Melakukan audit dan penyesuaian pada modul boilerplate `content_team` (`AdminContentTeamService.php`, `ClientContentTeamService.php`, dan `AdminContentTeamTest.php`) agar selaras dengan konvensi arsitektur baru (upload gambar di luar transaksi DB, commit sebelum pembersihan cache). Menjalankan keseluruhan test suite PHPUnit untuk memastikan seluruh endpoint, middleware, dan service di SlimeKit lulus 100% tanpa regresi.
+
+**Acceptance criteria:**
+- [ ] `AdminContentTeamService` menerapkan pola transaksi baru yang aman.
+- [ ] Modul `content_team` tetap berfungsi sebagai referensi CRUD developer.
+- [ ] Tidak ada berkas/kode peninggalan domain Makeup, Finansial, ataupun Tools Weton di SlimeKit.
+- [ ] Perintah `composer test` menjalankan seluruh feature dan unit tests dengan status 100% Pass (hijau).
+
+**Verification:**
+- [ ] Menjalankan seluruh test suite: `composer test`
+- [ ] Menjalankan feature tests: `composer test:feature`
+- [ ] Menjalankan unit tests: `composer test:unit`
+
+**Dependencies:** Tasks 1-12
+**Files likely touched:**
+- `src/services/admin/AdminContentTeamService.php`
+- `tests/Feature/AdminContentTeamTest.php`
+- `tests/Feature/ClientContentTeamTest.php`
+**Estimated scope:** Medium (3 files)
+
+---
+
+### Checkpoint: Complete Verification
+- [ ] 13 Task selesai dan ditandai `[x]`
+- [ ] Seluruh unit dan feature tests berstatus hijau (`composer test`)
+- [ ] SlimeKit v2.1 siap dipakai sebagai starter kit produksi yang tangguh dan bersih

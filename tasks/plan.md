@@ -1,192 +1,102 @@
-# Implementation Plan: Penyelarasan kit/api dari news/api (SlimeKit v2)
+# Implementation Plan: Penyelarasan SlimeKit v2.1 dari SlimeNews/api
 
 ## Overview
-Proyek `kit/api` adalah framework dasar (starter kit / boilerplate) untuk pembangunan RESTful API masa depan. Rencana implementasi ini bertujuan untuk menyelaraskan `kit/api` dengan peningkatan arsitektur masif yang telah terbukti di `news/api` (Task 1 s/d 13 pada `todo.md` news), mengintegrasikan sistem Article modern, Article Agent (AI content writer), Analytics/Stats, Job Automation, menghapus OpenTofu (`tofu/`), dan menerapkan dual environment `.env.dev` serta `.env.prod`.
+Proyek `/Users/renofizaldy/Code/SlimeGo/SlimeKit` adalah framework dasar (starter kit / boilerplate) berbasis Slim Framework 4 + Eloquent ORM. Rencana implementasi ini bertujuan untuk menyelaraskan SlimeKit dengan berbagai peningkatan infrastruktur, ketahanan produksi (*resilience*), keamanan, media pipeline, dan otomasi operasional yang telah teruji di `/Users/renofizaldy/Code/SlimeNews/api`.
 
-Modul yang bersifat spesifik bisnis (Makeup Reservasi, Keuangan, Customer Group, dan Weton Jodoh) dikecualikan agar framework tetap bersih, modular, dan terfokus sebagai starter kit.
+Seluruh perbaikan generic akan diadopsi tanpa mengotori framework dengan kode domain bisnis spesifik (Reservasi/Voucher/Layanan Makeup, Keuangan/Jurnal Akuntansi, Customer Group, dan Kalkulator Weton/Zodiak). Modul `content_team` tetap dipertahankan sebagai referensi CRUD boilerplate yang bersih.
 
 ---
 
 ## Architecture Decisions & User Choices
 
-1. **Dependency Injection & Auto-Wiring:**
-   - Menggantikan `uma/dic` dengan `php-di/php-di: ^7.1`.
-   - Menggunakan PHP 8 Constructor Property Promotion di seluruh Controller, Service, dan Validator.
-   - Sentralisasi konfigurasi `$_ENV` di `src/config/services.php` dan registrasi dependencies di `src/config/dependencies.php`.
+1. **Full-Featured Headless Publishing & Ops Boilerplate:**
+   - SlimeKit v2.1 memposisikan diri sebagai backend headless publishing engine siap produksi dengan kapabilitas operasional lengkap (caching resilience, multi-site validation, streaming database backup, media Google Discover, WhatsApp alert failover, dan AI agent).
 
-2. **Standardisasi Format Respons & Error Semantics:**
-   - Menggunakan `App\Helpers\ApiResponse` untuk semua endpoint:
-     - `success($response, $data, $message, $status)`
-     - `paginated($response, $items, $total, $page, $pageSize, $message, $status)`
-     - `error($response, $message, $status, $errors, $errorCode)`
-     - `handleException($response, $e)` (otomatis mendeteksi error validasi dan mengembalikan status HTTP 422 dengan format flat machine-readable `VALIDATION_ERROR`).
+2. **Infrastruktur & Resilience:**
+   - **Valkey Circuit Breaker:** Menghentikan *cascading connection hang* jika server Redis/Valkey offline dengan memanfaatkan file marker cooldown 30 detik di direktori temporer OS (`sys_get_temp_dir()`).
+   - **Database Connection Pooler Compatibility:** Menerapkan opsi `PDO::ATTR_EMULATE_PREPARES => true` pada koneksi Capsule Eloquent untuk kompatibilitas penuh dengan connection pooler PostgreSQL serverless (PgBouncer, Neon, Supabase).
 
-3. **Validasi Terpusat:**
-   - Menggantikan validasi manual di `General.php` dengan library standar industri `rakit/validation: ^1.4`.
+3. **Background Worker & Security:**
+   - **Standarisasi Route `/job/*`:** Mengamankan seluruh endpoint background worker menggunakan `TokenMiddleware`.
+   - **Static JWT Generator:** Menyediakan CLI `assets/generate_job_token.php` (`composer generate:job-token`) untuk menghasilkan static JWT 10 tahun bagi scheduler/worker.
+   - **Hardening Tokenize & Auth:** Mendukung `$customExp` pada `Tokenize::encode()`, menangani decode exception secara defensif, dan memperbaiki `AuthMiddleware` dengan menghapus instansiasi `new General()` serta standarisasi status code.
 
-4. **Logging & Observability:**
-   - Mengintegrasikan `monolog/monolog: ^3.10` dengan dukungan environment variable `LOG_CHANNEL` (`file` -> `logs/app.log` atau `stderr`).
-   - `ErrorHandlerMiddleware` secara otomatis mencatat exception 5xx ke logger.
+4. **Automated Database Backup:**
+   - Menyediakan endpoint `POST /job/database_backup` dengan streaming proses `pg_dump | gzip` secara efisien (64KB chunks) tanpa membebani memory PHP, dan mengunggahnya langsung ke Cloudflare R2 dan/atau Google Cloud Storage.
+   - Menambahkan paket `postgresql-client` pada Dockerfile.
 
-5. **Penghapusan OpenTofu & Dual Environment:**
-   - Menghapus seluruh folder `tofu/`.
-   - Menerapkan pendekatan `.env.dev` dan `.env.prod` dengan `Dockerfile.dev` dan `Dockerfile.prod`.
-   - Memperbarui `docker-compose.yml` untuk development container.
+5. **Media Pipeline & Multi-Site Guard:**
+   - **Google Discover Image Standards:** Helper `formatCloudinaryUrl` berbasis regex untuk URL Cloudinary dan otomatis memancarkan varian `picture.large` (1200x675, `c_fill,w_1200,h_675,g_auto,q_auto,f_auto`) pada endpoint artikel.
+   - **Site Parameter Whitelisting:** Sanitasi parameter site menggunakan regex `/^[a-zA-Z0-9_\-\.]+$/` dan whitelist via environment `ALLOWED_SITES` untuk mencegah cache key poisoning.
 
-6. **Keputusan User (3 Poin Opsi A):**
-   - **ContentTeam:** Tetap dipertahankan di `kit/api` sebagai modul standar company profile / starter kit, namun direfaktor ke pola arsitektur baru (PHP-DI + Rakit + ApiResponse).
-   - **Multi-Site (`site` parameter):** Disertakan pada `tb_article`, `tb_article_category`, dan `tb_article_stats` dengan nilai default (`'default'`), sehingga siap dipakai untuk multi-site maupun single-site.
-   - **GitHub Actions (`deploy.yml`):** Menghapus langkah-langkah OpenTofu dan menggantinya dengan build Docker & deployment Cloud Run berbasis environment variables.
+6. **Communication Services:**
+   - Menyediakan `WapitoClient` dan `WappflyClient` dengan sistem failover otomatis di `General::sendWhatsApp()` untuk kebutuhan alert dan notifikasi transaksional. Kredensial bersifat opsional (skip secara mulus jika belum diatur).
+
+7. **Clean Transaction Boundaries & Cache Coherence:**
+   - Upload file pihak ketiga (Cloudinary) dieksekusi *sebelum* `DB::beginTransaction()` (dengan kompensasi penghapusan jika DB error).
+   - Penghapusan aset cloud, pembersihan cache Valkey, dan Next.js ISR revalidation dieksekusi *setelah* `DB::commit()` untuk menjamin konsistensi data.
 
 ---
 
-## Phase Breakdown
+## Task List
 
-### Phase 1: Foundation & Dependencies Alignment
-Membangun fondasi baru: instalasi package, DI container PHP-DI, ApiResponse, ErrorHandlerMiddleware, CorsMiddleware, dan refactor `index.php`.
+### Phase 1: Core Infrastructure Resilience & Security Hardening
+- [ ] **Task 1: Valkey Circuit Breaker & Connection Resilience** (`src/lib/Valkey.php`)
+- [ ] **Task 2: Database Connection & Pooler Hardening (PDO Emulate Prepares)** (`src/lib/Database.php`, `src/config/services.php`)
+- [ ] **Task 3: Auth & Token Hardening (Tokenize Custom Expiration & AuthMiddleware DI Fix)** (`src/lib/Tokenize.php`, `src/middlewares/AuthMiddleware.php`, `src/middlewares/TokenMiddleware.php`)
 
-### Phase 2: DevOps, OpenTofu Removal & Environment Setup
-Pembersihan OpenTofu (`tofu/`), pembuatan `Dockerfile.dev`, `Dockerfile.prod`, template `.env.dev`, `.env.prod`, pembaruan `.env.example` dan `docker-compose.yml`.
-
-### Phase 3: Core Helper Expansion & Automated Testing Infrastructure
-Ekspansi method di `General.php` (paginasi, GeoIP, context, slugify, sanitasi AI, dsb), penyiapan `phpunit.xml`, `tests/TestCase.php`, adaptasi middleware untuk environment `TESTING`, serta unit tests paginasi.
-
-### Phase 4: Core Framework Modules Refactoring
-Refactor modul bawaan `kit/api` (Auth, Setting User, FAQ, Gallery, Contact, dan Team) ke arsitektur baru beserta automated feature tests.
-
-### Phase 5: Database Schema Alignment
-Penambahan kolom `site` pada artikel dan kategori, migrasi `tb_article_agent` dan `tb_article_stats`, serta update Eloquent Models.
-
-### Phase 6: Article & Article Category System v2
-Porting Admin & Client Article serta Category dengan paginasi, Valkey caching, status/publish change, dan feature tests.
-
-### Phase 7: Article Agent (AI Writer) System
-Porting AI Clients (`GeminiClient`, `OpenAIClient`, `TavilyClient`) dan modul `AdminArticleAgent` (3-step workflow) beserta feature tests.
-
-### Phase 8: Stats System & Job Automation
-Porting modul `AdminStats` (log, totalArticle, visit charts, top visits, GeoIP) dan `Job` (Cronhooks publish callback, Valkey visit queue sync, track stats, NextRevalidator ISR) beserta feature tests.
-
-### Phase 9: Routing, Code Generator CLI & Final Polish
-Refactor `Routes.php` (auto-wiring class strings), penyelarasan CLI generator `make_module.php`, verifikasi test suite 100% green, dan dokumentasi `README.md`.
+### Checkpoint 1: Core Infrastructure & Auth
+- [ ] Validasi syntax PHP (`php -l`)
+- [ ] Unit test `ValkeyTest` dan `TokenMiddlewareTest` lulus 100%
 
 ---
 
-## Risks & Mitigations
+### Phase 2: Background Job Protection & Database Backup System
+- [ ] **Task 4: Static Token Protection & CLI Generator for `/job/*`** (`src/routes/Routes.php`, `assets/generate_job_token.php`, `composer.json`, `.env.example`)
+- [ ] **Task 5: Cloud Storage & Multi-Provider Backup Support** (`src/lib/CloudflareR2.php`, `src/lib/GoogleCloudStorage.php`, `src/config/services.php`)
+- [ ] **Task 6: Automated PostgreSQL Database Backup Endpoint (`/job/database_backup`)** (`src/services/JobService.php`, `src/controllers/JobController.php`, `src/validators/JobValidator.php`, `Dockerfile.dev`, `Dockerfile.prod`)
+
+### Checkpoint 2: Job Protection & Backup Pipeline
+- [ ] Endpoint `/job/*` menolak request tanpa Bearer Token valid (HTTP 401)
+- [ ] CLI `composer generate:job-token` menghasilkan JWT 10 tahun
+- [ ] Unit test `JobServiceDatabaseBackupTest` dan `JobTest` lulus 100%
+
+---
+
+### Phase 3: Communication & Media Platform Enhancements
+- [ ] **Task 7: Multi-Gateway WhatsApp Notification Service with Failover** (`src/lib/WapitoClient.php`, `src/lib/WappflyClient.php`, `src/helpers/General.php`, `src/config/dependencies.php`)
+- [ ] **Task 8: Cloudinary Hardening & Google Discover 16:9 Image Variant** (`src/helpers/General.php`, `src/services/admin/AdminArticleService.php`, `src/services/client/ClientArticleService.php`)
+- [ ] **Task 9: Multi-Site Sanitization & Whitelist Security** (`src/helpers/General.php`, `.env.example`)
+
+### Checkpoint 3: Media, Notifications & Multi-Site Guard
+- [ ] WhatsApp failover berpindah otomatis dari Wapito ke Wappfly jika gateway pertama gagal
+- [ ] Respon API artikel (`list`, `detail`, `similar`) menyertakan objek `picture.large` 1200x675
+- [ ] Unit tests `GeneralCloudinaryTest`, `GeneralWhatsAppFailoverTest`, `WapitoClientTest`, `WappflyClientTest`, dan `GeneralSiteValidationTest` lulus 100%
+
+---
+
+### Phase 4: Publishing Engine, Anti-Duplication & Transaction Cleanliness
+- [ ] **Task 10: PostgreSQL Trigram Similarity & Composite Indexes Migration** (`src/migrations/`, `src/services/client/ClientArticleService.php`)
+- [ ] **Task 11: Transaction Boundaries, Search Filtering & Cache Invalidation Coherence** (`src/services/admin/AdminArticleService.php`, `src/services/admin/AdminArticleCategoryService.php`)
+- [ ] **Task 12: AI Content Agent Anti-Duplication & Negative Context** (`src/helpers/General.php`, `src/services/admin/AdminArticleAgentService.php`)
+- [ ] **Task 13: Content Team Module Refinement & Full Suite Verification** (`src/services/admin/AdminContentTeamService.php`, `tests/`)
+
+### Checkpoint 4: End-to-End Test Suite Green
+- [ ] Seluruh unit dan feature tests di SlimeKit lulus tanpa kegagalan: `composer test`
+- [ ] Framework bersih dari sisa modul bisnis domain
+
+---
+
+## Risks and Mitigations
 
 | Risiko | Dampak | Mitigasi |
-| :--- | :--- | :--- |
-| **Breaking perubahan route / format respons** | Sedang | Semua controller menggunakan `ApiResponse` yang terstandarisasi. Seluruh route diverifikasi dengan Feature Tests otomatis. |
-| **Ketergantungan ke API Pihak ke-3 (Gemini, OpenAI, Tavily, Valkey)** | Sedang | Pengecekan koneksi dilakukan aman dengan error handling yang jelas. Pada unit/feature test, service eksternal di-mocking melalui container. |
-| **Penghapusan OpenTofu merusak workflow deploy** | Rendah | Mengganti file `deploy.yml` dengan pipeline Docker Cloud Run standar yang bersih dari dependensi Terraform/Tofu. |
-| **Regresi pada modul bawaan (ContentTeam, Auth)** | Rendah | Setiap modul dibuatkan feature tests (HTTP simulation) sebelum dinyatakan selesai. |
+| :--- | :---: | :--- |
+| **Ketergantungan CLI `pg_dump` pada Docker/Host** | Sedang | `proc_open` mengecek ketersediaan resource dan melempar Exception terdeskripsi jika binary belum terpasang. Dockerfile diperbarui dengan paket `postgresql-client`. |
+| **Kegagalan Koneksi Redis/Valkey memperlambat response time** | Tinggi | Circuit breaker aktif otomatis saat terjadi error koneksi pertama, mengalihkan request berikutnya selama 30 detik tanpa mencoba koneksi ulang yang timeout. |
+| **Kredensial WhatsApp/R2/GCS belum diisi developer baru** | Rendah | Menggunakan *graceful fallback* / `skipped` flag sehingga aplikasi tetap berfungsi normal tanpa konfigurasi tersebut. |
+| **Regresi pada modul bawaan `content_team`** | Rendah | `content_team` tetap diuji dengan PHPUnit (`AdminContentTeamTest` & `ClientContentTeamTest`) dan diselaraskan ke pola transaksi baru. |
 
 ---
 
-## Future Architectural Roadmap: Route Middleware Ergonomics
-
-### Konteks & Latar Belakang
-Saat ini di `src/routes/Routes.php`, seluruh Controller telah 100% menggunakan format class-string (`[$controller, 'method']`) yang di-auto-wire oleh container PHP-DI, dan middleware tanpa dependensi/argumen seperti `TokenMiddleware::class` juga telah menggunakan auto-wiring. Namun, middleware yang membutuhkan argumen dinamis per rute (`AuthMiddleware` dan `RateLimitMiddleware`) serta middleware kompresi masih ditulis menggunakan `new`:
-```php
-$group->get('/list', [$controller, 'list'])->add(new AuthMiddleware('admin', 'article:view'));
-$group->post('/add', [$controller, 'add'])->add(new AuthMiddleware('admin', 'article:crud'))->add(new GzipDecoderMiddleware());
-$app->group('/admin', ...)->add(new GzipEncoder())->add(new RateLimitMiddleware(100, 60));
-```
-
-Untuk meningkatkan keterbacaan (*readability*), kebersihan kode, dan standarisasi arsitektur, berikut 2 rencana tugas terpisah:
-
----
-
-### Task 22 (Future): Route Middleware Ergonomics - Pilihan Pragmatis (Helper Closures)
-
-**Tujuan:**
-Menyederhanakan dan memperpendek penulisan rute di `src/routes/Routes.php` secara cepat dan pragmatis menggunakan *local helper closures / function factories* tanpa memodifikasi class middleware itu sendiri.
-
-**File yang Harus Diubah:**
-1. `src/routes/Routes.php` — Menambahkan helper closures di awal fungsi routing dan mengganti instansiasi `new AuthMiddleware` serta `new RateLimitMiddleware`.
-2. `tests/Feature/RoutesTest.php` — Menyesuaikan pengujian integritas rute jika diperlukan.
-
-**Alur Logika & Cara Kerja:**
-1. **Definisi Factory Closure:** Di awal return closure `Routes.php`, didefinisikan arrow function ringkas:
-   ```php
-   $adminAuth = fn(string $perm) => new AuthMiddleware('admin', $perm);
-   $rateLimit = fn(int $limit, int $period = 60) => new RateLimitMiddleware($limit, $period);
-   ```
-2. **Refactor Endpoint Auth:** Mengganti baris rute yang sebelumnya berulang-ulang menulis `new AuthMiddleware('admin', '...')` menjadi lebih ringkas:
-   ```php
-   $group->get('/list', [$controller, 'list'])->add($adminAuth('article:view'));
-   $group->post('/add', [$controller, 'add'])->add($adminAuth('article:crud'))->add(GzipDecoderMiddleware::class);
-   ```
-3. **Refactor Rate Limiter & Gzip:**
-   - Mengganti `new RateLimitMiddleware(100, 60)` menjadi `$rateLimit(100, 60)` pada grup admin.
-   - Mengganti `new RateLimitMiddleware(60, 60)` menjadi `$rateLimit(60, 60)` pada grup client.
-   - Mengganti `new GzipDecoderMiddleware()` dan `new GzipEncoder()` menjadi class-string `GzipDecoderMiddleware::class` dan `GzipEncoder::class` untuk resolusi otomatis via container.
-4. **Karakteristik Pendekatan:** Sangat cepat diimplementasikan (hanya menyentuh 1 file rute), kode menjadi jauh lebih pendek, namun closure bersifat lokal pada file `Routes.php`.
-
----
-
-### Task 23: Route Middleware Ergonomics - Pilihan Standar Enterprise (Named Constructors / Static Factory) ✅
-
-**Tujuan:**
-Menerapkan standar rekayasa perangkat lunak kelas enterprise Silicon Valley (*Domain-Driven Design / Clean OOP*) dengan menambahkan *Named Constructor / Static Factory Method* langsung pada class middleware. Membuat middleware bersifat *self-contained*, memiliki *IDE autocomplete* penuh, *type safety* tinggi, serta menjadikan file `Routes.php` deklaratif dan bersih dari keyword `new` maupun closure lokal.
-
-**File yang Harus Diubah:**
-1. `src/middlewares/AuthMiddleware.php` — Menambahkan static factory methods (`::admin()`, `::client()`, `::hasRole()`).
-2. `src/middlewares/RateLimitMiddleware.php` — Menambahkan static preset factory methods (`::admin()`, `::client()`, `::custom()`).
-3. `src/routes/Routes.php` — Mengadopsi static factory method pada seluruh pipeline rute.
-4. `tests/Feature/RoutesTest.php` — Memvalidasi endpoint resolution dengan pipeline static factory baru.
-5. `tests/Unit/AuthMiddlewareTest.php` (baru/update) — Unit test untuk memastikan instance yang dihasilkan static method valid.
-
-**Alur Logika & Cara Kerja:**
-1. **Peningkatan `AuthMiddleware`:**
-   Menambahkan static constructor yang mengembalikan instance `self`:
-   ```php
-   public static function admin(string $permission): self
-   {
-       return new self('admin', $permission);
-   }
-
-   public static function client(string $permission): self
-   {
-       return new self('client', $permission);
-   }
-
-   public static function hasRole(string $role, string $permission): self
-   {
-       return new self($role, $permission);
-   }
-   ```
-2. **Peningkatan `RateLimitMiddleware`:**
-   Menambahkan preset konfigurasi standar:
-   ```php
-   public static function admin(): self
-   {
-       return new self(100, 60);
-   }
-
-   public static function client(): self
-   {
-       return new self(60, 60);
-   }
-
-   public static function custom(int $limit, int $period = 60): self
-   {
-       return new self($limit, $period);
-   }
-   ```
-3. **Penyelarasan `Routes.php`:**
-   Menghapus closure ad-hoc dan menulis route secara deklaratif:
-   ```php
-   $group->get('/list', [$controller, 'list'])->add(AuthMiddleware::admin('article:view'));
-   $group->post('/add', [$controller, 'add'])->add(AuthMiddleware::admin('article:crud'))->add(GzipDecoderMiddleware::class);
-   ```
-   Dan di level grup:
-   ```php
-   $app->group('/admin', ...)
-     ->add(GzipEncoder::class)
-     ->add(RateLimitMiddleware::admin());
-   ```
-4. **Karakteristik Pendekatan:**
-   - **High Cohesion:** Tanggung jawab pembuatan instance berada di class middleware itu sendiri.
-   - **Reusability:** Jika route nantinya dipecah ke multiple file (misal `AdminRoutes.php`, `ClientRoutes.php`), method factory langsung dapat dipakai tanpa copy-paste closure.
-   - **Audit Keamanan Eksplisit:** Developer dan auditor keamanan langsung membaca permission rute secara jelas tanpa perlu melacak definisi closure di atas.
-   - **Autocomplete IDE Penuh:** Mengetik `AuthMiddleware::` langsung memunculkan saran method `admin()` atau `client()` beserta dokumentasi tipenya.
+## Open Questions
+- *Tidak ada pertanyaan terbuka.* Seluruh cakupan arah arsitektur telah dikonfirmasi dan disetujui.

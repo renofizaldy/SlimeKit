@@ -92,14 +92,14 @@ Menyempurnakan library `Tokenize` agar mendukung kustomisasi durasi kedaluwarsa 
 Mengamankan grup endpoint `/job/*` di `src/routes/Routes.php` dengan `TokenMiddleware` sehingga hanya dapat dipanggil oleh background worker berlisensi dengan Bearer JWT valid. Membuat skrip CLI generator `assets/generate_job_token.php` dan mendaftarkan shortcut `"generate:job-token"` di `composer.json` untuk menghasilkan token 10 tahun bagi scheduler. Menambahkan konfigurasi `JOB_STATIC_TOKEN` pada `services.php` dan `.env.example`.
 
 **Acceptance criteria:**
-- [ ] Grup route `/job` di `src/routes/Routes.php` diproteksi dengan `->add(TokenMiddleware::class)`.
-- [ ] Skrip `assets/generate_job_token.php` dibuat dan berfungsi untuk minting static token JWT (10 tahun).
-- [ ] `composer.json` memuat script `"generate:job-token": "php assets/generate_job_token.php"`.
-- [ ] `src/config/services.php` dan `.env.example` memuat konfigurasi `job.token` dari `$_ENV['JOB_STATIC_TOKEN']`.
+- [x] Grup route `/job` di `src/routes/Routes.php` diproteksi dengan `->add(TokenMiddleware::class)`.
+- [x] Skrip `assets/generate_job_token.php` dibuat dan berfungsi untuk minting static token JWT (10 tahun).
+- [x] `composer.json` memuat script `"generate:job-token": "php assets/generate_job_token.php"`.
+- [x] `src/config/services.php` dan `.env.example` memuat konfigurasi `job.token` dari `$_ENV['JOB_STATIC_TOKEN']`.
 
 **Verification:**
-- [ ] Menjalankan CLI generator: `php assets/generate_job_token.php`
-- [ ] Menjalankan feature test job: `php vendor/bin/phpunit tests/Feature/JobTest.php`
+- [x] Menjalankan CLI generator: `php assets/generate_job_token.php`
+- [x] Menjalankan feature test job: `php vendor/bin/phpunit tests/Feature/JobTest.php`
 
 **Dependencies:** Task 3
 **Files likely touched:**
@@ -118,13 +118,13 @@ Mengamankan grup endpoint `/job/*` di `src/routes/Routes.php` dengan `TokenMiddl
 Memperkaya library storage provider agar mendukung penyimpanan file backup database. Menambahkan method `put($key, $input, $contentType)` pada `CloudflareR2.php` untuk upload langsung stream/file. Memperbaiki penanganan path kredensial dan default bucket pada `GoogleCloudStorage.php`. Menambahkan konfigurasi `backup_provider` pada `src/config/services.php`.
 
 **Acceptance criteria:**
-- [ ] `src/lib/CloudflareR2.php` memiliki method `put($key, $input, $contentType = 'application/gzip')`.
-- [ ] `src/lib/GoogleCloudStorage.php` mendukung penentuan bucket default dari konfigurasi dan resolusi path file credentials fleksibel.
-- [ ] `src/config/services.php` memuat blok konfigurasi `backup_provider` (`provider` => 'both'/'r2'/'gcs', `folder` => 'backup').
-- [ ] `src/config/dependencies.php` menginjeksikan dependency R2, GCS, dan servicesConfig ke `JobService`.
+- [x] `src/lib/CloudflareR2.php` memiliki method `put($key, $input, $contentType = 'application/gzip')`.
+- [x] `src/lib/GoogleCloudStorage.php` mendukung penentuan bucket default dari konfigurasi dan resolusi path file credentials fleksibel.
+- [x] `src/config/services.php` memuat blok konfigurasi `backup_provider` (`provider` => 'both'/'r2'/'gcs', `folder` => 'backup').
+- [x] `src/config/dependencies.php` menginjeksikan dependency R2, GCS, dan servicesConfig ke `JobService`.
 
 **Verification:**
-- [ ] Pemeriksaan sintaks: `php -l src/lib/CloudflareR2.php`, `php -l src/lib/GoogleCloudStorage.php`, `php -l src/config/services.php`
+- [x] Pemeriksaan sintaks: `php -l src/lib/CloudflareR2.php`, `php -l src/lib/GoogleCloudStorage.php`, `php -l src/config/services.php`
 
 **Dependencies:** Task 4
 **Files likely touched:**
@@ -142,16 +142,16 @@ Memperkaya library storage provider agar mendukung penyimpanan file backup datab
 Menerapkan endpoint background job `POST /job/database_backup` pada `JobController`, `JobService`, dan `JobValidator`. `JobService::databaseBackup` mengeksekusi `pg_dump` via `proc_open()` dengan proteksi kredensial environment, mengompresi stream secara on-the-fly ke file `.sql.gz` melalui chunking 64KB (`gzopen`/`gzwrite`), lalu mengunggahnya ke Cloudflare R2 dan/atau Google Cloud Storage, dan mencatat log eksekusi ke `tb_log`. Memperbarui `Dockerfile.dev` dan `Dockerfile.prod` dengan paket `postgresql-client`.
 
 **Acceptance criteria:**
-- [ ] Method `databaseBackup(Request $request, Response $response)` ditambahkan di `JobController.php`.
-- [ ] Aturan validasi `database_backup` ditambahkan di `src/validators/JobValidator.php` (opsional `provider` in r2,gcs,both).
-- [ ] Method `databaseBackup()` dan helper private (`executePgDump()`, `uploadToProviders()`, `formatBytes()`) diimplementasikan di `src/services/JobService.php`.
-- [ ] Route `POST /job/database_backup` terdaftar di `src/routes/Routes.php`.
-- [ ] Paket `postgresql-client` ditambahkan ke `Dockerfile.dev` dan `Dockerfile.prod`.
-- [ ] Unit test `tests/Unit/JobServiceDatabaseBackupTest.php` disalin dan lulus 100%.
+- [x] Method `databaseBackup(Request $request, Response $response)` ditambahkan di `JobController.php`.
+- [x] Aturan validasi `database_backup` ditambahkan di `src/validators/JobValidator.php` (opsional `provider` in r2,gcs,both).
+- [x] Method `databaseBackup()` dan helper private (`executePgDump()`, `uploadToProviders()`, `formatBytes()`) diimplementasikan di `src/services/JobService.php`.
+- [x] Route `POST /job/database_backup` terdaftar di `src/routes/Routes.php`.
+- [x] Paket `postgresql-client` ditambahkan ke `Dockerfile.dev` dan `Dockerfile.prod`.
+- [x] Unit test `tests/Unit/JobServiceDatabaseBackupTest.php` disalin dan lulus 100%.
 
 **Verification:**
-- [ ] Menjalankan test unit backup: `php vendor/bin/phpunit tests/Unit/JobServiceDatabaseBackupTest.php`
-- [ ] Menjalankan feature test job: `php vendor/bin/phpunit tests/Feature/JobTest.php`
+- [x] Menjalankan test unit backup: `php vendor/bin/phpunit tests/Unit/JobServiceDatabaseBackupTest.php`
+- [x] Menjalankan feature test job: `php vendor/bin/phpunit tests/Feature/JobTest.php`
 
 **Dependencies:** Task 5
 **Files likely touched:**
@@ -167,9 +167,9 @@ Menerapkan endpoint background job `POST /job/database_backup` pada `JobControll
 ---
 
 ### Checkpoint: Job & Backup Pipeline (Tasks 4-6)
-- [ ] Request ke `/job/database_backup` tanpa token memicu 401 Unauthorized
-- [ ] Request dengan valid static token mengeksekusi backup pipeline
-- [ ] Seluruh unit dan feature test pada grup `Job` berstatus hijau
+- [x] Request ke `/job/database_backup` tanpa token memicu 401 Unauthorized
+- [x] Request dengan valid static token mengeksekusi backup pipeline
+- [x] Seluruh unit dan feature test pada grup `Job` berstatus hijau
 
 ---
 

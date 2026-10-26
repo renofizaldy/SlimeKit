@@ -22,6 +22,7 @@ use App\Lib\Mailer;
 use App\Lib\Cronhooks;
 use App\Lib\NextRevalidator;
 use App\Helpers\General;
+use App\Services\JobService;
 
 return function (ContainerBuilder $builder) {
   $services = require __DIR__ . '/services.php';
@@ -79,7 +80,12 @@ return function (ContainerBuilder $builder) {
     },
 
     GoogleCloudStorage::class => function () use ($services) {
-      return new GoogleCloudStorage($services['google_cloud_storage']);
+      $config = $services['google_cloud_storage'] ?? [];
+      $credentialsPath = $config['credentials_path'] ?? '';
+      if (empty($credentialsPath) || !file_exists($credentialsPath)) {
+        return null;
+      }
+      return new GoogleCloudStorage($config);
     },
 
     //* GOOGLE SERVICES
@@ -126,6 +132,19 @@ return function (ContainerBuilder $builder) {
     //* HELPERS
     General::class => function (ContainerInterface $c) {
       return new General($c->get(Valkey::class));
+    },
+
+    //* SERVICES
+    JobService::class => function (ContainerInterface $c) use ($services) {
+      return new JobService(
+        $c->get(General::class),
+        $c->get(Valkey::class),
+        $c->get(Cronhooks::class),
+        $c->get(NextRevalidator::class),
+        $c->get(CloudflareR2::class),
+        $c->get(GoogleCloudStorage::class),
+        $services
+      );
     },
   ]);
 };

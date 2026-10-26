@@ -214,7 +214,9 @@ return function ($app) {
     $groupJob->post('/article_publish', [$controller, 'articlePublish']);
     $groupJob->post('/article_sync_stats', [$controller, 'articleSyncStats']);
     $groupJob->post('/article_track_stats', [$controller, 'articleTrackStats']);
+    $groupJob->post('/database_backup', [$controller, 'databaseBackup']);
   })
+  ->add(TokenMiddleware::class)
   ->add(GzipEncoder::class)
   ->add(RateLimitMiddleware::client());
 };

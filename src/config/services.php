@@ -32,6 +32,17 @@ return [
     'password' => $_ENV['VALKEY_PASSWORD'] ?? '',
   ],
 
+  //* Backup Providers
+  'backup_provider' => [
+    'provider' => $_ENV['BACKUP_PROVIDER'] ?? 'both', // 'r2', 'gcs', 'both'
+    'folder'   => $_ENV['BACKUP_FOLDER'] ?? 'backup',
+  ],
+
+  //* Job & Background Workers
+  'job' => [
+    'token' => $_ENV['JOB_STATIC_TOKEN'] ?? '',
+  ],
+
   //* Storage Providers
   'cloudflare_r2' => [
     'region'     => $_ENV['R2_REGION'] ?? 'auto',
@@ -47,7 +58,12 @@ return [
   ],
 
   'google_cloud_storage' => [
-    'credentials_path' => $_ENV['GCS_CREDENTIALS_PATH'] ?? __DIR__ . '/../../assets/gcs-service-account.json',
+    'bucket'           => $_ENV['GCS_BUCKET'] ?? '',
+    'credentials_path' => !empty($_ENV['GCS_CREDENTIALS_PATH'])
+      ? (file_exists($_ENV['GCS_CREDENTIALS_PATH'])
+          ? $_ENV['GCS_CREDENTIALS_PATH']
+          : dirname(__DIR__, 2) . '/' . ltrim($_ENV['GCS_CREDENTIALS_PATH'], '/\\'))
+      : dirname(__DIR__, 2) . '/assets/gcs-service-account.json',
   ],
 
   //* Google Services

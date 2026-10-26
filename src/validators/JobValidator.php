@@ -24,6 +24,11 @@ class JobValidator
           'slug' => 'required',
         ];
         break;
+      case 'database_backup':
+        $rules = [
+          'provider' => 'in:r2,gcs,both',
+        ];
+        break;
       default:
         throw new Exception('Can\'t validate some field', 400);
     }

@@ -189,4 +189,70 @@ class JobTest extends TestCase
     $this->assertEquals('Ok', $body['message']);
     $this->assertTrue($body['data']);
   }
+
+  public function test_database_backup_fails_when_provider_is_invalid()
+  {
+    $app = $this->getAppInstance();
+
+    $request = $this->createRequest('POST', '/job/database_backup');
+    $request = $request->withParsedBody(['provider' => 'invalid_provider']);
+    $response = $app->handle($request);
+
+    $this->assertEquals(422, $response->getStatusCode());
+    $body = $this->parseJson($response);
+    $this->assertEquals('error', $body['status']);
+    $this->assertArrayHasKey('errors', $body);
+  }
+
+  public function test_database_backup_fails_when_service_throws_exception()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(JobService::class);
+    $mockService->method('databaseBackup')
+      ->willThrowException(new Exception('Backup Dump Failed', 500));
+
+    $container->set(JobService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/job/database_backup');
+    $response = $app->handle($request);
+
+    $this->assertEquals(500, $response->getStatusCode());
+    $body = $this->parseJson($response);
+    $this->assertEquals('error', $body['status']);
+    $this->assertEquals('Backup Dump Failed', $body['message']);
+  }
+
+  public function test_database_backup_success()
+  {
+    $app = $this->getAppInstance();
+    $container = $app->getContainer();
+
+    $mockService = $this->createMock(JobService::class);
+    $mockService->method('databaseBackup')
+      ->willReturn([
+        'status'              => 'success',
+        'provider'            => 'both',
+        'destination'         => 'backup/backup_test.sql.gz',
+        'file_size'           => 1024,
+        'file_size_formatted' => '1 KB',
+        'duration_seconds'    => 0.45,
+        'uploads'             => [
+          'r2'  => ['status' => 'SUCCESS'],
+          'gcs' => ['status' => 'SUCCESS']
+        ],
+      ]);
+
+    $container->set(JobService::class, $mockService);
+
+    $request = $this->createRequest('POST', '/job/database_backup');
+    $response = $app->handle($request);
+
+    $this->assertEquals(200, $response->getStatusCode());
+    $body = $this->parseJson($response);
+    $this->assertEquals('success', $body['status']);
+    $this->assertEquals('Database backup successfully processed', $body['message']);
+    $this->assertEquals('both', $body['data']['provider']);
+  }
 }

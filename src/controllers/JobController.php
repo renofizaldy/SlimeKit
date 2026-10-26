@@ -74,4 +74,24 @@ class JobController
       return $this->apiResponse->handleException($response, $e);
     }
   }
+
+  public function databaseBackup(Request $request, Response $response)
+  {
+    try {
+      //* INPUT
+      $input = (array) ($request->getParsedBody() ?? []);
+      $user  = $this->helper->getUserContext($request);
+
+      //* VALIDATOR
+      $this->validator->validate('database_backup', $input);
+
+      //* SERVICE
+      $data = $this->service->databaseBackup($input, $user);
+
+      return $this->apiResponse->success($response, $data, 'Database backup successfully processed');
+    }
+    catch (Exception $e) {
+      return $this->apiResponse->handleException($response, $e);
+    }
+  }
 }

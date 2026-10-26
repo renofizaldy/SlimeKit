@@ -52,14 +52,14 @@ Seluruh perbaikan generic akan diadopsi tanpa mengotori framework dengan kode do
 ---
 
 ### Phase 2: Background Job Protection & Database Backup System
-- [ ] **Task 4: Static Token Protection & CLI Generator for `/job/*`** (`src/routes/Routes.php`, `assets/generate_job_token.php`, `composer.json`, `.env.example`)
-- [ ] **Task 5: Cloud Storage & Multi-Provider Backup Support** (`src/lib/CloudflareR2.php`, `src/lib/GoogleCloudStorage.php`, `src/config/services.php`)
-- [ ] **Task 6: Automated PostgreSQL Database Backup Endpoint (`/job/database_backup`)** (`src/services/JobService.php`, `src/controllers/JobController.php`, `src/validators/JobValidator.php`, `Dockerfile.dev`, `Dockerfile.prod`)
+- [x] **Task 4: Static Token Protection & CLI Generator for `/job/*`** (`src/routes/Routes.php`, `assets/generate_job_token.php`, `composer.json`, `.env.example`)
+- [x] **Task 5: Cloud Storage & Multi-Provider Backup Support** (`src/lib/CloudflareR2.php`, `src/lib/GoogleCloudStorage.php`, `src/config/services.php`)
+- [x] **Task 6: Automated PostgreSQL Database Backup Endpoint (`/job/database_backup`)** (`src/services/JobService.php`, `src/controllers/JobController.php`, `src/validators/JobValidator.php`, `Dockerfile.dev`, `Dockerfile.prod`)
 
 ### Checkpoint 2: Job Protection & Backup Pipeline
-- [ ] Endpoint `/job/*` menolak request tanpa Bearer Token valid (HTTP 401)
-- [ ] CLI `composer generate:job-token` menghasilkan JWT 10 tahun
-- [ ] Unit test `JobServiceDatabaseBackupTest` dan `JobTest` lulus 100%
+- [x] Endpoint `/job/*` menolak request tanpa Bearer Token valid (HTTP 401)
+- [x] CLI `composer generate:job-token` menghasilkan JWT 10 tahun
+- [x] Unit test `JobServiceDatabaseBackupTest` dan `JobTest` lulus 100%
 
 ---
 

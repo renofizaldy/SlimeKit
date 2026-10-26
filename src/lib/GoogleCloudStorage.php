@@ -8,17 +8,20 @@ use Exception;
 class GoogleCloudStorage
 {
   private $storage;
+  private $bucket;
 
   public function __construct(array $config)
   {
+    $this->bucket  = $config['bucket'];
     $this->storage = new StorageClient([
       'keyFilePath' => $config['credentials_path'],
     ]);
   }
 
-  public function storage($action, $bucketName, $filestream = null, $destination = null)
+  public function storage($action, $bucketName = null, $filestream = null, $destination = null)
   {
-    $bucket = $this->storage->bucket($bucketName);
+    $targetBucket = !empty($bucketName) ? $bucketName : $this->bucket;
+    $bucket = $this->storage->bucket($targetBucket);
 
     switch ($action) {
       case 'delete':
@@ -26,14 +29,18 @@ class GoogleCloudStorage
           foreach ($bucket->objects() as $object) {
             $object->delete();
           }
-          return "All files in '$bucketName' are deleted.";
+          return "All files in '$targetBucket' are deleted.";
         } catch (Exception $e) {
           return $e->getMessage();
         }
       case 'upload':
         try {
+          $source = (is_string($filestream) && file_exists($filestream))
+            ? fopen($filestream, 'rb')
+            : $filestream;
+
           $bucket->upload(
-            $filestream,
+            $source,
             [
               'name' => $destination
             ]

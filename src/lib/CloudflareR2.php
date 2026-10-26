@@ -55,6 +55,24 @@ class CloudflareR2
   }
 
   /**
+   * Upload data or stream directly with exact key.
+   *
+   * @param string $key Exact target key (e.g. backup/filename.sql.gz)
+   * @param mixed $input String content, file path, or stream resource
+   * @param string $contentType MIME type
+   * @return string Uploaded file key
+   * @throws \Exception
+   */
+  public function put($key, $input, $contentType = 'application/gzip')
+  {
+    $body = $input;
+    if (is_string($input) && file_exists($input)) {
+      $body = fopen($input, 'rb');
+    }
+    return $this->uploadToR2($key, $body, $contentType);
+  }
+
+  /**
    * Delete file from Cloudflare R2.
    *
    * @param string $key File key to delete.

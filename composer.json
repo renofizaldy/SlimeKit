@@ -53,6 +53,7 @@
         "make:model": "php assets/make_model.php",
         "make:module:admin": "php assets/make_module.php admin",
         "make:module:client": "php assets/make_module.php client",
+        "generate:job-token": "php assets/generate_job_token.php",
         "test": "php vendor/bin/phpunit",
         "test:feature": "php vendor/bin/phpunit --testsuite Feature",
         "test:unit": "php vendor/bin/phpunit --testsuite Unit",

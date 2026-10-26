@@ -112,6 +112,16 @@ return [
     'endpoints' => $_ENV['NEXT_REVALIDATE_ENDPOINTS'] ?? '',
   ],
 
+  'wapito' => [
+    'api_token' => $_ENV['WAPITO_API_TOKEN'] ?? '',
+    'base_url'  => $_ENV['WAPITO_BASE_URL'] ?? 'https://api.wapito.com',
+  ],
+
+  'wappfly' => [
+    'api_token' => $_ENV['WAPPFLY_API_TOKEN'] ?? '',
+    'base_url'  => $_ENV['WAPPFLY_BASE_URL'] ?? 'https://wappfly.com/api',
+  ],
+
   //* Auth
   'tokenize' => [
     'secret_key' => $_ENV['SYM_KEY'] ?? '',

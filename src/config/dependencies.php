@@ -20,6 +20,8 @@ use App\Lib\OpenAIClient;
 use App\Lib\TavilyClient;
 use App\Lib\Mailer;
 use App\Lib\Cronhooks;
+use App\Lib\WappflyClient;
+use App\Lib\WapitoClient;
 use App\Lib\NextRevalidator;
 use App\Helpers\General;
 use App\Services\JobService;
@@ -129,9 +131,21 @@ return function (ContainerBuilder $builder) {
       return new NextRevalidator($services['next_revalidator']);
     },
 
+    WapitoClient::class => function () use ($services) {
+      return new WapitoClient($services['wapito'] ?? []);
+    },
+
+    WappflyClient::class => function () use ($services) {
+      return new WappflyClient($services['wappfly'] ?? []);
+    },
+
     //* HELPERS
     General::class => function (ContainerInterface $c) {
-      return new General($c->get(Valkey::class));
+      return new General(
+        $c->get(Valkey::class),
+        $c->get(WapitoClient::class),
+        $c->get(WappflyClient::class)
+      );
     },
 
     //* SERVICES

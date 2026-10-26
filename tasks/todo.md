@@ -181,14 +181,14 @@ Menerapkan endpoint background job `POST /job/database_backup` pada `JobControll
 Menyediakan integrasi gateway WhatsApp modern dengan failover otomatis. Menyalin `src/lib/WapitoClient.php` dan `src/lib/WappflyClient.php`. Mendaftarkan konfigurasi `wapito` dan `wappfly` di `services.php` dan DI container `dependencies.php`. Menambahkan method `General::sendWhatsApp($phone, $message, $user, $tableName, $recordId)` yang mencoba mengirim via Wapito, dan otomatis berpindah ke Wappfly jika gateway pertama gagal atau skipped.
 
 **Acceptance criteria:**
-- [ ] `src/lib/WapitoClient.php` dan `src/lib/WappflyClient.php` tersedia di SlimeKit.
-- [ ] `src/config/services.php` memuat konfigurasi `wapito` dan `wappfly`.
-- [ ] `src/config/dependencies.php` menginjeksi kedua client ke class `General`.
-- [ ] `General::sendWhatsApp` melakukan failover secara mulus dan mencatat kegagalan ke log jika semua provider gagal.
-- [ ] Unit tests `WapitoClientTest`, `WappflyClientTest`, dan `GeneralWhatsAppFailoverTest` disalin dan lulus 100%.
+- [x] `src/lib/WapitoClient.php` dan `src/lib/WappflyClient.php` tersedia di SlimeKit.
+- [x] `src/config/services.php` memuat konfigurasi `wapito` dan `wappfly`.
+- [x] `src/config/dependencies.php` menginjeksi kedua client ke class `General`.
+- [x] `General::sendWhatsApp` melakukan failover secara mulus dan mencatat kegagalan ke log jika semua provider gagal.
+- [x] Unit tests `WapitoClientTest`, `WappflyClientTest`, dan `GeneralWhatsAppFailoverTest` disalin dan lulus 100%.
 
 **Verification:**
-- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralWhatsAppFailoverTest.php tests/Unit/WapitoClientTest.php tests/Unit/WappflyClientTest.php`
+- [x] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralWhatsAppFailoverTest.php tests/Unit/WapitoClientTest.php tests/Unit/WappflyClientTest.php`
 
 **Dependencies:** Task 1, Task 2
 **Files likely touched:**
@@ -210,14 +210,14 @@ Menyediakan integrasi gateway WhatsApp modern dengan failover otomatis. Menyalin
 Menggantikan manipulasi URL Cloudinary rapuh `strpos(..., "/v")` dengan fungsi `formatCloudinaryUrl(string $url, string $transformation): string` berbasis regex aman di `General.php`. Memperbarui respon upload dan query artikel di `AdminArticleService.php` dan `ClientArticleService.php` (`list`, `detail`, `similar`) agar secara retroaktif memancarkan varian `picture.large` berukuran 1200x675 (`c_fill,w_1200,h_675,g_auto,q_auto,f_auto`) yang merupakan standar kartu Google Discover.
 
 **Acceptance criteria:**
-- [ ] Helper `formatCloudinaryUrl` aman terhadap URL Cloudinary dengan atau tanpa versi, serta mengembalikan URL asli jika bukan domain Cloudinary.
-- [ ] Respon endpoint `ClientArticleController` (`list`, `detail`, `similar`) memancarkan field `large` pada objek `picture`.
-- [ ] Respon endpoint `AdminArticleController` (`detail`, `add`, `edit`) memancarkan field `large`.
-- [ ] Unit test `tests/Unit/GeneralCloudinaryTest.php` dan `tests/Unit/ArticleLargeImageTest.php` lulus 100%.
+- [x] Helper `formatCloudinaryUrl` aman terhadap URL Cloudinary dengan atau tanpa versi, serta mengembalikan URL asli jika bukan domain Cloudinary.
+- [x] Respon endpoint `ClientArticleController` (`list`, `detail`, `similar`) memancarkan field `large` pada objek `picture`.
+- [x] Respon endpoint `AdminArticleController` (`detail`, `add`, `edit`) memancarkan field `large`.
+- [x] Unit test `tests/Unit/GeneralCloudinaryTest.php` dan `tests/Unit/ArticleLargeImageTest.php` lulus 100%.
 
 **Verification:**
-- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralCloudinaryTest.php tests/Unit/ArticleLargeImageTest.php`
-- [ ] Menjalankan feature test artikel: `php vendor/bin/phpunit tests/Feature/ClientArticleTest.php`
+- [x] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralCloudinaryTest.php tests/Unit/ArticleLargeImageTest.php`
+- [x] Menjalankan feature test artikel: `php vendor/bin/phpunit tests/Feature/ClientArticleTest.php`
 
 **Dependencies:** None
 **Files likely touched:**
@@ -236,13 +236,13 @@ Menggantikan manipulasi URL Cloudinary rapuh `strpos(..., "/v")` dengan fungsi `
 Menerapkan sistem validasi dan whitelisting parameter `site` di `src/helpers/General.php` melalui method `getAllowedSites(): array` dan `isValidSite(?string $site): bool`. Parameter site disanitasi terhadap regex `/^[a-zA-Z0-9_\-\.]+$/` untuk mencegah cache key poisoning atau karakter berbahaya masuk ke pola prefix Valkey. Menambahkan variabel `ALLOWED_SITES` di `.env.example`.
 
 **Acceptance criteria:**
-- [ ] Method `General::getAllowedSites()` membaca environment `ALLOWED_SITES` dan mengembalikan array nama site yang bersih.
-- [ ] Method `General::isValidSite(?string $site)` menolak string kosong, karakter ilegal, atau site di luar whitelist.
-- [ ] `.env.example` mendokumentasikan variabel `ALLOWED_SITES=default,site1,site2`.
-- [ ] Unit test `tests/Unit/GeneralSiteValidationTest.php` disalin dan lulus 100%.
+- [x] Method `General::getAllowedSites()` membaca environment `ALLOWED_SITES` dan mengembalikan array nama site yang bersih.
+- [x] Method `General::isValidSite(?string $site)` menolak string kosong, karakter ilegal, atau site di luar whitelist.
+- [x] `.env.example` mendokumentasikan variabel `ALLOWED_SITES=default,site1,site2`.
+- [x] Unit test `tests/Unit/GeneralSiteValidationTest.php` disalin dan lulus 100%.
 
 **Verification:**
-- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralSiteValidationTest.php`
+- [x] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralSiteValidationTest.php`
 
 **Dependencies:** None
 **Files likely touched:**
@@ -254,9 +254,9 @@ Menerapkan sistem validasi dan whitelisting parameter `site` di `src/helpers/Gen
 ---
 
 ### Checkpoint: Media, Communication & Security (Tasks 7-9)
-- [ ] WhatsApp notification failover terverifikasi
-- [ ] URL gambar artikel memenuhi standar Google Discover 16:9
-- [ ] Whitelist site memproteksi integritas cache key
+- [x] WhatsApp notification failover terverifikasi
+- [x] URL gambar artikel memenuhi standar Google Discover 16:9
+- [x] Whitelist site memproteksi integritas cache key
 
 ---
 

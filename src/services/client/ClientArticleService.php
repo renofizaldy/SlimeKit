@@ -129,6 +129,7 @@ class ClientArticleService
           'featured'    => $row->featured ?? [],
           'picture'     => [
             'original'  => $row->picture->original ?? null,
+            'large'     => $this->helper->formatCloudinaryUrl($row->picture->original ?? $row->picture->thumbnail ?? null, 'c_fill,w_1200,h_675,g_auto,q_auto,f_auto'),
             'thumbnail' => $row->picture->thumbnail ?? null,
             'caption'   => $row->picture->caption ?? '',
           ],
@@ -204,6 +205,7 @@ class ClientArticleService
       'updated'   => date('Y-m-d H:i:s', strtotime($query->updated_at)),
       'picture'   => [
         'original'  => $query->picture->original ?? null,
+        'large'     => $this->helper->formatCloudinaryUrl($query->picture->original ?? $query->picture->thumbnail ?? null, 'c_fill,w_1200,h_675,g_auto,q_auto,f_auto'),
         'thumbnail' => $query->picture->thumbnail ?? null,
         'caption'   => $query->picture->caption ?? '',
       ],
@@ -268,7 +270,7 @@ class ClientArticleService
       $baseQuery = Article::where('status', 'active')
         ->where('site', $input['site'])
         ->where('slug', '!=', $input['slug'])
-        ->whereRaw("similarity(title, ?) > 0.2", [$title]);
+        ->whereRaw("(title % ? OR similarity(title, ?) > 0.2)", [$title, $title]);
     //* BASE QUERY
 
     //* ORDER BY
@@ -316,6 +318,7 @@ class ClientArticleService
           'featured'    => $row->featured ?? [],
           'picture'     => [
             'original'  => $row->picture->original ?? null,
+            'large'     => $this->helper->formatCloudinaryUrl($row->picture->original ?? $row->picture->thumbnail ?? null, 'c_fill,w_1200,h_675,g_auto,q_auto,f_auto'),
             'thumbnail' => $row->picture->thumbnail ?? null,
             'caption'   => $row->picture->caption ?? '',
           ],

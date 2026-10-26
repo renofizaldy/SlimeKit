@@ -45,6 +45,19 @@ class AdminArticleService
     $this->nextRevalidator->revalidateArticle($site, $slug, $oldSlug);
   }
 
+  private function invalidateArticleCache(?string $site, ?string $oldSite = null): void
+  {
+    $sites = array_values(array_filter(array_unique([$site, $oldSite])));
+
+    foreach ($sites as $s) {
+      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s:", $s));
+      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s:", $s));
+      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:similar:site=%s:", $s));
+    }
+
+    $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
+  }
+
   private function checkExist(array $input)
   {
     $check = Article::find($input['id']);
@@ -91,11 +104,12 @@ class AdminArticleService
 
     //* GENERATE CACHE KEY
       $cacheKey   = sprintf(
-        "{$this->cacheKey}:admin:list:status=%s:site=%s:featured=%s:category=%s:page=%d:pageSize=%d:orderBy=%s:orderDir=%s",
+        "{$this->cacheKey}:admin:list:status=%s:site=%s:featured=%s:category=%s:search=%s:page=%d:pageSize=%d:orderBy=%s:orderDir=%s",
         $input['status'],
         $input['site'],
         $input['featured'],
         $input['category'],
+        $input['search'] ?? '',
         $page,
         $pageSize,
         $orderBy,
@@ -124,6 +138,15 @@ class AdminArticleService
       //? IF FILTER: CATEGORY
       if ($input['category'] !== 'all' && !empty($input['category'])) {
         $query->where('id_category', (int) $input['category']);
+      }
+      //? IF FILTER: SEARCH
+      if (!empty($input['search'])) {
+        $searchTerm = '%' . $input['search'] . '%';
+        $query->where(function ($q) use ($searchTerm) {
+          $q->where('title', 'LIKE', $searchTerm)
+            ->orWhere('author', 'LIKE', $searchTerm)
+            ->orWhere('slug', 'LIKE', $searchTerm);
+        });
       }
       $query->orderBy($orderBy, $orderDir);
       if ($orderBy !== 'id') {
@@ -196,6 +219,7 @@ class AdminArticleService
       'picture' => [
         'id'          => $detail->id_picture,
         'original'    => $detail->picture->original ?? null,
+        'large'       => $this->helper->formatCloudinaryUrl($detail->picture->original ?? $detail->picture->thumbnail ?? null, 'c_fill,w_1200,h_675,g_auto,q_auto,f_auto'),
         'thumbnail'   => $detail->picture->thumbnail ?? null,
         'caption'     => $detail->picture->caption ?? null,
       ]
@@ -208,11 +232,15 @@ class AdminArticleService
   {
     $this->checkSlug($input);
 
+    //? PICTURE UPLOAD OUTSIDE TRANSACTION
+    $uploadedPicture = !empty($input['picture']) ? $this->helper->uploadImage($this->cloudinary, $input['picture']) : null;
+
     DB::beginTransaction();
     try {
-      //? PICTURE UPLOAD
-        $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null, $input['picture_caption'] ?? null);
-      //? PICTURE UPLOAD
+      //? PICTURE SAVE
+        $picture = $uploadedPicture ? $this->helper->savePicture($uploadedPicture, $input['picture_caption'] ?? null) : null;
+        $picture_id = $picture ? ['id' => $picture->id, 'url' => $uploadedPicture['original']] : null;
+      //? PICTURE SAVE
 
       //? INSERT TO tableMain
         $article = Article::create([
@@ -258,12 +286,11 @@ class AdminArticleService
         $this->helper->addLog($user, $this->tableMain, $lastTableMainId, 'INSERT', $changes);
       //? LOG Record
 
-      //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
-      //? DELETE CACHE
-
       DB::commit();
+
+      //? DELETE CACHE
+        $this->invalidateArticleCache($input['site'] ?? null);
+      //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
         if ($this->shouldRevalidateArticle($input['status'], $input['publish'] ?? null)) {
@@ -283,6 +310,11 @@ class AdminArticleService
     }
     catch (Exception $e) {
       DB::rollBack();
+      if ($uploadedPicture && !empty($uploadedPicture['public_id'])) {
+        try {
+          $this->cloudinary->delete($uploadedPicture['public_id']);
+        } catch (\Throwable) {}
+      }
       throw $e;
     }
   }
@@ -292,11 +324,15 @@ class AdminArticleService
     $this->checkSlug($input);
     $check = $this->checkExist($input);
 
+    //? PICTURE UPLOAD OUTSIDE TRANSACTION
+    $uploadedPicture = !empty($input['picture']) ? $this->helper->uploadImage($this->cloudinary, $input['picture']) : null;
+
     DB::beginTransaction();
     try {
-      //? PICTURE UPLOAD
-        $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null);
-      //? PICTURE UPLOAD
+      //? PICTURE SAVE
+        $picture = $uploadedPicture ? $this->helper->savePicture($uploadedPicture, $input['picture_caption'] ?? null) : null;
+        $picture_id = $picture ? ['id' => $picture->id, 'url' => $uploadedPicture['original']] : null;
+      //? PICTURE SAVE
 
       //? UPDATE ON tableMain
         $updateData = [
@@ -305,7 +341,7 @@ class AdminArticleService
           'excerpt'     => $input['excerpt'] ?? null,
           'content'     => $input['content'] ?? null,
           'site'        => $input['site'] ?? null,
-          'id_category' => !empty($input['category']) ? $input['category'] : null,
+          'id_category' => !empty($input['category']) ? (int) $input['category'] : null,
           'author'      => $input['author'] ?? null,
           'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
           'status'      => $input['status'],
@@ -320,7 +356,7 @@ class AdminArticleService
       //? UPDATE ON tableMain
 
       //? UPDATE ON tablePicture
-        if (empty($picture_id['id']) && !empty($input['picture_caption'])) {
+        if (empty($picture_id['id']) && !empty($input['picture_caption']) && !empty($check->id_picture)) {
           Picture::where('id', $check->id_picture)->update([
             'caption' => $input['picture_caption'],
           ]);
@@ -355,13 +391,11 @@ class AdminArticleService
         $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $changes);
       //? LOG Record
 
-      //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
-      //? DELETE CACHE
-
       DB::commit();
+
+      //? DELETE CACHE
+        $this->invalidateArticleCache($input['site'] ?? null, $check->site ?? null);
+      //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
         if (
@@ -408,6 +442,11 @@ class AdminArticleService
     }
     catch (Exception $e) {
       DB::rollBack();
+      if ($uploadedPicture && !empty($uploadedPicture['public_id'])) {
+        try {
+          $this->cloudinary->delete($uploadedPicture['public_id']);
+        } catch (\Throwable) {}
+      }
       throw $e;
     }
   }
@@ -415,6 +454,7 @@ class AdminArticleService
   public function drop(array $input, array $user)
   {
     $check = $this->checkExist($input);
+    $pictureCloudId = null;
 
     DB::beginTransaction();
     try {
@@ -432,10 +472,7 @@ class AdminArticleService
         if (!empty($check->id_picture)) {
           $picture = Picture::find($check->id_picture);
           if ($picture) {
-            //! DROP PICTURE ON CLOUD
-            if (!empty($picture->id_cloud)) {
-              $this->cloudinary->delete($picture->id_cloud);
-            }
+            $pictureCloudId = $picture->id_cloud ?? null;
             //! DROP PICTURE ON DATABASE
             $picture->delete();
           }
@@ -447,13 +484,20 @@ class AdminArticleService
         $this->helper->addLog($user, $this->tableMain, (int) $check['id'], 'DELETE', $changes);
       //? LOG Record
 
-      //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $check['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $check['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
-      //? DELETE CACHE
-
       DB::commit();
+
+      //! DROP PICTURE ON CLOUD (AFTER COMMIT)
+      if (!empty($pictureCloudId)) {
+        try {
+          $this->cloudinary->delete($pictureCloudId);
+        } catch (\Throwable $e) {
+          error_log('Failed to delete Cloudinary picture after drop: ' . $e->getMessage());
+        }
+      }
+
+      //? DELETE CACHE
+        $this->invalidateArticleCache($check->site ?? ($check['site'] ?? null));
+      //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
         if ($this->shouldRevalidateArticle($check['status'], $check['publish'])) {
@@ -513,13 +557,11 @@ class AdminArticleService
         ]));
       //? LOG Record
 
-      //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
-      //? DELETE CACHE
-
       DB::commit();
+
+      //? DELETE CACHE
+        $this->invalidateArticleCache($checkMain->site ?? ($input['site'] ?? null));
+      //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
         if (
@@ -569,13 +611,11 @@ class AdminArticleService
         $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $this->helper->logUpdateChanges($check, $updateData));
       //? LOG Record
 
-      //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
-      //? DELETE CACHE
-
       DB::commit();
+
+      //? DELETE CACHE
+        $this->invalidateArticleCache($check->site ?? ($input['site'] ?? null));
+      //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
         if (

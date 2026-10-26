@@ -64,14 +64,14 @@ Seluruh perbaikan generic akan diadopsi tanpa mengotori framework dengan kode do
 ---
 
 ### Phase 3: Communication & Media Platform Enhancements
-- [ ] **Task 7: Multi-Gateway WhatsApp Notification Service with Failover** (`src/lib/WapitoClient.php`, `src/lib/WappflyClient.php`, `src/helpers/General.php`, `src/config/dependencies.php`)
-- [ ] **Task 8: Cloudinary Hardening & Google Discover 16:9 Image Variant** (`src/helpers/General.php`, `src/services/admin/AdminArticleService.php`, `src/services/client/ClientArticleService.php`)
-- [ ] **Task 9: Multi-Site Sanitization & Whitelist Security** (`src/helpers/General.php`, `.env.example`)
+- [x] **Task 7: Multi-Gateway WhatsApp Notification Service with Failover** (`src/lib/WapitoClient.php`, `src/lib/WappflyClient.php`, `src/helpers/General.php`, `src/config/dependencies.php`)
+- [x] **Task 8: Cloudinary Hardening & Google Discover 16:9 Image Variant** (`src/helpers/General.php`, `src/services/admin/AdminArticleService.php`, `src/services/client/ClientArticleService.php`)
+- [x] **Task 9: Multi-Site Sanitization & Whitelist Security** (`src/helpers/General.php`, `.env.example`)
 
 ### Checkpoint 3: Media, Notifications & Multi-Site Guard
-- [ ] WhatsApp failover berpindah otomatis dari Wapito ke Wappfly jika gateway pertama gagal
-- [ ] Respon API artikel (`list`, `detail`, `similar`) menyertakan objek `picture.large` 1200x675
-- [ ] Unit tests `GeneralCloudinaryTest`, `GeneralWhatsAppFailoverTest`, `WapitoClientTest`, `WappflyClientTest`, dan `GeneralSiteValidationTest` lulus 100%
+- [x] WhatsApp failover berpindah otomatis dari Wapito ke Wappfly jika gateway pertama gagal
+- [x] Respon API artikel (`list`, `detail`, `similar`) menyertakan objek `picture.large` 1200x675
+- [x] Unit tests `GeneralCloudinaryTest`, `GeneralWhatsAppFailoverTest`, `WapitoClientTest`, `WappflyClientTest`, dan `GeneralSiteValidationTest` lulus 100%
 
 ---
 

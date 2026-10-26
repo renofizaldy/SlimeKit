@@ -10,6 +10,9 @@ use App\Lib\Cloudinary;
 use App\Lib\Mailer;
 use App\Lib\Cronhooks;
 use App\Lib\Valkey;
+use App\Lib\WappflyClient;
+use App\Lib\WapitoClient;
+use Throwable;
 
 use App\Models\Log;
 use App\Models\Picture;
@@ -23,16 +26,25 @@ use Illuminate\Database\Eloquent\Model;
 
 class General
 {
-  protected ?Valkey $valkey;
+  private $valkey;
+  private ?WapitoClient $wapito;
+  private ?WappflyClient $wappfly;
 
-  public function __construct(?Valkey $valkey = null)
+  public function __construct(
+    Valkey $valkey,
+    ?WapitoClient $wapito = null,
+    ?WappflyClient $wappfly = null
+  )
   {
-    $this->valkey = $valkey;
+    $this->valkey  = $valkey;
+    $this->wapito  = $wapito;
+    $this->wappfly = $wappfly;
   }
 
   public function addLog(array $user, string $table_name, int $id_record, string $action, array $changes = []): void
   {
-    $userId = $user['user']->id ?? ($user['user']['id'] ?? null);
+    $userObj = $user['user'] ?? null;
+    $userId  = is_object($userObj) ? ($userObj->id ?? null) : (is_array($userObj) ? ($userObj['id'] ?? null) : null);
     Log::create([
       'id_user'    => $userId,
       'table_name' => $table_name,
@@ -42,6 +54,72 @@ class General
       'ip_address' => $user['ip_address'] ?? null,
       'user_agent' => $user['user_agent'] ?? null,
     ]);
+  }
+
+  /**
+   * Helper pengiriman WhatsApp dengan automatic failover (Wapito -> Wappfly) + log jika gagal
+   */
+  public function sendWhatsApp(
+    string $phone,
+    string $message,
+    ?array $user = null,
+    ?string $tableName = null,
+    ?int $recordId = null
+  ): array {
+    $providers = [];
+    if ($this->wapito !== null) {
+      $providers['wapito'] = $this->wapito;
+    }
+    if ($this->wappfly !== null) {
+      $providers['wappfly'] = $this->wappfly;
+    }
+
+    $errors    = [];
+    $attempted = 0;
+
+    foreach ($providers as $providerName => $providerClient) {
+      try {
+        $result = $providerClient->sendTextMessage($phone, $message);
+
+        // Jika skipped karena token atau nomor tujuan belum diatur
+        if (($result['status'] ?? '') === 'skipped') {
+          continue;
+        }
+
+        $attempted++;
+
+        if (($result['status'] ?? '') === 'success') {
+          return [
+            'status'   => 'success',
+            'provider' => $providerName,
+            'response' => $result,
+          ];
+        }
+
+        $errors[$providerName] = $result;
+      } catch (Throwable $e) {
+        $attempted++;
+        $errors[$providerName] = [
+          'status'  => 'error',
+          'message' => $e->getMessage(),
+        ];
+      }
+    }
+
+    if ($tableName && $recordId && $attempted > 0) {
+      $this->addLog($user ?? [], $tableName, $recordId, 'INSERT', [
+        'event'   => 'WA_NOTIF_FAILED',
+        'status'  => 'FAILED',
+        'reason'  => 'All configured WhatsApp providers failed',
+        'errors'  => $errors,
+      ]);
+    }
+
+    return [
+      'status'  => 'failed',
+      'reason'  => $attempted > 0 ? 'All WhatsApp providers failed' : 'No WhatsApp provider active or configured',
+      'errors'  => $errors,
+    ];
   }
 
   private function normalizeLogValue($value)
@@ -67,9 +145,11 @@ class General
 
     if ($record instanceof Model) {
       $record = $record->attributesToArray();
-    } elseif (is_object($record) && method_exists($record, 'toArray')) {
+    }
+    elseif (is_object($record) && method_exists($record, 'toArray')) {
       $record = $record->toArray();
-    } elseif (is_object($record)) {
+    }
+    elseif (is_object($record)) {
       $record = get_object_vars($record);
     }
 
@@ -118,7 +198,31 @@ class General
     return $changes;
   }
 
-  public function pictureUpload(Cloudinary $cloudinary, $file, $caption = null): ?array
+  public function formatCloudinaryUrl(?string $url, string $transformation): ?string
+  {
+    if (empty($url) || !is_string($url) || !str_contains($url, 'res.cloudinary.com') || !str_contains($url, '/image/upload/')) {
+      return $url;
+    }
+
+    $transformation = trim($transformation, '/');
+    if ($transformation === '') {
+      return $url;
+    }
+
+    // Pattern 1: URL with version segment (/image/upload/[existing_transforms/]v\d+/...)
+    if (preg_match('#^(https?://res\.cloudinary\.com/[^/]+/image/upload/)(?:[^/]+/)*(v\d+/.*)$#i', $url, $matches)) {
+      return $matches[1] . $transformation . '/' . $matches[2];
+    }
+
+    // Pattern 2: URL without version segment, optionally having existing transformations
+    if (preg_match('#^(https?://res\.cloudinary\.com/[^/]+/image/upload/)(?:[a-z]{1,4}_[^/]+/(?:[a-z]{1,4}_[^/]+/)*)?(.*)$#i', $url, $matches)) {
+      return $matches[1] . $transformation . '/' . $matches[2];
+    }
+
+    return $url;
+  }
+
+  public function uploadImage(Cloudinary $cloudinary, $file): ?array
   {
     if (empty($file)) return null;
 
@@ -127,23 +231,40 @@ class General
       throw new Exception('Failed to upload photo', 409);
     }
 
-    $thumbnail = substr_replace(
-      $upload['secure_url'],
-      "c_thumb,w_600/",
-      strpos($upload['secure_url'], "/v") + 1,
-      0
-    );
-
-    $picture = Picture::create([
-      'id_cloud'  => $upload['public_id'],
-      'original'  => $upload['secure_url'],
-      'thumbnail' => $thumbnail,
-      'caption'   => $caption,
-    ]);
+    $original  = $upload['secure_url'];
+    $large     = $this->formatCloudinaryUrl($original, 'c_fill,w_1200,h_675,g_auto,q_auto,f_auto');
+    $thumbnail = $this->formatCloudinaryUrl($original, 'c_thumb,w_600');
 
     return [
-      'id'  => $picture->id,
-      'url' => $upload['secure_url']
+      'public_id' => $upload['public_id'],
+      'original'  => $original,
+      'large'     => $large,
+      'thumbnail' => $thumbnail,
+    ];
+  }
+
+  public function savePicture(array $uploadData, ?string $caption = null): Picture
+  {
+    return Picture::create([
+      'id_cloud'  => $uploadData['public_id'],
+      'original'  => $uploadData['original'],
+      'thumbnail' => $uploadData['thumbnail'],
+      'caption'   => !empty($caption) ? $caption : null,
+    ]);
+  }
+
+  public function pictureUpload(Cloudinary $cloudinary, $file, $caption = null): ?array
+  {
+    $uploaded = $this->uploadImage($cloudinary, $file);
+    if (!$uploaded) return null;
+
+    $picture = $this->savePicture($uploaded, $caption);
+
+    return [
+      'id'        => $picture->id,
+      'url'       => $uploaded['original'],
+      'large'     => $uploaded['large'] ?? null,
+      'thumbnail' => $uploaded['thumbnail'] ?? null,
     ];
   }
 
@@ -153,116 +274,69 @@ class General
       $maxSlots = 1;
 
       //* EMPTY CRONJOB
-      $crons = CronhooksModel::where('type', 'article')->get();
-      foreach ($crons as $cron) {
-        //? Hapus dari External Cronhooks Service
-        if (!empty($cron->id_cronhooks)) {
-          try {
-            $cronhooks->deleteSchedule($cron->id_cronhooks);
-          } catch (\Throwable $e) {
-            error_log("recomputeCron: failed to delete cron " . $cron->id_cronhooks . ": " . $e->getMessage());
+        $crons = CronhooksModel::where('type', 'article')->get();
+        foreach ($crons as $cron) {
+          //? Hapus dari External Cronhooks Service
+          if (!empty($cron->id_cronhooks)) {
+            try {
+              $cronhooks->deleteSchedule($cron->id_cronhooks);
+            } catch (\Throwable $e) {
+              error_log("recomputeCron: failed to delete cron " . $cron->id_cronhooks . ": " . $e->getMessage());
+            }
           }
+          //? Hapus dari database lokal (Eloquent delete)
+          $cron->delete();
         }
-        //? Hapus dari database lokal (Eloquent delete)
-        $cron->delete();
-      }
       //* EMPTY CRONJOB
 
       //* RESCHEDULE ARTICLE
-      //? Ambil artikel yang: publish > (NOW + 1 menit) AND status = inactive
-      $articles = Article::where('publish', '>', Carbon::now()->addMinute())
-        ->where('status', 'inactive')
-        ->orderBy('publish', 'ASC')
-        ->limit($maxSlots)
-        ->get();
+        //? Ambil artikel yang: publish > (NOW + 1 menit) AND status = inactive
+        $articles = Article::where('publish', '>', Carbon::now()->addMinute())
+          ->where('status', 'inactive')
+          ->orderBy('publish', 'ASC')
+          ->limit($maxSlots)
+          ->get();
 
-      foreach ($articles as $article) {
-        $cronId = null;
+        foreach ($articles as $article) {
+          $cronId = null;
 
-        //? Create Schedule di External Service
-        $cronData = $cronhooks->createSchedule(
-          $article->publish,
-          [
-            'title'    => 'Publish Artikel #' . ($article->site ?? 'default') . ':' . $article->id,
-            'timezone' => 'Asia/Jakarta',
-            'method'   => 'POST',
-            'payload'  => [
-              'site' => $article->site ?? 'default',
-              'slug' => $article->slug
+          //? Create Schedule di External Service
+          $cronData = $cronhooks->createSchedule(
+            $article->publish,
+            [
+              'title'    => 'Publish Artikel #' . $article->site .':'. $article->id,
+              'timezone' => 'Asia/Jakarta',
+              'method'   => 'POST',
+              'headers'  => [
+                'Authorization' => 'Bearer ' . ($_ENV['JOB_STATIC_TOKEN'] ?? getenv('JOB_STATIC_TOKEN') ?? ''),
+              ],
+              'payload'  => [
+                'site' => $article->site,
+                'slug' => $article->slug
+              ]
             ]
-          ]
-        );
-        $cronId = $cronData['id'] ?? null;
+          );
+          $cronId = $cronData['id'] ?? null;
 
-        //? Simpan ke tb_cronhooks via Eloquent
-        try {
-          CronhooksModel::create([
-            'id_parent'    => $article->id,
-            'type'         => 'article',
-            'id_cronhooks' => $cronId
-          ]);
-        } catch (\Throwable $e) {
-          error_log("recomputeCron: failed to save cron for article #" . $article->id);
-          continue;
+          //? Simpan ke tb_cronhooks via Eloquent
+          try {
+            CronhooksModel::create([
+              'id_parent'    => $article->id,
+              'type'         => 'article',
+              'id_cronhooks' => $cronId
+            ]);
+          } catch (\Throwable $e) {
+            error_log("recomputeCron: failed to save cron for article #" . $article->id);
+            continue;
+          }
         }
-      }
       //* RESCHEDULE ARTICLE
 
       return true;
-    } catch (\Throwable $e) {
+    }
+    catch (\Throwable $e) {
       error_log("recomputeCronjobs fatal: " . $e->getMessage());
       return true;
-    }
-  }
-
-  /**
-   * Alias untuk backward-compatibility dengan kode lama
-   */
-  public function recomputeCron(Cronhooks $cronhooks): bool
-  {
-    return $this->reCron($cronhooks);
-  }
-
-  public function handleCronjob(Cronhooks $cronhooks, int $articleId, string $slug, string $publish, ?string $existingCronId = null): bool
-  {
-    try {
-      if (!empty($existingCronId)) {
-        try {
-          $cronhooks->deleteSchedule($existingCronId);
-          CronhooksModel::where('id_parent', $articleId)
-            ->where('type', 'article')
-            ->delete();
-        } catch (\Throwable $e) {
-        }
-      }
-
-      $publishTime = Carbon::parse($publish);
-
-      if ($publishTime->isFuture()) {
-        $cron = $cronhooks->createSchedule(
-          $publishTime->format('Y-m-d H:i:s'),
-          [
-            'title'    => 'Publish Artikel #' . $articleId,
-            'timezone' => 'Asia/Jakarta',
-            'method'   => 'POST',
-            'payload'  => [
-              'slug' => $slug
-            ],
-          ]
-        );
-
-        if (!empty($cron['id'])) {
-          CronhooksModel::create([
-            'id_parent'    => $articleId,
-            'type'         => 'article',
-            'id_cronhooks' => $cron['id']
-          ]);
-        }
-      }
-
-      return true;
-    } catch (\Throwable $e) {
-      return false;
     }
   }
 
@@ -350,8 +424,8 @@ class General
 
     // Potong slug kalau perlu
     if (strlen($slug) > $maxSlugLength) {
-      $slug = substr($slug, 0, $maxSlugLength);
-      $slug = rtrim($slug, '-'); // Jangan berakhir dengan strip sebelum tambah id
+        $slug = substr($slug, 0, $maxSlugLength);
+        $slug = rtrim($slug, '-'); // Jangan berakhir dengan strip sebelum tambah id
     }
 
     // Gabungkan slug dengan ID
@@ -365,35 +439,30 @@ class General
     }
 
     $cacheKey = "geoip:{$ipAddress}";
-
+    
     //! 1. Cek di Redis dulu
-    if ($this->valkey) {
-      $cachedData = $this->valkey->get($cacheKey);
-      if ($cachedData) {
-        return json_decode($cachedData, true);
-      }
+    $cachedData = $this->valkey->get($cacheKey);
+    if ($cachedData) {
+      return json_decode($cachedData, true);
     }
 
     //! 2. Jika tidak ada di Redis, tembak ke ip-api.com
     try {
       $url = "http://ip-api.com/json/{$ipAddress}?fields=status,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,as";
-
+      
       $context  = stream_context_create(['http' => ['timeout' => 3]]);  //? Timeout: 3 detik
       $response = @file_get_contents($url, false, $context);
-
+      
       if ($response) {
         $geoData = json_decode($response, true);
-
+        
         if (isset($geoData['status']) && $geoData['status'] === 'success') {
           //! 3. Simpan ke Redis selama 7 hari (604800 detik) agar hemat API call
-          if ($this->valkey) {
-            $this->valkey->set($cacheKey, json_encode($geoData), 604800);
-          }
+          $this->valkey->set($cacheKey, json_encode($geoData), 604800);
           return $geoData;
         }
       }
-    } catch (Exception $e) {
-    }
+    } catch (Exception $e) {}
 
     return null;
   }
@@ -621,9 +690,9 @@ class General
   public function getTopArticles($site = 'all', $limit = 50)
   {
     $query = ArticleStats::select([
-      'slug',
-      DB::raw('COUNT(id) as visits')
-    ])
+        'slug',
+        DB::raw('COUNT(id) as visits')
+      ])
       ->where('country_code', 'ID')
       ->when($site !== 'all', function ($q) use ($site) {
         $q->where('site', $site);
@@ -703,6 +772,47 @@ class General
   }
 
   /**
+   * Ambil daftar artikel terbaru berdasarkan site untuk negative context (anti-duplikasi AI)
+   *
+   * @param string $site
+   * @param int    $limit
+   * @return array<int, array{title: string, keyword: string}>
+   */
+  public function getRecentArticlesBySite(string $site = 'all', int $limit = 75): array
+  {
+    $articles = Article::where('status', 'active')
+      ->when($site !== 'all', function ($q) use ($site) {
+        $q->where('site', $site);
+      })
+      ->orderBy('created_at', 'DESC')
+      ->limit($limit)
+      ->get(['id', 'title']);
+
+    if ($articles->isEmpty()) {
+      return [];
+    }
+
+    $articleIds = $articles->pluck('id')->toArray();
+    $seoMetas = [];
+    if (!empty($articleIds)) {
+      $seoMetas = SeoMeta::whereIn('id_parent', $articleIds)
+        ->where('type', 'article')
+        ->pluck('seo_keyphrase', 'id_parent')
+        ->toArray();
+    }
+
+    $recentArticles = [];
+    foreach ($articles as $article) {
+      $recentArticles[] = [
+        'title'   => trim($article->title ?? ''),
+        'keyword' => trim($seoMetas[$article->id] ?? '-'),
+      ];
+    }
+
+    return $recentArticles;
+  }
+
+  /**
    * Normalisasi parameter paginasi (page, pageSize, offset)
    *
    * @param mixed $page
@@ -717,10 +827,10 @@ class General
     int $defaultPageSize = 10,
     int $maxPageSize = 100
   ): array {
-    $page = max(1, (int) ($page ?: 1));
+    $page     = max(1, (int) ($page ?: 1));
     $pageSize = (int) ($pageSize ?: $defaultPageSize);
     $pageSize = max(1, min($maxPageSize, $pageSize));
-    $offset = ($page - 1) * $pageSize;
+    $offset   = ($page - 1) * $pageSize;
 
     return [
       'page'     => $page,
@@ -788,13 +898,13 @@ class General
     mixed $pageSize = 10
   ): array {
     $pagination = $this->normalizePagination($page, $pageSize);
-    $page = $pagination['page'];
-    $pageSize = $pagination['pageSize'];
-    $offset = $pagination['offset'];
+    $page       = $pagination['page'];
+    $pageSize   = $pagination['pageSize'];
+    $offset     = $pagination['offset'];
 
-    $total = count($items);
+    $total      = count($items);
     $totalPages = $total > 0 ? (int) ceil($total / $pageSize) : 1;
-    $sliced = array_slice($items, $offset, $pageSize);
+    $sliced     = array_slice($items, $offset, $pageSize);
 
     return [
       'items'      => array_values($sliced),
@@ -819,5 +929,47 @@ class General
       'page'     => 'numeric|min:1',
       'pageSize' => 'numeric|min:1',
     ]);
+  }
+
+  /**
+   * Mengambil daftar site yang diperbolehkan dari environment ALLOWED_SITES
+   *
+   * @return array<string>
+   */
+  public static function getAllowedSites(): array
+  {
+    $allowed = $_ENV['ALLOWED_SITES'] ?? getenv('ALLOWED_SITES') ?? '';
+    if (empty($allowed)) {
+      return [];
+    }
+
+    $sites = array_map('trim', explode(',', (string)$allowed));
+    return array_values(array_filter($sites, fn ($site) => $site !== ''));
+  }
+
+  /**
+   * Memvalidasi parameter site dari karakter berbahaya dan mencocokkan ke whitelist
+   *
+   * @param string|null $site
+   * @return bool
+   */
+  public static function isValidSite(?string $site): bool
+  {
+    if ($site === null || trim($site) === '') {
+      return false;
+    }
+
+    // Karakter aman: hanya alphanumeric, underscore, hyphen, dot
+    // Mencegah colon (:), wildcard (*), spasi, dsb. yang dapat merusak pola cache key
+    if (!preg_match('/^[a-zA-Z0-9_\-\.]+$/', $site)) {
+      return false;
+    }
+
+    $allowedSites = self::getAllowedSites();
+    if (!empty($allowedSites)) {
+      return in_array($site, $allowedSites, true);
+    }
+
+    return true;
   }
 }

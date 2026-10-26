@@ -5,274 +5,277 @@
 # SlimeKit v2
 💚 *Not the monster you think. Just a better Slim.*
 
-SlimeKit v2 adalah modern backend boilerplate & micro-framework berbasis **Slim Framework 4** yang dipadukan dengan **Illuminate Database (Eloquent ORM)**, **PHP-DI 7 auto-wiring**, dan arsitektur modular berlapis berstandar industri.
+SlimeKit v2 adalah modern backend boilerplate dan **single-tenant micro-framework** berbasis **Slim Framework 4** yang dipadukan dengan **Illuminate Database (Eloquent ORM)**, **PHP-DI 7 auto-wiring**, dan arsitektur modular berlapis berstandar industri.
 
-Dirancang untuk pengembang yang menginginkan kecepatan, performa ringan, dan kesederhanaan Slim Framework—tetapi membutuhkan struktur kode yang rapi, *type-safe*, mudah diuji (*testable*), serta siap untuk *production* berskala besar.
+Dirancang untuk pengembang yang menginginkan kecepatan kilat, performa ringan, dan kesederhanaan Slim Framework—tetapi membutuhkan struktur kode yang rapi, *type-safe*, mudah diuji (*testable*), serta siap untuk lingkungan *production* berskala besar (Cloud Run, Docker, VPS).
 
 > **Slim Framework 4 + Eloquent ORM + Dependency Injection + Developer Happiness = SlimeKit v2 🚀**
 
 ---
 
-## 🌟 Arsitektur & Keunggulan SlimeKit v2
+## 🌟 Arsitektur & Keunggulan
 
-- **Modern PHP (PHP 8.2 - 8.4):** Memanfaatkan fitur modern seperti *Constructor Property Promotion*, *Match Expressions*, *Strict Typing*, dan *Attributes*.
-- **Dependency Injection & Auto-Wiring (PHP-DI 7):** Seluruh Controller, Service, Validator, dan Helper diinjeksi secara otomatis melalui container di `src/config/dependencies.php`. Tidak ada lagi *hardcoded* `new Class()` manual di controller.
-- **Illuminate Database (Eloquent ORM):** Manajemen database yang intuitif dan ekspresif menggunakan Eloquent Capsule, relasi antar tabel, mutator, accessor, query scopes, serta transaksi database `DB::beginTransaction()`.
-- **Database Migration & Seeding (Phinx):** Skema database dan data awal dikelola secara terstruktur dan terversi melalui Phinx.
-- **Standardized API Response (`ApiResponse`):** Format output JSON standar untuk seluruh endpoint: status HTTP teratur, error formatting otomatis, penanganan validasi, dan sanitasi error exception produksi.
-- **Rakit Validation:** Validasi input request yang kuat dan fleksibel, terintegrasi mulus dengan error handler JSON.
-- **AI Article Agent System:** Integrasi pipeline AI multi-langkah (*Topic Ideation*, *Topic Selection*, *Deep Web Research* via **Tavily**, dan *Article Drafting & Polishing* via **Google Gemini** / **OpenAI**).
-- **Job Automation & ISR Revalidator:** Endpoint background job untuk automasi publish artikel terjadwal, sinkronisasi metrik analytics, dan *On-Demand ISR Revalidation* untuk frontend Next.js (`NextRevalidator`).
+- **Pure Single-Tenant Architecture:** Skema database bersih, slug unik secara global, payload API ringkas, dan performa query maksimal tanpa *overhead* multi-tenancy ([Lihat ADR-001](docs/decisions/ADR-001-pure-single-tenant-architecture.md)).
+- **Modern PHP (PHP 8.2 - 8.4):** Mengadopsi fitur modern PHP seperti *Constructor Property Promotion*, *Match Expressions*, *Strict Typing*, dan *Attributes*.
+- **Dependency Injection & Auto-Wiring (PHP-DI 7):** Seluruh Controller, Service, Validator, dan Helper diinjeksi otomatis melalui container di `src/config/dependencies.php`. Bebas instansiasi manual `new Class()`.
+- **Illuminate Database (Eloquent ORM):** Manajemen database ekspresif dengan relasi, mutator, accessor, query scopes, dan transaksi ACID `DB::beginTransaction()`.
+- **Database Migration & Seeding (Phinx):** Skema database dan seeding data awal terstruktur dan terversi rapi.
+- **Standardized API Response (`ApiResponse`):** Format output JSON terpadu untuk seluruh endpoint: status HTTP seragam, penanganan validasi, dan sanitasi pesan error produksi.
+- **Rakit Validation:** Validasi input request yang kuat dan fleksibel, terintegrasi langsung dengan response handler JSON.
+- **AI Content Agent System:** Pipeline pembuatan konten bertenaga AI multi-langkah (*Topic Ideation*, *Topic Selection*, *Deep Web Research* via **Tavily**, dan *Article Drafting & Polishing* via **Google Gemini** / **OpenAI**).
+- **Background Jobs & Worker Protection:** Otomatisasi penerbitan artikel terjadwal, sinkronisasi statistik kunjungan, backup database otomatis, dan otentikasi token Bearer statis (`JOB_STATIC_TOKEN`).
+- **On-Demand ISR Revalidation:** Terintegrasi langsung dengan frontend Next.js melalui `NextRevalidator` single webhook target.
 - **Distributed Caching & Rate Limiting:** Didukung oleh **Valkey / Redis** dengan dukungan TLS (Upstash, Aiven, Redis Cloud) untuk caching performa tinggi dan perlindungan rate limiting (`RateLimitMiddleware`).
-- **Storage Multi-Cloud:** Terintegrasi dengan **Cloudinary** (media gambar/video) dan **Cloudflare R2** (S3-compatible bucket storage).
-- **Security & RBAC Middleware:**
-  - `TokenMiddleware`: Autentikasi JWT berbasis simetrik key (`SYM_KEY`).
-  - `AuthMiddleware`: Otorisasi berbasis role dan granular permissions (misal: `article:view`, `article:crud`).
-  - `CorsMiddleware`: Kontrol header CORS dinamis dari environment.
-  - `GzipDecoderMiddleware` & `GzipEncoder`: Kompresi dan dekompresi payload otomatis untuk menghemat bandwidth.
-- **Comprehensive Automated Tests:** Dilengkapi lebih dari **246+ unit dan feature tests** (PHPUnit 11) yang mencakup 100% fungsionalitas inti, endpoint, middleware, dan container resolution.
+- **Multi-Cloud Storage & WhatsApp Failover:** Terintegrasi dengan **Cloudinary** (media gambar/video dengan varian 16:9 Google Discover), **Cloudflare R2** / **Google Cloud Storage** (backup database), serta multi-gateway WhatsApp notification (**Wapito** dengan failover otomatis ke **Wappfly**).
+- **Comprehensive Automated Tests:** Dilengkapi lebih dari **293 unit & feature tests (847 assertions)** menggunakan **PHPUnit 11** dengan kelulusan 100% hijau.
+
+---
+
+## 📋 Spesifikasi & Kebutuhan Sistem
+
+### 1. Spesifikasi Hardware (Server Specs)
+
+| Komponen | Spesifikasi Minimum | Rekomendasi (Production) | Keterangan |
+| :--- | :--- | :--- | :--- |
+| **RAM** | 512 MB | 1 GB - 2 GB | Cukup untuk traffic sedang & serverless container |
+| **CPU** | 0.5 vCPU / 1 Core | 1 vCPU - 2 vCPU | Optimal untuk proses kompresi gzip & AI payload |
+| **Storage** | 1 GB free space | 5 GB+ SSD / NVMe | Ruang untuk log dan file kompresi backup database |
+| **Network** | Akses internet keluar | Koneksi broadband stabil | Diperlukan untuk third-party API (Valkey, Cloudinary, AI) |
+
+### 2. Spesifikasi Software & Runtime
+
+- **PHP Runtime:** PHP `>= 8.2` (Sangat direkomendasikan **PHP 8.4**).
+- **Ekstensi PHP Wajib:**
+  - `pdo`, `pdo_pgsql` (untuk PostgreSQL) atau `pdo_mysql` (untuk MySQL)
+  - `json`, `mbstring`, `openssl`, `curl`
+- **Ekstensi PHP Direkomendasikan (Performance & Features):**
+  - `intl` (format lokalisasi angka/tanggal)
+  - `zip` & `zlib` (kompresi arsip dan gzip encoding)
+  - `gmp` (kalkulasi kriptografi cepat)
+  - `gd` (manipulasi gambar lokal jika diperlukan)
+  - `apcu` & `opcache` (akselerasi performa eksekusi bytecode PHP di production)
+- **Database Server:**
+  - **PostgreSQL 14+** (Sangat direkomendasikan via [Neon](https://neon.tech), [Supabase](https://supabase.com), atau [Aiven](https://aiven.io)). Pastikan ekstensi `pg_trgm` aktif untuk fitur *similarity search* dan performa trigram.
+  - Alternatif: **MySQL 8.0+** / **MariaDB 10.5+**.
+- **In-Memory Cache & Queue:**
+  - **Valkey 7.x** / **Redis 6.2+** (Sangat direkomendasikan [Upstash Redis](https://upstash.com) untuk serverless, atau Aiven / Redis Cloud).
+- **Package Manager:**
+  - **Composer 2.2+**
+- **Utilitas CLI Tambahan (Opsional):**
+  - `pg_dump` dan `gzip` terinstal di environment OS/container jika menggunakan fitur pencadangan database otomatis (`POST /job/database_backup`).
+
+---
+
+## 🔑 Penjelasan Lengkap Environment Variables (`.env`)
+
+Seluruh konfigurasi SlimeKit dikelola melalui environment variable di file `.env`. Salin `.env.example` ke `.env` saat memulai proyek:
+
+```bash
+cp .env.example .env
+```
+
+Berikut adalah rincian lengkap fungsi dan kegunaan setiap key:
+
+### 1. Konfigurasi Aplikasi & Keamanan Inti
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `ENVIRONMENT` | **Wajib** | `DEVELOPMENT` | Lingkungan aplikasi: `DEVELOPMENT`, `STAGING`, atau `PRODUCTION`. Pada mode `PRODUCTION`, pesan error mentah dan stack trace disanitasi demi keamanan. |
+| `BASE_PATH` | **Wajib** | `/` | Base URL path routing. Gunakan `/` jika domain langsung mengarah ke `public/`, atau sesuaikan (misal: `/api`) jika di dalam subfolder. |
+| `APP_NAME` | Opsional | `SlimeKit` | Nama aplikasi/layanan yang digunakan untuk identifier email, header, dan log. |
+| `SYM_KEY` | **Wajib** | `CvTVi4^Y4FFdA6Rj4T@K+XeQJBU931hY` | Kunci simetris rahasia (minimal 32 karakter) untuk enkripsi & verifikasi JWT token pada `TokenMiddleware`. **Jangan gunakan kunci default di production!** |
+
+### 2. Koneksi Database (Eloquent ORM & Phinx Migration)
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `DB_CLIENT` | **Wajib** | `pgsql` | Driver database yang digunakan: `pgsql` (PostgreSQL) atau `mysql` (MySQL). |
+| `DB_HOST` | **Wajib** | `127.0.0.1` | Hostname atau alamat IP database server (misal: host Neon/Supabase). |
+| `DB_PORT` | **Wajib** | `5432` | Port database (default `5432` untuk PostgreSQL, `3306` untuk MySQL). |
+| `DB_NAME` | **Wajib** | `slimekit_db` | Nama database yang digunakan aplikasi. |
+| `DB_USER` | **Wajib** | `neondb_owner` | Username akun autentikasi database. |
+| `DB_PASS` | **Wajib** | `your-db-password` | Password akun autentikasi database. |
+
+### 3. Media Storage (Cloudinary)
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `CLOUDINARY_URL` | Kondisional | `cloudinary://key:secret@cloud` | URL koneksi SDK Cloudinary resmi. Digunakan untuk upload gambar artikel/galeri dan auto-formatting varian 16:9 Google Discover (`w_1200,h_675`). Wajib jika menggunakan upload media. |
+
+### 4. Layanan Pengiriman Email (SMTP / Mailjet)
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `SMTP_HOST` | Opsional | `in-v3.mailjet.com` | Host server SMTP untuk pengiriman email transaksional. |
+| `SMTP_PORT` | Opsional | `587` | Port koneksi SMTP (`587` untuk TLS/STARTTLS, `465` untuk SSL). |
+| `SMTP_USER` | Opsional | `your-api-key` | Username atau API key akun SMTP. |
+| `SMTP_PASS` | Opsional | `your-secret-key` | Password atau Secret key akun SMTP. |
+| `MAIL_FROM` | Opsional | `no-reply@domain.com` | Alamat email default pengirim notifikasi. |
+| `MAIL_FROM_NAME` | Opsional | `SlimeKit Notification` | Nama tampilan yang muncul di inbox penerima. |
+
+### 5. Cloud Object Storage (Cloudflare R2 & GCS)
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `R2_REGION` | Opsional | `auto` | Region Cloudflare R2 bucket (default `auto`). |
+| `R2_ENDPOINT` | Kondisional | `https://<id>.r2.cloudflarestorage.com` | S3-compatible API endpoint untuk Cloudflare R2. Wajib jika menyimpan aset/backup di R2. |
+| `R2_ACCESS_KEY_ID` | Kondisional | `your-access-key-id` | Kredensial R2 Access Key ID. |
+| `R2_SECRET_ACCESS_KEY`| Kondisional | `your-secret-access-key` | Kredensial R2 Secret Access Key. |
+| `R2_BUCKET` | Kondisional | `my-backup-bucket` | Nama bucket target penyimpanan di Cloudflare R2. |
+| `GCS_BUCKET` | Kondisional | `my-gcs-bucket` | Nama bucket Google Cloud Storage untuk backup database. (Kredensial Service Account diletakkan di `assets/gcs-service-account.json`). |
+
+### 6. Distributed Cache & Queue (Valkey / Redis)
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `VALKEY_SCHEME` | Opsional | `tcp` | Skema koneksi: `tcp` (koneksi standar) atau `tls` (koneksi terenkripsi SSL, wajib untuk Upstash / cloud Redis). |
+| `VALKEY_HOST` | Opsional | `127.0.0.1` | Hostname Valkey / Redis instance. |
+| `VALKEY_PORT` | Opsional | `6379` | Port Valkey / Redis (biasanya `6379`). |
+| `VALKEY_USERNAME` | Opsional | `default` | Username autentikasi Redis ACL (default `default`). |
+| `VALKEY_PASSWORD` | Opsional | `your-redis-pass` | Password autentikasi Redis instance. |
+
+### 7. Background Jobs, Scheduler & Worker Security
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `JOB_STATIC_TOKEN` | **Wajib** | `sec-static-token-123` | Token rahasia otentikasi Bearer statis untuk mengamankan seluruh rute `/job/*` (mencegah eksekusi liar dari luar). |
+| `BACKUP_PROVIDER` | Opsional | `both` | Target provider backup database: `r2`, `gcs`, atau `both` (default `both`). |
+| `BACKUP_FOLDER` | Opsional | `backup` | Nama subdirektori di dalam bucket penyimpanan file cadangan SQL. |
+| `CRONHOOKS_API_KEY` | Opsional | `your-cronhooks-token` | API Key layanan penjadwal [Cronhooks.io](https://cronhooks.io). |
+| `CRONHOOKS_BASE_URL`| Opsional | `https://api.cronhooks.io` | Base URL endpoint API Cronhooks. |
+| `CRONHOOKS_CALLBACK`| Opsional | `https://api.domain.com/job/article_publish` | URL webhook callback aplikasi Anda yang akan dipanggil Cronhooks saat jadwal tayang tiba. |
+
+### 8. Frontend ISR Revalidation (Next.js)
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `NEXT_REVALIDATE_SECRET` | Kondisional | `your-secure-secret` | Token rahasia yang dikirimkan via header `x-revalidate-secret` atau query param ke frontend Next.js untuk otentikasi webhook ISR. |
+| `NEXT_REVALIDATE_URL` | Kondisional | `http://localhost:3000/api/revalidate` | URL endpoint webhook revalidasi frontend Next.js. Dipicu otomatis saat artikel dibuat, diedit, dipublikasikan, atau dihapus. |
+
+### 9. WhatsApp Notification Gateway (Multi-Gateway Failover)
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `WAPITO_API_TOKEN` | Opsional | `your-wapito-token` | Token API gateway WhatsApp utama (**Wapito**). |
+| `WAPITO_BASE_URL` | Opsional | `https://api.wapito.com` | Base URL API Wapito. |
+| `WAPPFLY_API_TOKEN` | Opsional | `your-wappfly-token` | Token API gateway cadangan (**Wappfly**). Otomatis aktif saat Wapito mengalami kegagalan / down. |
+| `WAPPFLY_BASE_URL` | Opsional | `https://wappfly.com/api` | Base URL API Wappfly. |
+
+### 10. AI Services Pipeline (Article Agent)
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `GEMINI_API_KEY` | Kondisional | `AIzaSy...` | API Key Google Gemini (model `gemini-1.5-flash` / `gemini-2.0-flash`) untuk drafting artikel & copywriting. |
+| `OPENAI_API_KEY` | Kondisional | `sk-proj-...` | API Key OpenAI (model `gpt-4o-mini`) untuk AI brainstorming ide topik dan dynamic angles. |
+| `TAVILY_API_KEY` | Kondisional | `tvly-...` | API Key Tavily Search Engine untuk *deep web research*, pengumpulan fakta, dan sitasi akurat. |
+
+### 11. Logging & CORS Security
+
+| Key | Status | Contoh / Default | Penjelasan Fungsi |
+| :--- | :---: | :--- | :--- |
+| `LOG_CHANNEL` | Opsional | `file` | Handler log Monolog (default `file` yang disimpan di `logs/app.log`). |
+| `ALLOWED_ORIGINS` | **Wajib** | `http://localhost:3000` | Daftar origin domain frontend yang diizinkan mengakses API (CORS), dipisahkan tanda koma jika lebih dari satu. |
 
 ---
 
 ## 🏗️ Struktur Direktori Proyek
 
 ```text
-slimekit/api/
-├── assets/                  # Helper CLI generator, konfigurasi Apache, dan asset
+slimekit/
+├── assets/                  # Helper CLI generator, konfigurasi Apache, dan template CI/CD
 │   ├── make_model.php       # Generator Eloquent Model
 │   ├── make_module.php      # Unified Generator Modul (Admin & Client)
-│   └── apache/              # Konfigurasi Apache untuk Docker
+│   ├── apache/              # Konfigurasi Apache untuk container Docker
+│   └── .github/workflows/   # Template GitHub Actions workflow
+├── docs/                    # Dokumentasi arsitektur & keputusan teknis
+│   └── decisions/           # Architecture Decision Records (ADRs)
+│       └── ADR-001-pure-single-tenant-architecture.md
 ├── src/
-│   ├── config/              # Inisialisasi database & DI container
-│   │   └── dependencies.php # Definisi dependensi PHP-DI
+│   ├── config/              # Inisialisasi database, dependencies & services
+│   │   ├── dependencies.php # Definisi dependency injection container (PHP-DI 7)
+│   │   └── services.php     # Konfigurasi provider pihak ketiga
 │   ├── controllers/         # HTTP Controllers (Admin, Client, Job)
 │   ├── helpers/             # Helper umum (General, ApiResponse, dll.)
-│   ├── lib/                 # Service client pihak ketiga (Valkey, Cloudinary, AI Clients, Revalidator)
+│   ├── lib/                 # Integrasi external client (Valkey, Cloudinary, NextRevalidator, AI Clients)
 │   │   ├── clients/         # GeminiClient, OpenAIClient, TavilyClient
 │   │   ├── Cloudinary.php
 │   │   ├── Database.php
 │   │   ├── NextRevalidator.php
 │   │   └── Valkey.php
 │   ├── middlewares/         # Pipeline middleware (Auth, Token, RateLimit, CORS, Gzip)
+│   ├── migrations/          # File migrasi database Phinx
 │   ├── models/              # Eloquent Models
-│   ├── routes/              # Routing definitions (Routes.php)
-│   ├── services/            # Business logic layer (Admin & Client)
+│   ├── routes/              # Definisi routing API (src/routes/Routes.php)
+│   ├── seeds/               # Database seeder Phinx
+│   ├── services/            # Business logic layer (Admin, Client, Job)
 │   └── validators/          # Input validation layer (Rakit)
-├── tests/                   # Automated PHPUnit Test Suite
+├── tests/                   # Automated PHPUnit Test Suite (293 tests)
 │   ├── Feature/             # Endpoint & integration feature tests
-│   └── Unit/                # Service & helper unit tests
-├── db/                      # Phinx migrations & seeds
+│   └── Unit/                # Service, validator & helper unit tests
 ├── Dockerfile.dev           # Docker image untuk development
-├── Dockerfile.prod          # Docker image teroptimasi untuk production
-└── docker-compose.yml       # Orchestrator lokal Docker
+├── Dockerfile.prod          # Docker image teroptimasi multi-stage untuk production
+├── docker-compose.yml       # Orchestrator lokal Docker
+└── phinx.php                # Konfigurasi Phinx Migration
 ```
 
 ---
 
-## 📋 Requirements
+## ⚙️ Panduan Mulai Cepat (Quick Start)
 
-- **PHP:** >= 8.2 (Direkomendasikan PHP 8.4)
-- **Ekstensi PHP Wajib:** `pdo`, `pdo_pgsql` atau `pdo_mysql`, `intl`, `zip`, `gmp`, `gd`, `apcu`, `opcache`
-- **Composer:** >= 2.x
-- **Database:** PostgreSQL (Direkomendasikan via [Aiven](https://aiven.io) / [Supabase](https://supabase.com) / [Neon](https://neon.tech)) atau MySQL
-- **Valkey / Redis:** (Opsional, direkomendasikan [Upstash](https://upstash.com) untuk serverless Redis)
-- **Storage:** [Cloudinary](https://cloudinary.com) atau [Cloudflare R2](https://www.cloudflare.com/developer-platform/r2/)
-- **Docker & Docker Compose:** (Opsional, untuk containerized environment)
-
----
-
-## ⚙️ Instalasi & Setup Lingkungan
-
-### 1. Clone Repositori
+### 1. Clone & Instalasi Dependensi
 ```bash
 git clone <repository-url> slimekit-api
 cd slimekit-api
-```
-
-### 2. Install Dependensi Composer
-```bash
 composer install
 ```
-*(Gunakan `composer update --ignore-platform-reqs` jika ada perbedaan modul lokal spesifik).*
 
-### 3. Konfigurasi Environment (`.env`)
-Salin file template `.env.example` menjadi `.env`:
+### 2. Setup Environment
 ```bash
 cp .env.example .env
+# Edit file .env dan sesuaikan kredensial database (DB_HOST, DB_USER, DB_PASS, DB_NAME)
 ```
 
-Sesuaikan variabel konfigurasi di dalam `.env`:
-```env
-# APLIKASI
-ENVIRONMENT=DEVELOPMENT
-BASE_PATH=/
-APP_NAME=SlimeKit
-SYM_KEY=CvTVi4^Y4FFdA6Rj4T@K+XeQJBU931hY
-
-# DATABASE (Eloquent ORM)
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_USER=postgres
-DB_PASS=password
-DB_NAME=slimekit_db
-DB_CLIENT=pgsql
-
-# CLOUDINARY (Media Storage)
-CLOUDINARY_URL=cloudinary://<key>:<secret>@<cloud_name>
-
-# MAILJET (SMTP Email)
-SMTP_HOST=in-v3.mailjet.com
-SMTP_PORT=587
-SMTP_USER=your-smtp-user
-SMTP_PASS=your-smtp-pass
-MAIL_FROM=no-reply@example.com
-MAIL_FROM_NAME="SlimeKit"
-
-# CLOUDFLARE R2 (S3-Compatible Object Storage)
-R2_REGION=auto
-R2_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=your-access-key-id
-R2_SECRET_ACCESS_KEY=your-secret-access-key
-R2_BUCKET=slimekit-bucket
-
-# VALKEY / REDIS (Cache & Rate Limiting)
-VALKEY_SCHEME=tcp
-VALKEY_HOST=127.0.0.1
-VALKEY_PORT=6379
-VALKEY_USERNAME=default
-VALKEY_PASSWORD=
-
-# CRONHOOKS (Scheduled Webhook Triggers)
-CRONHOOKS_API_KEY=
-CRONHOOKS_BASE_URL=https://api.cronhooks.io
-CRONHOOKS_CALLBACK=https://api.example.com/job/article_publish
-
-# NEXT.JS ISR REVALIDATION
-NEXT_REVALIDATE_SECRET=your-secure-revalidate-secret
-NEXT_REVALIDATE_ENDPOINTS=default=http://localhost:3000/api/revalidate
-
-# AI CLIENTS (Article Agent)
-GEMINI_API_KEY=your-gemini-api-key
-OPENAI_API_KEY=your-openai-api-key
-TAVILY_API_KEY=your-tavily-api-key
-
-# LOGGING & CORS
-LOG_CHANNEL=file
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
+### 3. Migrasi & Seed Database
+```bash
+composer migrate
+composer seed
 ```
 
----
-
-## 🚀 Menjalankan Aplikasi
-
-### Menggunakan PHP Built-in Server (Local Development)
+### 4. Menjalankan Server Lokal
 ```bash
 composer start
 ```
-Aplikasi akan aktif di `http://localhost:8787`.
-
-### Menggunakan Docker & Docker Compose
-SlimeKit v2 menyediakan `Dockerfile.dev` untuk pengembangan lokal dan `Dockerfile.prod` untuk produksi:
-```bash
-# Menjalankan container di background
-docker-compose up -d
-
-# Melihat log container
-docker-compose logs -f
-
-# Menghentikan container
-docker-compose down
-```
-Aplikasi berjalan pada port `http://localhost:8080`.
-
-### Menggunakan Laragon / XAMPP
-Pastikan ekstensi PHP yang dibutuhkan aktif di `php.ini`. Atur `BASE_PATH` pada file `.env` jika aplikasi berada di dalam subfolder, contoh:
-```env
-BASE_PATH=/local/slimekit/api
-```
+Aplikasi akan berjalan di `http://localhost:8787`.
 
 ---
 
-## 🛠️ CLI & Code Generator
+## 🛠️ Generator CLI Modul & Model
 
-SlimeKit v2 dilengkapi generator CLI modern yang otomatis menerapkan arsitektur *Dependency Injection*, PHP 8 constructor promotion, dan *ApiResponse*.
+SlimeKit menyediakan generator otomatis yang menghasilkan kode rapi berstandar *PHP 8 constructor promotion*, *Dependency Injection*, dan *ApiResponse*:
 
-### 1. Scaffold Modul Baru
-Gunakan perintah terpadu untuk membuat Controller, Service, dan Validator:
 ```bash
-# Membuat modul Admin (Controllers/Admin, Services/Admin, Validators/Admin)
+# 1. Membuat Modul Admin (Controller, Service, Validator)
 composer make:module:admin Product
 
-# Membuat modul Client (Controllers/Client, Services/Client, Validators/Client)
+# 2. Membuat Modul Client (Controller, Service, Validator)
 composer make:module:client Product
-```
-Atau via script langsung:
-```bash
-php assets/make_module.php admin Product
-php assets/make_module.php client Product
-```
 
-### 2. Scaffold Eloquent Model Baru
-```bash
+# 3. Membuat Eloquent Model
 composer make:model Product products
-```
-Perintah ini akan membuat file model Eloquent di `src/models/Product.php` yang terhubung ke tabel `products`.
 
-### 3. Database Migration & Seeding (Phinx)
-```bash
-# Jalankan seluruh migrasi
-composer migrate
-
-# Buat file migrasi baru
+# 4. Membuat File Migrasi Baru
 composer make:migration CreateProductsTable
-
-# Cek status migrasi
-composer migrate:status
-
-# Rollback migrasi terakhir
-composer migrate:rollback
-
-# Jalankan seeder database
-composer seed
-
-# Buat file seeder baru
-composer make:seed UserSeeder
-```
-
-### 4. Refresh Autoload
-```bash
-composer dump-autoload -o
 ```
 
 ---
 
-## 🤖 AI Article Agent & Job Automation
+## 🧪 Pengujian Otomatis (Automated Testing)
 
-SlimeKit v2 menyertakan sistem pembuatan artikel bertenaga AI dan automasi background job:
-
-### AI Article Agent Pipeline (`/admin/article_agent`)
-1. **`POST /admin/article_agent/step1_input_topic`**: Mengirimkan topik awal, sistem menghasilkan variasi sudut pandang dan ide artikel.
-2. **`POST /admin/article_agent/step1_input_selection`**: Menyimpan pilihan sudut pandang topik yang akan dikembangkan.
-3. **`POST /admin/article_agent/step2_do_research`**: Menjalankan riset mendalam berbasis web menggunakan **Tavily API** untuk mengumpulkan data, fakta, dan sumber terkini.
-4. **`POST /admin/article_agent/step3_do_write`**: Menghasilkan draf artikel lengkap, meta deskripsi SEO, dan struktur konten menggunakan **Google Gemini** atau **OpenAI**.
-5. **`GET /admin/article_agent/detail`**: Mengambil progres dan hasil draf artikel.
-
-### Job Automation Endpoints (`/job`)
-- **`POST /job/article_publish`**: Mengecek artikel yang memiliki jadwal tayang dan mempublikasikannya, serta memicu revalidasi cache frontend Next.js secara instan melalui `NextRevalidator`.
-- **`POST /job/article_sync_stats`**: Menyinkronkan agregasi metrik kunjungan artikel dari cache Valkey ke tabel database permanen.
-- **`POST /job/article_track_stats`**: Merekam data statistik kunjungan real-time.
-
----
-
-## 🧪 Automated Testing
-
-SlimeKit v2 dibangun dengan fondasi pengujian otomatis yang komprehensif menggunakan **PHPUnit 11**:
+SlimeKit mengimplementasikan pengujian otomatis menyeluruh menggunakan **PHPUnit 11**:
 
 ```bash
 # Menjalankan seluruh test suite (Unit & Feature)
 composer test
-# atau
-vendor/bin/phpunit
 
 # Menjalankan Feature Tests saja
 composer test:feature
@@ -280,106 +283,38 @@ composer test:feature
 # Menjalankan Unit Tests saja
 composer test:unit
 
-# Menjalankan pengujian tertentu dengan filter nama
-composer test:filter RoutesTest
+# Menjalankan test tertentu dengan filter
+composer test:filter AdminArticleTest
 composer test:filter JobTest
-composer test:filter AdminArticleAgentTest
 ```
 
-Seluruh pengujian dirancang untuk memverifikasi:
-- Resolusi dependensi container PHP-DI tanpa error instansiasi.
-- Integritas seluruh rute pada `src/routes/Routes.php`.
-- Autentikasi JWT token dan otorisasi permission middleware.
-- Validasi input Rakit untuk format valid dan payload tidak valid.
-- Transaksi database rollback otomatis setelah pengujian selesai.
+**Status Uji Saat Ini:**
+```text
+OK: Tests: 293, Assertions: 847, Failures: 0, Errors: 0
+```
 
 ---
 
-## ☁️ Deployment ke Google Cloud Run (Docker & GitHub Actions)
+## ☁️ Deployment ke Google Cloud Run
 
-SlimeKit v2 menggunakan alur deployment modern langsung ke **Google Cloud Run** melalui container image Docker di **Google Artifact Registry** dan automasi CI/CD via **GitHub Actions** (tanpa dependensi OpenTofu/Terraform).
+SlimeKit siap di-deploy secara *serverless* ke **Google Cloud Run** menggunakan Docker container:
 
-### 1. Setup Google Cloud CLI
 ```bash
-# Login ke Google Cloud
-gcloud auth login
+# 1. Build image Docker production (platform linux/amd64)
+docker build --platform linux/amd64 -f Dockerfile.prod -t asia-southeast1-docker.pkg.dev/<PROJECT_ID>/<REPO>/slimekit-api:latest .
 
-# Set Project ID aktif
-gcloud config set project <PROJECT-ID>
+# 2. Push image ke Google Artifact Registry
+docker push asia-southeast1-docker.pkg.dev/<PROJECT_ID>/<REPO>/slimekit-api:latest
 
-# Aktifkan API yang dibutuhkan
-gcloud services enable run.googleapis.com artifactregistry.googleapis.com
-
-# Buat Repository Artifact Registry untuk Docker image
-gcloud artifacts repositories create <NAMA-REPO> \
-  --repository-format=docker \
-  --location=asia-southeast1 \
-  --description="SlimeKit API Image Repository" \
-  --project=<PROJECT-ID>
-
-# Autentikasi Docker ke GCP Artifact Registry
-gcloud auth configure-docker asia-southeast1-docker.pkg.dev
-```
-
-### 2. Konfigurasi Service Account Google Cloud
-1. Masuk ke **IAM & Admin > Service Accounts** di Google Cloud Console.
-2. Buat Service Account baru (misal: `github-actions-deployer`).
-3. Berikan Roles (Izin) berikut:
-   - **Cloud Run Admin**: Mengelola deployment dan revisi service Cloud Run.
-   - **Service Account User**: Menjalankan service dengan identitas service account.
-   - **Artifact Registry Administrator**: Mengunggah dan mengelola image container di Artifact Registry.
-4. Pada tab **Keys**, klik **Add Key > Create new key > JSON**, unduh filenya untuk disalin ke GitHub Secrets.
-
-### 3. Konfigurasi GitHub Repository Secrets & Variables
-Tambahkan kredensial di repositori GitHub Anda: **Settings > Secrets and variables > Actions**:
-
-#### Repository Secrets:
-- `GCP_CREDENTIALS`: Isi dengan seluruh teks JSON key dari Service Account.
-- `DB_PASS`: Password database produksi (digunakan untuk migrasi otomatis).
-- `SYM_KEY`: JWT Symmetric key rahasia.
-- `CLOUDINARY_URL`: URL konfigurasi Cloudinary.
-- `SMTP_USER` & `SMTP_PASS`: Kredensial SMTP Mailjet.
-- `R2_ACCESS_KEY_ID` & `R2_SECRET_ACCESS_KEY`: Kredensial Cloudflare R2.
-- `VALKEY_USERNAME` & `VALKEY_PASSWORD`: Kredensial Valkey / Upstash.
-- `CRONHOOKS_API_KEY`: API Key Cronhooks.
-- `GEMINI_API_KEY`, `OPENAI_API_KEY`, `TAVILY_API_KEY`: API Key AI Services.
-
-#### Repository Variables:
-- `GCP_PROJECT_ID`: ID Proyek Google Cloud Anda.
-- `GCP_REGION`: Region Cloud Run (misal: `asia-southeast1`).
-- `REPO_NAME`: Nama repository Artifact Registry.
-- `CLOUD_RUN_NAME`: Nama service Cloud Run (misal: `slimekit-api`).
-- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_CLIENT`: Koneksi database produksi.
-
-### 4. Otomatisasi Deployment via GitHub Actions
-Salin file template workflow dari `assets/.github/workflows/deploy.yml` ke `.github/workflows/deploy.yml`:
-```bash
-mkdir -p .github/workflows
-cp assets/.github/workflows/deploy.yml .github/workflows/deploy.yml
-```
-Setiap *push* ke branch `main`, GitHub Actions akan otomatis:
-1. Mengautentikasi ke Google Cloud via `GCP_CREDENTIALS`.
-2. Membangun image Docker menggunakan `Dockerfile.prod`.
-3. Mendorong image ke Artifact Registry.
-4. Men-deploy service baru ke Google Cloud Run dengan flag `--allow-unauthenticated`.
-5. Menjalankan migrasi database Phinx (`composer migrate`) secara otomatis.
-
-### 5. Build, Push & Deploy Manual (Opsional)
-Jika ingin melakukan deployment manual dari CLI lokal:
-```bash
-# 1. Build image dengan platform linux/amd64 untuk Cloud Run
-docker build --platform linux/amd64 -f Dockerfile.prod -t asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<CLOUD-RUN-NAME>:latest .
-
-# 2. Push image ke Artifact Registry
-docker push asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<CLOUD-RUN-NAME>:latest
-
-# 3. Deploy langsung ke Cloud Run
-gcloud run deploy <CLOUD-RUN-NAME> \
-  --image=asia-southeast1-docker.pkg.dev/<PROJECT-ID>/<NAMA-REPO>/<CLOUD-RUN-NAME>:latest \
+# 3. Deploy ke Cloud Run
+gcloud run deploy slimekit-api \
+  --image=asia-southeast1-docker.pkg.dev/<PROJECT_ID>/<REPO>/slimekit-api:latest \
   --region=asia-southeast1 \
   --platform=managed \
   --allow-unauthenticated
 ```
+
+CI/CD otomatis menggunakan GitHub Actions juga telah tersedia di `assets/.github/workflows/deploy.yml`.
 
 ---
 

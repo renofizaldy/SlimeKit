@@ -4,7 +4,7 @@
         "slim/psr7": "^1.6",
         "vlucas/phpdotenv": "^5.5",
         "cloudinary/cloudinary_php": "^2.11",
-        "firebase/php-jwt": "^6.8",
+        "firebase/php-jwt": "^7.0",
         "google/cloud-storage": "^1.39",
         "middlewares/encoder": "^2.2",
         "phpmailer/phpmailer": "^6.10",

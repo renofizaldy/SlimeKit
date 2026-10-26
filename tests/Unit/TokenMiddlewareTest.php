@@ -13,7 +13,7 @@ use Slim\Psr7\Response;
 
 class TokenMiddlewareTest extends TestCase
 {
-  private string $secretKey = 'test-secret-jwt-key-2026';
+  private string $secretKey = 'test-secret-jwt-key-2026-minimum-32-bytes!';
   private Tokenize $tokenize;
   private TokenMiddleware $middleware;
 

@@ -76,14 +76,14 @@ Seluruh perbaikan generic akan diadopsi tanpa mengotori framework dengan kode do
 ---
 
 ### Phase 4: Publishing Engine, Anti-Duplication & Transaction Cleanliness
-- [ ] **Task 10: PostgreSQL Trigram Similarity & Composite Indexes Migration** (`src/migrations/`, `src/services/client/ClientArticleService.php`)
-- [ ] **Task 11: Transaction Boundaries, Search Filtering & Cache Invalidation Coherence** (`src/services/admin/AdminArticleService.php`, `src/services/admin/AdminArticleCategoryService.php`)
-- [ ] **Task 12: AI Content Agent Anti-Duplication & Negative Context** (`src/helpers/General.php`, `src/services/admin/AdminArticleAgentService.php`)
-- [ ] **Task 13: Content Team Module Refinement & Full Suite Verification** (`src/services/admin/AdminContentTeamService.php`, `tests/`)
+- [x] **Task 10: PostgreSQL Trigram Similarity & Composite Indexes Migration** (`src/migrations/`, `src/services/client/ClientArticleService.php`)
+- [x] **Task 11: Transaction Boundaries, Search Filtering & Cache Invalidation Coherence** (`src/services/admin/AdminArticleService.php`, `src/services/admin/AdminArticleCategoryService.php`)
+- [x] **Task 12: AI Content Agent Anti-Duplication & Negative Context** (`src/helpers/General.php`, `src/services/admin/AdminArticleAgentService.php`)
+- [x] **Task 13: Content Team Module Refinement & Full Suite Verification** (`src/services/admin/AdminContentTeamService.php`, `tests/`)
 
 ### Checkpoint 4: End-to-End Test Suite Green
-- [ ] Seluruh unit dan feature tests di SlimeKit lulus tanpa kegagalan: `composer test`
-- [ ] Framework bersih dari sisa modul bisnis domain
+- [x] Seluruh unit dan feature tests di SlimeKit lulus tanpa kegagalan: `composer test`
+- [x] Framework bersih dari sisa modul bisnis domain
 
 ---
 

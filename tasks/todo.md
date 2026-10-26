@@ -268,17 +268,17 @@ Menerapkan sistem validasi dan whitelisting parameter `site` di `src/helpers/Gen
 Membuat file migrasi Phinx `AddTrgmAndPerformanceIndexesToArticles` untuk mengaktifkan ekstensi `pg_trgm`, menambahkan GIN index pada kolom judul `tb_article` (`USING gin (title gin_trgm_ops)`), serta menambahkan composite B-Tree index pada `(site, status, slug)` dan `(site, status, publish)`. Memperbarui query pencarian artikel serupa di `ClientArticleService::similar()` agar memanfaatkan operator similarity trigram `(title % ? OR similarity(title, ?) > 0.2)`.
 
 **Acceptance criteria:**
-- [ ] File migrasi baru dibuat di `src/migrations/` dengan deklarasi indeks trigram dan komposit.
-- [ ] `ClientArticleService::similar()` memperbarui query dengan sintaks similarity yang teroptimasi.
-- [ ] Phinx status dan rollback bekerja dengan baik.
+- [x] File migrasi baru dibuat di `src/migrations/` dengan deklarasi indeks trigram dan komposit.
+- [x] `ClientArticleService::similar()` memperbarui query dengan sintaks similarity yang teroptimasi.
+- [x] Phinx status dan rollback bekerja dengan baik.
 
 **Verification:**
-- [ ] Pemeriksaan sintaks: `php -l src/services/client/ClientArticleService.php`
-- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Feature/ClientArticleTest.php`
+- [x] Pemeriksaan sintaks: `php -l src/services/client/ClientArticleService.php`
+- [x] Menjalankan test: `php vendor/bin/phpunit tests/Feature/ClientArticleTest.php`
 
 **Dependencies:** Task 8
 **Files likely touched:**
-- `src/migrations/20261026000000_add_trgm_and_performance_indexes_to_articles.php`
+- `src/migrations/20261008234500_add_trgm_and_performance_indexes_to_articles.php`
 - `src/services/client/ClientArticleService.php`
 **Estimated scope:** Small (2 files)
 
@@ -290,14 +290,14 @@ Membuat file migrasi Phinx `AddTrgmAndPerformanceIndexesToArticles` untuk mengak
 Merefaktor `AdminArticleService.php` dan `AdminArticleCategoryService.php` untuk memisahkan batasan transaksi database secara ketat: upload media Cloudinary dilakukan sebelum `DB::beginTransaction()` (dengan kompensasi delete jika error), penghapusan aset cloud dilakukan setelah `DB::commit()`, serta penghapusan cache Valkey dan Next.js revalidation dilakukan setelah commit. Menambahkan fitur filter pencarian teks `search` pada `AdminArticleService::list()` dan membuat method terpusat `invalidateArticleCache()` serta `invalidateCategoryAndArticleCache()`.
 
 **Acceptance criteria:**
-- [ ] Upload gambar berada di luar transaksi DB; jika DB gagal, file Cloudinary di-rollback/dihapus.
-- [ ] Penghapusan cloud dan pembersihan cache dieksekusi setelah `DB::commit()`.
-- [ ] Method `AdminArticleService::list()` mendukung parameter query `search` (mencari pada `title`, `author`, `slug`) dan memasukkannya ke dalam cache key.
-- [ ] Unit tests `AdminArticleCacheInvalidationTest` dan `AdminArticleCategoryCacheInvalidationTest` disalin dan lulus 100%.
+- [x] Upload gambar berada di luar transaksi DB; jika DB gagal, file Cloudinary di-rollback/dihapus.
+- [x] Penghapusan cloud dan pembersihan cache dieksekusi setelah `DB::commit()`.
+- [x] Method `AdminArticleService::list()` mendukung parameter query `search` (mencari pada `title`, `author`, `slug`) dan memasukkannya ke dalam cache key.
+- [x] Unit tests `AdminArticleCacheInvalidationTest` dan `AdminArticleCategoryCacheInvalidationTest` disalin dan lulus 100%.
 
 **Verification:**
-- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/AdminArticleCacheInvalidationTest.php tests/Unit/AdminArticleCategoryCacheInvalidationTest.php`
-- [ ] Menjalankan feature tests: `php vendor/bin/phpunit tests/Feature/AdminArticleTest.php tests/Feature/AdminArticleCategoryTest.php`
+- [x] Menjalankan test: `php vendor/bin/phpunit tests/Unit/AdminArticleCacheInvalidationTest.php tests/Unit/AdminArticleCategoryCacheInvalidationTest.php`
+- [x] Menjalankan feature tests: `php vendor/bin/phpunit tests/Feature/AdminArticleTest.php tests/Feature/AdminArticleCategoryTest.php`
 
 **Dependencies:** Task 1, Task 8
 **Files likely touched:**
@@ -316,14 +316,14 @@ Merefaktor `AdminArticleService.php` dan `AdminArticleCategoryService.php` untuk
 Menambahkan helper `General::getRecentArticlesBySite(string $site, int $limit)` untuk mengambil daftar artikel terbaru beserta target keyword-nya. Memperbarui `AdminArticleAgentService.php` agar secara dinamis menyuntikkan daftar artikel eksisting sebagai *negative context* (anti-kanibalisasi topik) ke dalam prompt LLM OpenAI / Gemini saat brainstorming, serta menambahkan dynamic angles pool dan relevansi periode bulan/tahun terkini.
 
 **Acceptance criteria:**
-- [ ] Method `General::getRecentArticlesBySite()` tersedia dan mengembalikan array title & keyword.
-- [ ] `AdminArticleAgentService::brainstorm()` menyuntikkan negative context dan dynamic angle pool ke prompt saat mode `auto` + `free`.
-- [ ] Konfigurasi model AI OpenAI diperbarui untuk kompatibilitas model mutakhir.
-- [ ] Unit tests `GeneralRecentArticlesTest` dan `AdminArticleAgentServiceBrainstormTest` disalin dan lulus 100%.
+- [x] Method `General::getRecentArticlesBySite()` tersedia dan mengembalikan array title & keyword.
+- [x] `AdminArticleAgentService::brainstorm()` menyuntikkan negative context dan dynamic angle pool ke prompt saat mode `auto` + `free`.
+- [x] Konfigurasi model AI OpenAI diperbarui untuk kompatibilitas model mutakhir.
+- [x] Unit tests `GeneralRecentArticlesTest` dan `AdminArticleAgentServiceBrainstormTest` disalin dan lulus 100%.
 
 **Verification:**
-- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralRecentArticlesTest.php tests/Unit/AdminArticleAgentServiceBrainstormTest.php`
-- [ ] Menjalankan feature test: `php vendor/bin/phpunit tests/Feature/AdminArticleAgentTest.php`
+- [x] Menjalankan test: `php vendor/bin/phpunit tests/Unit/GeneralRecentArticlesTest.php tests/Unit/AdminArticleAgentServiceBrainstormTest.php`
+- [x] Menjalankan feature test: `php vendor/bin/phpunit tests/Feature/AdminArticleAgentTest.php`
 
 **Dependencies:** Task 7, Task 9
 **Files likely touched:**
@@ -341,15 +341,15 @@ Menambahkan helper `General::getRecentArticlesBySite(string $site, int $limit)` 
 Melakukan audit dan penyesuaian pada modul boilerplate `content_team` (`AdminContentTeamService.php`, `ClientContentTeamService.php`, dan `AdminContentTeamTest.php`) agar selaras dengan konvensi arsitektur baru (upload gambar di luar transaksi DB, commit sebelum pembersihan cache). Menjalankan keseluruhan test suite PHPUnit untuk memastikan seluruh endpoint, middleware, dan service di SlimeKit lulus 100% tanpa regresi.
 
 **Acceptance criteria:**
-- [ ] `AdminContentTeamService` menerapkan pola transaksi baru yang aman.
-- [ ] Modul `content_team` tetap berfungsi sebagai referensi CRUD developer.
-- [ ] Tidak ada berkas/kode peninggalan domain Makeup, Finansial, ataupun Tools Weton di SlimeKit.
-- [ ] Perintah `composer test` menjalankan seluruh feature dan unit tests dengan status 100% Pass (hijau).
+- [x] `AdminContentTeamService` menerapkan pola transaksi baru yang aman.
+- [x] Modul `content_team` tetap berfungsi sebagai referensi CRUD developer.
+- [x] Tidak ada berkas/kode peninggalan domain Makeup, Finansial, ataupun Tools Weton di SlimeKit.
+- [x] Perintah `composer test` menjalankan seluruh feature dan unit tests dengan status 100% Pass (hijau).
 
 **Verification:**
-- [ ] Menjalankan seluruh test suite: `composer test`
-- [ ] Menjalankan feature tests: `composer test:feature`
-- [ ] Menjalankan unit tests: `composer test:unit`
+- [x] Menjalankan seluruh test suite: `composer test`
+- [x] Menjalankan feature tests: `composer test:feature`
+- [x] Menjalankan unit tests: `composer test:unit`
 
 **Dependencies:** Tasks 1-12
 **Files likely touched:**
@@ -361,6 +361,6 @@ Melakukan audit dan penyesuaian pada modul boilerplate `content_team` (`AdminCon
 ---
 
 ### Checkpoint: Complete Verification
-- [ ] 13 Task selesai dan ditandai `[x]`
-- [ ] Seluruh unit dan feature tests berstatus hijau (`composer test`)
-- [ ] SlimeKit v2.1 siap dipakai sebagai starter kit produksi yang tangguh dan bersih
+- [x] 13 Task selesai dan ditandai `[x]`
+- [x] Seluruh unit dan feature tests berstatus hijau (`composer test`)
+- [x] SlimeKit v2.1 siap dipakai sebagai starter kit produksi yang tangguh dan bersih

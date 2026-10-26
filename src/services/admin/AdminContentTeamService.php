@@ -46,6 +46,7 @@ class AdminContentTeamService
         'link'        => $row->link,
         'updated_at'  => $row->updated_at,
         'original'    => $row->picture->original ?? null,
+        'large'       => $this->helper->formatCloudinaryUrl($row->picture->original ?? $row->picture->thumbnail ?? null, 'c_fill,w_1200,h_675,g_auto,q_auto,f_auto'),
         'thumbnail'   => $row->picture->thumbnail ?? null,
       ]
     );
@@ -53,11 +54,15 @@ class AdminContentTeamService
 
   public function add(array $input, array $user)
   {
+    //? PICTURE UPLOAD OUTSIDE TRANSACTION
+    $uploadedPicture = !empty($input['picture']) ? $this->helper->uploadImage($this->cloudinary, $input['picture']) : null;
+
     DB::beginTransaction();
     try {
-      //? PICTURE UPLOAD
-        $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null);
-      //? PICTURE UPLOAD
+      //? PICTURE SAVE
+        $picture    = $uploadedPicture ? $this->helper->savePicture($uploadedPicture) : null;
+        $picture_id = $picture ? ['id' => $picture->id, 'url' => $uploadedPicture['original']] : null;
+      //? PICTURE SAVE
 
       //? INSERT TO table
         $insert = ContentTeam::create([
@@ -76,6 +81,11 @@ class AdminContentTeamService
     }
     catch (Exception $e) {
       DB::rollBack();
+      if ($uploadedPicture && !empty($uploadedPicture['public_id'])) {
+        try {
+          $this->cloudinary->delete($uploadedPicture['public_id']);
+        } catch (\Throwable) {}
+      }
       throw $e;
     }
   }
@@ -84,11 +94,15 @@ class AdminContentTeamService
   {
     $check = $this->checkExist($input);
 
+    //? PICTURE UPLOAD OUTSIDE TRANSACTION
+    $uploadedPicture = !empty($input['picture']) ? $this->helper->uploadImage($this->cloudinary, $input['picture']) : null;
+
     DB::beginTransaction();
     try {
-      //? PICTURE UPLOAD
-        $picture_id = $this->helper->pictureUpload($this->cloudinary, $input['picture'] ?? null);
-      //? PICTURE UPLOAD
+      //? PICTURE SAVE
+        $picture    = $uploadedPicture ? $this->helper->savePicture($uploadedPicture) : null;
+        $picture_id = $picture ? ['id' => $picture->id, 'url' => $uploadedPicture['original']] : null;
+      //? PICTURE SAVE
 
       //? UPDATE ON table
         $updateData = [
@@ -112,6 +126,11 @@ class AdminContentTeamService
     }
     catch (Exception $e) {
       DB::rollBack();
+      if ($uploadedPicture && !empty($uploadedPicture['public_id'])) {
+        try {
+          $this->cloudinary->delete($uploadedPicture['public_id']);
+        } catch (\Throwable) {}
+      }
       throw $e;
     }
   }
@@ -119,6 +138,7 @@ class AdminContentTeamService
   public function drop(array $input, array $user)
   {
     $check = $this->checkExist($input);
+    $pictureCloudId = null;
 
     DB::beginTransaction();
     try {
@@ -128,7 +148,11 @@ class AdminContentTeamService
 
       //? DELETE PICTURE
         if (!empty($check->id_picture)) {
-          Picture::where('id', (int) $check->id_picture)->delete();
+          $picture = Picture::find($check->id_picture);
+          if ($picture) {
+            $pictureCloudId = $picture->id_cloud ?? null;
+            $picture->delete();
+          }
         }
       //? DELETE PICTURE
 
@@ -137,6 +161,15 @@ class AdminContentTeamService
       //? LOG Record
 
       DB::commit();
+
+      //! DROP PICTURE ON CLOUD (AFTER COMMIT)
+      if (!empty($pictureCloudId)) {
+        try {
+          $this->cloudinary->delete($pictureCloudId);
+        } catch (\Throwable $e) {
+          error_log('Failed to delete Cloudinary picture after drop: ' . $e->getMessage());
+        }
+      }
     }
     catch (Exception $e) {
       DB::rollBack();

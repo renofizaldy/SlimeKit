@@ -34,6 +34,7 @@ class ClientContentTeamService
         'link'    => $row->link,
         'picture' => [
           'original'  => $row->picture->original ?? null,
+          'large'     => $this->helper->formatCloudinaryUrl($row->picture->original ?? $row->picture->thumbnail ?? null, 'c_fill,w_1200,h_675,g_auto,q_auto,f_auto'),
           'thumbnail' => $row->picture->thumbnail ?? null
         ]
       ]

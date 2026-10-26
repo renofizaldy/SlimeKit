@@ -37,6 +37,22 @@ class AdminArticleCategoryService
     return Article::where('id_category', (int) $input['id'])->exists();
   }
 
+  private function invalidateCategoryAndArticleCache(?string $site, ?string $oldSite = null): void
+  {
+    $sites = array_values(array_filter(array_unique([$site, $oldSite])));
+
+    foreach ($sites as $s) {
+      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s:", $s));
+      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s:", $s));
+
+      $this->valkey->deleteByPrefix(sprintf("article:list:site=%s:", $s));
+      $this->valkey->deleteByPrefix(sprintf("article:detail:site=%s:", $s));
+      $this->valkey->deleteByPrefix(sprintf("article:similar:site=%s:", $s));
+    }
+
+    $this->valkey->deleteByPrefix("article:admin");
+  }
+
   public function checkSlug(array $input)
   {
     $query = ArticleCategory::where([
@@ -139,11 +155,11 @@ class AdminArticleCategoryService
         $this->helper->addLog($user, $this->tableMain, $lastTableMainId, 'INSERT', $this->helper->logRecordChanges($category));
       //? LOG Record
 
-      //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
-      //? DELETE CACHE
-
       DB::commit();
+
+      //? DELETE CACHE
+        $this->invalidateCategoryAndArticleCache($input['site'] ?? null);
+      //? DELETE CACHE
     }
     catch (Exception $e) {
       DB::rollBack();
@@ -186,12 +202,11 @@ class AdminArticleCategoryService
         $this->helper->addLog($user, $this->tableMain, (int) $input['id'], 'UPDATE', $changes);
       //? LOG Record
 
-      //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $input['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
-      //? DELETE CACHE
-
       DB::commit();
+
+      //? DELETE CACHE
+        $this->invalidateCategoryAndArticleCache($input['site'] ?? null, $check->site ?? null);
+      //? DELETE CACHE
     }
     catch (Exception $e) {
       DB::rollBack();
@@ -224,12 +239,11 @@ class AdminArticleCategoryService
         $this->helper->addLog($user, $this->tableMain, (int) $check['id'], 'DELETE', $changes);
       //? LOG Record
 
-      //? DELETE CACHE
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s", $check['site']));
-        $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s", $input['site']));
-      //? DELETE CACHE
-
       DB::commit();
+
+      //? DELETE CACHE
+        $this->invalidateCategoryAndArticleCache($check->site ?? ($check['site'] ?? null));
+      //? DELETE CACHE
     }
     catch (Exception $e) {
       DB::rollBack();

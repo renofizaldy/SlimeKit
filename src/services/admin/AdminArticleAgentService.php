@@ -15,9 +15,9 @@ class AdminArticleAgentService
 {
   private string $modelGeminiThink      = 'gemini-2.5-pro';
   private string $modelGeminiSummary    = 'gemini-2.5-flash-lite';
-  private string $modelOpenaiBrainstorm = 'gpt-5.6-sol';
+  private string $modelOpenaiBrainstorm = 'gpt-6-astra';
   private string $modelOpenaiSummary    = 'gpt-5.4-mini';
-  private string $modelOpenaiWriting    = 'gpt-5.6-sol';
+  private string $modelOpenaiWriting    = 'gpt-6-astra';
 
   public function __construct(
     private General $helper,
@@ -40,11 +40,13 @@ class AdminArticleAgentService
     $isAutoFree = $isAutoMode && $strategy === 'free';
 
     //? Get reference data
-    $topArticles = [];
-    $categories  = [];
+    $topArticles    = [];
+    $categories     = [];
+    $recentArticles = [];
     if ($isAutoFree) {
-      //? Auto + Free: gunakan kategori site sebagai referensi
-      $categories = $this->helper->getCategoriesBySite($site);
+      //? Auto + Free: gunakan kategori site sebagai referensi dan recent articles sebagai negative context
+      $categories     = $this->helper->getCategoriesBySite($site);
+      $recentArticles = $this->helper->getRecentArticlesBySite($site, 75);
     } elseif ($isAutoMode || $strategy !== 'free') {
       //? Auto + strategy lain / Manual + non-free: gunakan top articles
       $topArticles = $this->helper->getTopArticles($site, 50);
@@ -68,6 +70,41 @@ class AdminArticleAgentService
         } else {
           $prompt .= "Buatlah 10 rekomendasi ide artikel umum yang populer, tren, dan berpotensi meraih trafik tinggi.\n\n";
         }
+
+        //! Anti-duplikasi (Negative Context) dari artikel eksisting
+        if (!empty($recentArticles)) {
+          $prompt .= "DAFTAR ARTIKEL YANG SUDAH DITULIS DI SITUS INI (DILARANG KERAS MEREKOMENDASIKAN ULANG):\n";
+          foreach ($recentArticles as $index => $article) {
+            $num     = $index + 1;
+            $prompt .= "{$num}. {$article['title']} | Keyword: {$article['keyword']}\n";
+          }
+          $prompt .= "\nINSTRUKSI PENCEGAHAN DUPLIKASI (SANGAT PENTING):\n";
+          $prompt .= "DILARANG KERAS membuat ide topik yang mengangkat tema, judul, atau target kata kunci yang serupa atau telah dibahas dalam daftar di atas untuk mencegah kanibalisasi konten (keyword cannibalization). Rekomendasikan topik yang benar-benar SEGAR, BARU, dan BELUM PERNAH DITULIS di situs ini.\n\n";
+        }
+
+        //! Dynamic Angles Pool & Waktu Terkini
+        $anglesPool = [
+          "Solusi Praktis & Actionable How-To (Mengatasi masalah riil audiens langkah demi langkah)",
+          "Tren Terkini & Masa Depan / Future Outlook (Prediksi, inovasi, dan perkembangan baru industri)",
+          "Mitos vs Fakta / Sudut Pandang Kontrarian (Membongkar kesalahpahaman umum dan perspektif kritis)",
+          "Panduan Komprehensif Pemula / Fondasi (Penjelasan mendasar dari nol yang mudah dipahami)",
+          "Komparasi Mendalam & Studi Kasus Riil (Perbandingan solusi / bedah kasus nyata yang objektif)"
+        ];
+        shuffle($anglesPool);
+        $selectedAngles = array_slice($anglesPool, 0, 2);
+
+        $monthsIndo = [
+          1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+          5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+          9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+        $currentPeriod = ($monthsIndo[(int)date('n')] ?? date('F')) . ' ' . date('Y');
+
+        $prompt .= "EKSPLORASI SUDUT PANDANG (DYNAMIC ANGLES):\n";
+        $prompt .= "Eksplorasi ide dengan fokus utama pada 2 sudut pandang (angle) berikut:\n";
+        $prompt .= "1. {$selectedAngles[0]}\n";
+        $prompt .= "2. {$selectedAngles[1]}\n";
+        $prompt .= "Sesuaikan juga topik dengan relevansi konteks tren waktu saat ini ({$currentPeriod}).\n\n";
       } elseif (!empty($topArticles)) {
         //! AUTO + STRATEGY (gap/cluster/formula): Gunakan top articles
         $prompt .= "REFERENSI 50 ARTIKEL TERPOPULER SAYA:\n";
@@ -125,9 +162,7 @@ class AdminArticleAgentService
                "KEMBALIKAN HASILNYA HANYA SEBAGAI ARRAY JSON objek dengan kunci persis seperti ini: 'title', 'keyword', 'summary'. Jangan sertakan format markdown, backticks (```json), atau teks pengantar apa pun di luar JSON.";
 
     //* 4. Hit LLM (OpenAI / Gemini)
-    $rawResponse = $this->openai->generateContent("", $prompt, $this->modelOpenaiBrainstorm, [
-      // 'temperature' => 0.7,
-    ]);
+    $rawResponse = $this->openai->generateContent("", $prompt, $this->modelOpenaiBrainstorm, []);
 
     if (!$rawResponse) {
       throw new Exception("Failed to generate brainstorming options from Models.");

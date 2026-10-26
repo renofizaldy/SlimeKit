@@ -151,7 +151,6 @@ final class CreateTables extends AbstractMigration
             ->addColumn('id_picture', 'biginteger', ['signed' => false, 'null' => true])
             ->addColumn('id_category', 'biginteger', ['signed' => false, 'null' => true])
             ->addColumn('status', 'string', ['null' => true])
-            ->addColumn('site', 'string', ['limit' => 250, 'default' => 'default'])
             ->addColumn('slug', 'string', ['limit' => 250, 'null' => true])
             ->addColumn('title', 'text', ['null' => true])
             ->addColumn('content', 'text', ['null' => true])
@@ -162,6 +161,7 @@ final class CreateTables extends AbstractMigration
             ->addColumn('read_time', 'integer', ['null' => true])
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
+            ->addIndex(['slug'], ['unique' => true, 'name' => 'idx_article_slug_unique'])
             ->create();
         $this->execute('ALTER TABLE tb_article ALTER COLUMN status TYPE status_enum USING status::status_enum');
 
@@ -171,12 +171,12 @@ final class CreateTables extends AbstractMigration
             ->addColumn('id_picture', 'biginteger', ['signed' => false, 'null' => true])
             ->addColumn('id_parent', 'biginteger', ['signed' => false, 'null' => true])
             ->addColumn('status', 'string', ['null' => true])
-            ->addColumn('site', 'string', ['limit' => 250, 'default' => 'default'])
             ->addColumn('slug', 'string', ['limit' => 250, 'null' => true])
             ->addColumn('title', 'text', ['null' => true])
             ->addColumn('description', 'text', ['null' => true])
             ->addColumn('created_at', 'timestamp', ['default' => $currentTimestamp])
             ->addColumn('updated_at', 'timestamp', ['default' => $currentTimestamp])
+            ->addIndex(['slug'], ['unique' => true, 'name' => 'idx_article_cat_slug_unique'])
             ->create();
         $this->execute('ALTER TABLE tb_article_category ALTER COLUMN status TYPE status_enum USING status::status_enum');
 
@@ -193,14 +193,13 @@ final class CreateTables extends AbstractMigration
         // -- TB_ARTICLE_STATS --
         $table = $this->table('tb_article_stats', ['id' => false, 'primary_key' => 'id']);
         $table->addColumn('id', 'biginteger', ['identity' => true, 'signed' => false])
-            ->addColumn('site', 'string', ['limit' => 250, 'null' => false])
             ->addColumn('slug', 'string', ['limit' => 500, 'null' => false])
             ->addColumn('ip_address', 'string', ['limit' => 45, 'default' => 'unknown'])
             ->addColumn('user_agent', 'text', ['default' => 'unknown'])
             ->addColumn('country', 'string', ['limit' => 10, 'default' => 'unknown'])
             ->addColumn('created_at', 'timestamp', ['null' => false])
             ->addColumn('updated_at', 'timestamp', ['null' => false])
-            ->addIndex(['site', 'slug'], ['name' => 'idx_article_stats_site_slug'])
+            ->addIndex(['slug'], ['name' => 'idx_article_stats_slug'])
             ->addIndex(['created_at'], ['name' => 'idx_article_stats_created_at'])
             ->addIndex(['country'], ['name' => 'idx_article_stats_country'])
             ->create();

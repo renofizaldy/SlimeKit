@@ -108,8 +108,8 @@ return [
   ],
 
   'next_revalidator' => [
-    'secret'    => $_ENV['NEXT_REVALIDATE_SECRET'] ?? '',
-    'endpoints' => $_ENV['NEXT_REVALIDATE_ENDPOINTS'] ?? '',
+    'secret' => $_ENV['NEXT_REVALIDATE_SECRET'] ?? '',
+    'url'    => $_ENV['NEXT_REVALIDATE_URL'] ?? '',
   ],
 
   'wapito' => [

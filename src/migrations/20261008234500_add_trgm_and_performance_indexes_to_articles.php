@@ -18,11 +18,11 @@ final class AddTrgmAndPerformanceIndexesToArticles extends AbstractMigration
         $this->execute('CREATE INDEX IF NOT EXISTS idx_tb_article_title_trgm ON tb_article USING gin (title gin_trgm_ops);');
 
         // 3. Add composite B-Tree indexes for frequent queries on tb_article
-        $this->execute('CREATE INDEX IF NOT EXISTS idx_tb_article_site_status_slug ON tb_article (site, status, slug);');
-        $this->execute('CREATE INDEX IF NOT EXISTS idx_tb_article_site_status_publish ON tb_article (site, status, publish);');
+        $this->execute('CREATE INDEX IF NOT EXISTS idx_tb_article_status_slug ON tb_article (status, slug);');
+        $this->execute('CREATE INDEX IF NOT EXISTS idx_tb_article_status_publish ON tb_article (status, publish);');
 
         // 4. Add composite B-Tree index for category lookup on tb_article_category
-        $this->execute('CREATE INDEX IF NOT EXISTS idx_tb_article_cat_site_status_slug ON tb_article_category (site, status, slug);');
+        $this->execute('CREATE INDEX IF NOT EXISTS idx_tb_article_cat_status_slug ON tb_article_category (status, slug);');
     }
 
     /**
@@ -30,9 +30,9 @@ final class AddTrgmAndPerformanceIndexesToArticles extends AbstractMigration
      */
     public function down(): void
     {
-        $this->execute('DROP INDEX IF EXISTS idx_tb_article_cat_site_status_slug;');
-        $this->execute('DROP INDEX IF EXISTS idx_tb_article_site_status_publish;');
-        $this->execute('DROP INDEX IF EXISTS idx_tb_article_site_status_slug;');
+        $this->execute('DROP INDEX IF EXISTS idx_tb_article_cat_status_slug;');
+        $this->execute('DROP INDEX IF EXISTS idx_tb_article_status_publish;');
+        $this->execute('DROP INDEX IF EXISTS idx_tb_article_status_slug;');
         $this->execute('DROP INDEX IF EXISTS idx_tb_article_title_trgm;');
     }
 }

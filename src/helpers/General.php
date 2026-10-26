@@ -687,16 +687,13 @@ class General
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
   }
 
-  public function getTopArticles($site = 'all', $limit = 50)
+  public function getTopArticles(int $limit = 50)
   {
     $query = ArticleStats::select([
         'slug',
         DB::raw('COUNT(id) as visits')
       ])
       ->where('country_code', 'ID')
-      ->when($site !== 'all', function ($q) use ($site) {
-        $q->where('site', $site);
-      })
       ->groupBy('slug')
       ->orderBy('visits', 'DESC')
       ->limit($limit)
@@ -710,9 +707,6 @@ class General
 
     //* 1. Ambil id, slug, dan title dari Article
     $articles = Article::whereIn('slug', $slugs)
-      ->when($site !== 'all', function ($q) use ($site) {
-        $q->where('site', $site);
-      })
       ->get(['id', 'slug', 'title']);
 
     $articleIds = $articles->pluck('id')->toArray();
@@ -749,15 +743,12 @@ class General
   }
 
   /**
-   * Ambil daftar kategori artikel berdasarkan site
+   * Ambil daftar kategori artikel
    * Digunakan untuk referensi AI pada mode Auto + Free
    */
-  public function getCategoriesBySite($site)
+  public function getCategories()
   {
     $query = ArticleCategory::where('status', 'active')
-      ->when($site !== 'all', function ($q) use ($site) {
-        $q->where('site', $site);
-      })
       ->get(['title', 'description']);
 
     $categories = [];
@@ -772,18 +763,22 @@ class General
   }
 
   /**
-   * Ambil daftar artikel terbaru berdasarkan site untuk negative context (anti-duplikasi AI)
+   * Alias untuk backward compatibility jika masih ada pemanggilan lama
+   */
+  public function getCategoriesBySite($site = 'all')
+  {
+    return $this->getCategories();
+  }
+
+  /**
+   * Ambil daftar artikel terbaru untuk negative context (anti-duplikasi AI)
    *
-   * @param string $site
-   * @param int    $limit
+   * @param int $limit
    * @return array<int, array{title: string, keyword: string}>
    */
-  public function getRecentArticlesBySite(string $site = 'all', int $limit = 75): array
+  public function getRecentArticles(int $limit = 75): array
   {
     $articles = Article::where('status', 'active')
-      ->when($site !== 'all', function ($q) use ($site) {
-        $q->where('site', $site);
-      })
       ->orderBy('created_at', 'DESC')
       ->limit($limit)
       ->get(['id', 'title']);
@@ -810,6 +805,14 @@ class General
     }
 
     return $recentArticles;
+  }
+
+  /**
+   * Alias untuk backward compatibility
+   */
+  public function getRecentArticlesBySite(string $site = 'all', int $limit = 75): array
+  {
+    return $this->getRecentArticles($limit);
   }
 
   /**
@@ -929,47 +932,5 @@ class General
       'page'     => 'numeric|min:1',
       'pageSize' => 'numeric|min:1',
     ]);
-  }
-
-  /**
-   * Mengambil daftar site yang diperbolehkan dari environment ALLOWED_SITES
-   *
-   * @return array<string>
-   */
-  public static function getAllowedSites(): array
-  {
-    $allowed = $_ENV['ALLOWED_SITES'] ?? getenv('ALLOWED_SITES') ?? '';
-    if (empty($allowed)) {
-      return [];
-    }
-
-    $sites = array_map('trim', explode(',', (string)$allowed));
-    return array_values(array_filter($sites, fn ($site) => $site !== ''));
-  }
-
-  /**
-   * Memvalidasi parameter site dari karakter berbahaya dan mencocokkan ke whitelist
-   *
-   * @param string|null $site
-   * @return bool
-   */
-  public static function isValidSite(?string $site): bool
-  {
-    if ($site === null || trim($site) === '') {
-      return false;
-    }
-
-    // Karakter aman: hanya alphanumeric, underscore, hyphen, dot
-    // Mencegah colon (:), wildcard (*), spasi, dsb. yang dapat merusak pola cache key
-    if (!preg_match('/^[a-zA-Z0-9_\-\.]+$/', $site)) {
-      return false;
-    }
-
-    $allowedSites = self::getAllowedSites();
-    if (!empty($allowedSites)) {
-      return in_array($site, $allowedSites, true);
-    }
-
-    return true;
   }
 }

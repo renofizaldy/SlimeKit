@@ -1,89 +1,71 @@
-# Implementation Plan: Penyelarasan SlimeKit v2.1 dari SlimeNews/api
+# Implementation Plan: Pembersihan Total Fitur Multi-Site (Pure Single-Tenant Architecture)
 
 ## Overview
-Proyek `/Users/renofizaldy/Code/SlimeGo/SlimeKit` adalah framework dasar (starter kit / boilerplate) berbasis Slim Framework 4 + Eloquent ORM. Rencana implementasi ini bertujuan untuk menyelaraskan SlimeKit dengan berbagai peningkatan infrastruktur, ketahanan produksi (*resilience*), keamanan, media pipeline, dan otomasi operasional yang telah teruji di `/Users/renofizaldy/Code/SlimeNews/api`.
-
-Seluruh perbaikan generic akan diadopsi tanpa mengotori framework dengan kode domain bisnis spesifik (Reservasi/Voucher/Layanan Makeup, Keuangan/Jurnal Akuntansi, Customer Group, dan Kalkulator Weton/Zodiak). Modul `content_team` tetap dipertahankan sebagai referensi CRUD boilerplate yang bersih.
+Rencana implementasi ini bertujuan untuk menghapus seluruh konsep multi-site (`site`) yang masih tersisa pada modul Article, Category, Stats, Job, dan AI Agent di SlimeKit (`/Users/renofizaldy/Code/SlimeGo/SlimeKit`). Dengan pembersihan ini, SlimeKit akan beroperasi murni sebagai *single-tenant micro-framework*, menyederhanakan payload API, menghilangkan parameter `site` dari query/validator, merampingkan cache key Valkey, menyederhanakan Next.js ISR revalidator menjadi single URL, dan memberlakukan keunikan slug secara global di database.
 
 ---
 
 ## Architecture Decisions & User Choices
 
-1. **Full-Featured Headless Publishing & Ops Boilerplate:**
-   - SlimeKit v2.1 memposisikan diri sebagai backend headless publishing engine siap produksi dengan kapabilitas operasional lengkap (caching resilience, multi-site validation, streaming database backup, media Google Discover, WhatsApp alert failover, dan AI agent).
+1. **Full Purge (Pembersihan Total):**
+   - Menghapus kolom `site` dari skema tabel database (`tb_article`, `tb_article_category`, `tb_article_stats`).
+   - Tidak ada lagi kolom `site` dummy atau nilai default `'default'`.
 
-2. **Infrastruktur & Resilience:**
-   - **Valkey Circuit Breaker:** Menghentikan *cascading connection hang* jika server Redis/Valkey offline dengan memanfaatkan file marker cooldown 30 detik di direktori temporer OS (`sys_get_temp_dir()`).
-   - **Database Connection Pooler Compatibility:** Menerapkan opsi `PDO::ATTR_EMULATE_PREPARES => true` pada koneksi Capsule Eloquent untuk kompatibilitas penuh dengan connection pooler PostgreSQL serverless (PgBouncer, Neon, Supabase).
+2. **Skema Database & Indeks Bersih:**
+   - Memperbarui langsung file migrasi awal `create_tables.php` dan migrasi indeks trigram agar SlimeKit sebagai template boilerplate baru memiliki skema yang bersih dan murni single-tenant sejak awal.
+   - Kolom `slug` pada `tb_article` dan `tb_article_category` diberi constraint `unique` global.
+   - Indeks komposit disederhanakan dari `(site, status, slug)` menjadi `(status, slug)` dan `(status, publish)`.
 
-3. **Background Worker & Security:**
-   - **Standarisasi Route `/job/*`:** Mengamankan seluruh endpoint background worker menggunakan `TokenMiddleware`.
-   - **Static JWT Generator:** Menyediakan CLI `assets/generate_job_token.php` (`composer generate:job-token`) untuk menghasilkan static JWT 10 tahun bagi scheduler/worker.
-   - **Hardening Tokenize & Auth:** Mendukung `$customExp` pada `Tokenize::encode()`, menangani decode exception secara defensif, dan memperbaiki `AuthMiddleware` dengan menghapus instansiasi `new General()` serta standarisasi status code.
+3. **Penyederhanaan Cache Key Valkey:**
+   - Menghilangkan segmen `site=%s:` dari seluruh pola key Valkey.
+   - Contoh format baru yang flat:
+     - `article:list:status=%s:featured=%s:category=%s:search=%s:page=%d:pageSize=%d:orderBy=%s:orderDir=%s`
+     - `article:detail:slug=%s`
+     - `article:similar:slug=%s`
+     - `article_category:list:page=%d:pageSize=%d:orderBy=%s:orderDir=%s`
+   - Pembersihan cache `invalidateArticleCache()` dan `invalidateCategoryAndArticleCache()` langsung menghapus prefix global `article:list:`, `article:detail:`, `article:similar:`, dan `article:admin`.
 
-4. **Automated Database Backup:**
-   - Menyediakan endpoint `POST /job/database_backup` dengan streaming proses `pg_dump | gzip` secara efisien (64KB chunks) tanpa membebani memory PHP, dan mengunggahnya langsung ke Cloudflare R2 dan/atau Google Cloud Storage.
-   - Menambahkan paket `postgresql-client` pada Dockerfile.
+4. **Satu URL Next.js ISR Revalidation:**
+   - Mengubah konfigurasi `NEXT_REVALIDATE_ENDPOINTS` (yang sebelumnya berupa format mapping `default=http://...`) menjadi variabel tunggal yang sederhana: `NEXT_REVALIDATE_URL=http://localhost:3000/api/revalidate`.
+   - `NextRevalidator::revalidateArticle(string $slug, ?string $oldSlug = null)` hanya memerlukan slug tanpa parameter site.
 
-5. **Media Pipeline & Multi-Site Guard:**
-   - **Google Discover Image Standards:** Helper `formatCloudinaryUrl` berbasis regex untuk URL Cloudinary dan otomatis memancarkan varian `picture.large` (1200x675, `c_fill,w_1200,h_675,g_auto,q_auto,f_auto`) pada endpoint artikel.
-   - **Site Parameter Whitelisting:** Sanitasi parameter site menggunakan regex `/^[a-zA-Z0-9_\-\.]+$/` dan whitelist via environment `ALLOWED_SITES` untuk mencegah cache key poisoning.
-
-6. **Communication Services:**
-   - Menyediakan `WapitoClient` dan `WappflyClient` dengan sistem failover otomatis di `General::sendWhatsApp()` untuk kebutuhan alert dan notifikasi transaksional. Kredensial bersifat opsional (skip secara mulus jika belum diatur).
-
-7. **Clean Transaction Boundaries & Cache Coherence:**
-   - Upload file pihak ketiga (Cloudinary) dieksekusi *sebelum* `DB::beginTransaction()` (dengan kompensasi penghapusan jika DB error).
-   - Penghapusan aset cloud, pembersihan cache Valkey, dan Next.js ISR revalidation dieksekusi *setelah* `DB::commit()` untuk menjamin konsistensi data.
+5. **Pembersihan Helper & Uji Multi-Site:**
+   - Menghapus method `getAllowedSites()` dan `isValidSite()` dari `General.php` serta variabel `ALLOWED_SITES` dari `.env.example`.
+   - Menghapus test unit yang murni menguji validasi multi-site (`GeneralSiteValidationTest.php` dan `BlokbacaCacheAndInvalidationWorkflowTest.php`).
 
 ---
 
 ## Task List
 
-### Phase 1: Core Infrastructure Resilience & Security Hardening
-- [x] **Task 1: Valkey Circuit Breaker & Connection Resilience** (`src/lib/Valkey.php`)
-- [x] **Task 2: Database Connection & Pooler Hardening (PDO Emulate Prepares)** (`src/lib/Database.php`, `src/config/services.php`)
-- [x] **Task 3: Auth & Token Hardening (Tokenize Custom Expiration & AuthMiddleware DI Fix)** (`src/lib/Tokenize.php`, `src/middlewares/AuthMiddleware.php`, `src/middlewares/TokenMiddleware.php`)
+### Phase 1: Database Schema, Models & NextRevalidator Simplification
+- [x] **Task 1: Database Migration Schema Cleanup & Global Unique Slugs** (`src/migrations/`)
+- [x] **Task 2: Models & Configuration Cleanup** (`src/models/`, `src/config/services.php`, `.env.example`)
+- [x] **Task 3: NextRevalidator & General Helper Simplification** (`src/lib/NextRevalidator.php`, `src/helpers/General.php`)
 
-### Checkpoint 1: Core Infrastructure & Auth
-- [x] Validasi syntax PHP (`php -l`)
-- [x] Unit test `ValkeyTest` dan `TokenMiddlewareTest` lulus 100%
-
----
-
-### Phase 2: Background Job Protection & Database Backup System
-- [x] **Task 4: Static Token Protection & CLI Generator for `/job/*`** (`src/routes/Routes.php`, `assets/generate_job_token.php`, `composer.json`, `.env.example`)
-- [x] **Task 5: Cloud Storage & Multi-Provider Backup Support** (`src/lib/CloudflareR2.php`, `src/lib/GoogleCloudStorage.php`, `src/config/services.php`)
-- [x] **Task 6: Automated PostgreSQL Database Backup Endpoint (`/job/database_backup`)** (`src/services/JobService.php`, `src/controllers/JobController.php`, `src/validators/JobValidator.php`, `Dockerfile.dev`, `Dockerfile.prod`)
-
-### Checkpoint 2: Job Protection & Backup Pipeline
-- [x] Endpoint `/job/*` menolak request tanpa Bearer Token valid (HTTP 401)
-- [x] CLI `composer generate:job-token` menghasilkan JWT 10 tahun
-- [x] Unit test `JobServiceDatabaseBackupTest` dan `JobTest` lulus 100%
+### Checkpoint 1: Foundation, Schema & Helpers Verified
+- [x] Validasi sintaks PHP (`php -l`)
+- [x] Pengujian helper dan library dasar
 
 ---
 
-### Phase 3: Communication & Media Platform Enhancements
-- [x] **Task 7: Multi-Gateway WhatsApp Notification Service with Failover** (`src/lib/WapitoClient.php`, `src/lib/WappflyClient.php`, `src/helpers/General.php`, `src/config/dependencies.php`)
-- [x] **Task 8: Cloudinary Hardening & Google Discover 16:9 Image Variant** (`src/helpers/General.php`, `src/services/admin/AdminArticleService.php`, `src/services/client/ClientArticleService.php`)
-- [x] **Task 9: Multi-Site Sanitization & Whitelist Security** (`src/helpers/General.php`, `.env.example`)
+### Phase 2: Article & Category Modules Purge (Admin & Client)
+- [ ] **Task 4: Admin & Client Article Validators & Services Cleanup** (`src/validators/`, `src/services/`)
+- [ ] **Task 5: Category & Stats Services & Validators Cleanup** (`src/validators/`, `src/services/`)
+- [ ] **Task 6: AI Article Agent & Job Background Services Cleanup** (`src/validators/`, `src/services/`)
 
-### Checkpoint 3: Media, Notifications & Multi-Site Guard
-- [x] WhatsApp failover berpindah otomatis dari Wapito ke Wappfly jika gateway pertama gagal
-- [x] Respon API artikel (`list`, `detail`, `similar`) menyertakan objek `picture.large` 1200x675
-- [x] Unit tests `GeneralCloudinaryTest`, `GeneralWhatsAppFailoverTest`, `WapitoClientTest`, `WappflyClientTest`, dan `GeneralSiteValidationTest` lulus 100%
+### Checkpoint 2: Business Layer & Endpoints Purged of Multi-Site
+- [ ] Parameter `site` tidak lagi diterima/dibutuhkan pada seluruh endpoint
+- [ ] Cache invalidation berjalan global tanpa prefix site
 
 ---
 
-### Phase 4: Publishing Engine, Anti-Duplication & Transaction Cleanliness
-- [x] **Task 10: PostgreSQL Trigram Similarity & Composite Indexes Migration** (`src/migrations/`, `src/services/client/ClientArticleService.php`)
-- [x] **Task 11: Transaction Boundaries, Search Filtering & Cache Invalidation Coherence** (`src/services/admin/AdminArticleService.php`, `src/services/admin/AdminArticleCategoryService.php`)
-- [x] **Task 12: AI Content Agent Anti-Duplication & Negative Context** (`src/helpers/General.php`, `src/services/admin/AdminArticleAgentService.php`)
-- [x] **Task 13: Content Team Module Refinement & Full Suite Verification** (`src/services/admin/AdminContentTeamService.php`, `tests/`)
+### Phase 3: Test Suite Alignment & Full Green Verification
+- [ ] **Task 7: Obsolete Multi-Site Test Files Removal & Unit Tests Alignment** (`tests/Unit/`)
+- [ ] **Task 8: Feature Test Suite Alignment & Full Pass (`composer test`)** (`tests/Feature/`)
 
-### Checkpoint 4: End-to-End Test Suite Green
-- [x] Seluruh unit dan feature tests di SlimeKit lulus tanpa kegagalan: `composer test`
-- [x] Framework bersih dari sisa modul bisnis domain
+### Checkpoint 3: End-to-End Single-Tenant Test Suite Green
+- [ ] Perintah `composer test` lulus 100% (semua feature dan unit test hijau)
+- [ ] Tidak ada lagi sisa referensi `site` pada request payload pengujian
 
 ---
 
@@ -91,12 +73,11 @@ Seluruh perbaikan generic akan diadopsi tanpa mengotori framework dengan kode do
 
 | Risiko | Dampak | Mitigasi |
 | :--- | :---: | :--- |
-| **Ketergantungan CLI `pg_dump` pada Docker/Host** | Sedang | `proc_open` mengecek ketersediaan resource dan melempar Exception terdeskripsi jika binary belum terpasang. Dockerfile diperbarui dengan paket `postgresql-client`. |
-| **Kegagalan Koneksi Redis/Valkey memperlambat response time** | Tinggi | Circuit breaker aktif otomatis saat terjadi error koneksi pertama, mengalihkan request berikutnya selama 30 detik tanpa mencoba koneksi ulang yang timeout. |
-| **Kredensial WhatsApp/R2/GCS belum diisi developer baru** | Rendah | Menggunakan *graceful fallback* / `skipped` flag sehingga aplikasi tetap berfungsi normal tanpa konfigurasi tersebut. |
-| **Regresi pada modul bawaan `content_team`** | Rendah | `content_team` tetap diuji dengan PHPUnit (`AdminContentTeamTest` & `ClientContentTeamTest`) dan diselaraskan ke pola transaksi baru. |
+| **Konflik Slug pada data eksisting jika sebelumnya ada multi-site** | Sedang | Karena SlimeKit adalah boilerplate dasar untuk project baru, migrasi dibuat bersih untuk instalasi baru. Pada database dev, slug unik divalidasi via skema. |
+| **Kegagalan ISR Revalidator karena perubahan variabel env** | Rendah | Menggunakan default `NEXT_REVALIDATE_URL` dengan fallback aman (`empty check`), sehingga tidak melempar fatal exception jika belum diisi. |
+| **Cache Valkey lama masih menyisakan prefix site** | Rendah | Format key baru otomatis mengabaikan key lama, dan perintah flush cache dapat dipanggil saat deployment. |
 
 ---
 
 ## Open Questions
-- *Tidak ada pertanyaan terbuka.* Seluruh cakupan arah arsitektur telah dikonfirmasi dan disetujui.
+- *Tidak ada pertanyaan terbuka.* Seluruh opsi arsitektur telah disepakati melalui interview sebelumnya.

@@ -12,15 +12,15 @@ Panduan eksekusi teknis terstruktur per-task dengan kriteria keberhasilan dan pe
 Menambahkan mekanisme *Circuit Breaker* pada client Valkey/Redis untuk mencegah *thread/connection stall* saat server Valkey sedang down. Ketika terjadi exception koneksi, file marker `valkey_down.marker` dibuat di direktori temp OS, dan permintaan berikutnya selama periode cooldown (30 detik) langsung menganggap koneksi offline tanpa mencoba menyambung ulang yang berakibat lambatnya waktu respon. Menambahkan juga method alias `incr()`.
 
 **Acceptance criteria:**
-- [ ] `src/lib/Valkey.php` memiliki konstanta `DOWN_COOLDOWN = 30`.
-- [ ] Implementasi method `isCircuitBreakerOpen(): bool`, `markDown(?Exception $e): void`, `markUp(): void`, `getCircuitBreakerFile(): ?string`, dan `setCircuitBreakerFile(string $path): void`.
-- [ ] Operasi set/get/del/scan/flushdb otomatis memanggil `markDown()` saat terjadi Exception dan `markUp()` saat berhasil.
-- [ ] Method `incr($key)` tersedia sebagai alias untuk `increment($key)`.
-- [ ] Unit test `tests/Unit/ValkeyTest.php` disalin dari SlimeNews dan lulus 100%.
+- [x] `src/lib/Valkey.php` memiliki konstanta `DOWN_COOLDOWN = 30`.
+- [x] Implementasi method `isCircuitBreakerOpen(): bool`, `markDown(?Exception $e): void`, `markUp(): void`, `getCircuitBreakerFile(): ?string`, dan `setCircuitBreakerFile(string $path): void`.
+- [x] Operasi set/get/del/scan/flushdb otomatis memanggil `markDown()` saat terjadi Exception dan `markUp()` saat berhasil.
+- [x] Method `incr($key)` tersedia sebagai alias untuk `increment($key)`.
+- [x] Unit test `tests/Unit/ValkeyTest.php` disalin dari SlimeNews dan lulus 100%.
 
 **Verification:**
-- [ ] Pemeriksaan sintaks: `php -l src/lib/Valkey.php`
-- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/ValkeyTest.php`
+- [x] Pemeriksaan sintaks: `php -l src/lib/Valkey.php`
+- [x] Menjalankan test: `php vendor/bin/phpunit tests/Unit/ValkeyTest.php`
 
 **Dependencies:** None
 **Files likely touched:**
@@ -36,13 +36,13 @@ Menambahkan mekanisme *Circuit Breaker* pada client Valkey/Redis untuk mencegah 
 Menerapkan konfigurasi `PDO::ATTR_EMULATE_PREPARES => true` pada inisialisasi Capsule Eloquent ORM di `src/lib/Database.php` dan `src/config/services.php`. Konfigurasi ini krusial untuk mencegah kegagalan *prepared statements* saat SlimeKit dihubungkan ke connection pooler PostgreSQL tingkat produksi (seperti Supabase Connection Pooler / PgBouncer dalam mode transaksi).
 
 **Acceptance criteria:**
-- [ ] `src/config/services.php` menambahkan opsi `\PDO::ATTR_EMULATE_PREPARES => true` di bawah kunci konfigurasi database.
-- [ ] `src/lib/Database.php` menggabungkan opsi konfigurasi PDO dengan default `ATTR_EMULATE_PREPARES => true` melalui `array_replace`.
-- [ ] Koneksi database Eloquent Capsule tetap berfungsi normal untuk semua operasi query.
+- [x] `src/config/services.php` menambahkan opsi `\PDO::ATTR_EMULATE_PREPARES => true` di bawah kunci konfigurasi database.
+- [x] `src/lib/Database.php` menggabungkan opsi konfigurasi PDO dengan default `ATTR_EMULATE_PREPARES => true` melalui `array_replace`.
+- [x] Koneksi database Eloquent Capsule tetap berfungsi normal untuk semua operasi query.
 
 **Verification:**
-- [ ] Pemeriksaan sintaks: `php -l src/lib/Database.php` dan `php -l src/config/services.php`
-- [ ] Menjalankan database test: `php vendor/bin/phpunit --filter RoutesTest`
+- [x] Pemeriksaan sintaks: `php -l src/lib/Database.php` dan `php -l src/config/services.php`
+- [x] Menjalankan database test: `php vendor/bin/phpunit --filter RoutesTest`
 
 **Dependencies:** None
 **Files likely touched:**
@@ -58,15 +58,15 @@ Menerapkan konfigurasi `PDO::ATTR_EMULATE_PREPARES => true` pada inisialisasi Ca
 Menyempurnakan library `Tokenize` agar mendukung kustomisasi durasi kedaluwarsa token JWT (`$customExp`) yang diperlukan untuk static job worker token. Memperbaiki method `verify_time` dengan blok `try-catch` defensif. Pada `AuthMiddleware.php`, hapus pembuatan instansiasi manual `$this->helper = new General;` yang melanggar kontrak DI container PHP-DI dan standarisasi ekstraksi kode status HTTP error.
 
 **Acceptance criteria:**
-- [ ] `Tokenize::encode(array $data = [], ?int $customExp = null)` mendukung durasi kedaluwarsa kustom.
-- [ ] `Tokenize::verify_time($token)` membungkus decode dalam `try-catch (\Throwable)` dan mengecek `isset($decode->exp)`.
-- [ ] `src/middlewares/AuthMiddleware.php` tidak lagi menginstansiasi `new General` secara manual.
-- [ ] Penanganan kode status HTTP pada exception di `AuthMiddleware` diverifikasi berada dalam rentang `100 - 599`.
-- [ ] Unit test `tests/Unit/TokenMiddlewareTest.php` disalin dan lulus 100%.
+- [x] `Tokenize::encode(array $data = [], ?int $customExp = null)` mendukung durasi kedaluwarsa kustom.
+- [x] `Tokenize::verify_time($token)` membungkus decode dalam `try-catch (\Throwable)` dan mengecek `isset($decode->exp)`.
+- [x] `src/middlewares/AuthMiddleware.php` tidak lagi menginstansiasi `new General` secara manual.
+- [x] Penanganan kode status HTTP pada exception di `AuthMiddleware` diverifikasi berada dalam rentang `100 - 599`.
+- [x] Unit test `tests/Unit/TokenMiddlewareTest.php` disalin dan lulus 100%.
 
 **Verification:**
-- [ ] Pemeriksaan sintaks: `php -l src/lib/Tokenize.php` dan `php -l src/middlewares/AuthMiddleware.php`
-- [ ] Menjalankan test: `php vendor/bin/phpunit tests/Unit/TokenMiddlewareTest.php` dan `php vendor/bin/phpunit tests/Feature/AdminAuthTest.php`
+- [x] Pemeriksaan sintaks: `php -l src/lib/Tokenize.php` dan `php -l src/middlewares/AuthMiddleware.php`
+- [x] Menjalankan test: `php vendor/bin/phpunit tests/Unit/TokenMiddlewareTest.php` dan `php vendor/bin/phpunit tests/Feature/AdminAuthTest.php`
 
 **Dependencies:** Task 1, Task 2
 **Files likely touched:**
@@ -78,9 +78,9 @@ Menyempurnakan library `Tokenize` agar mendukung kustomisasi durasi kedaluwarsa 
 ---
 
 ### Checkpoint: Foundation & Resilience (Tasks 1-3)
-- [ ] Seluruh file sintaks valid (`php -l`)
-- [ ] Unit test `ValkeyTest` dan `TokenMiddlewareTest` lulus
-- [ ] Tidak ada breaking change pada route admin auth eksisting
+- [x] Seluruh file sintaks valid (`php -l`)
+- [x] Unit test `ValkeyTest` dan `TokenMiddlewareTest` lulus
+- [x] Tidak ada breaking change pada route admin auth eksisting
 
 ---
 

@@ -19,6 +19,9 @@ return [
     'password'  => $_ENV['DB_PASS'] ?? '',
     'charset'   => 'utf8',
     'collation' => 'utf8_unicode_ci',
+    'options'   => [
+      \PDO::ATTR_EMULATE_PREPARES => true,
+    ],
   ],
 
   'valkey' => [

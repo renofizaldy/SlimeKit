@@ -6,18 +6,15 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use Slim\Psr7\Response;
 use Exception;
-use App\Helpers\General;
 use App\Services\Admin\AdminAuthService;
 
 class AuthMiddleware
 {
-  private $helper;
   private $service;
   private $permission;
   private string $role;
 
   public function __construct($admin = 'client', $permission = null) {
-    $this->helper = new General;
     $this->service = $admin == 'admin' ? new AdminAuthService() : null;
     $this->permission = $permission;
     $this->role = (string) $admin;
@@ -55,7 +52,7 @@ class AuthMiddleware
     try {
       if (isset($_ENV['ENVIRONMENT']) && $_ENV['ENVIRONMENT'] === 'TESTING') {
         $users = [
-          'id'   => 1,
+          'id' => 1,
           'name' => 'Testing User',
           'role' => json_encode(['article:view', 'article:crud'])
         ];
@@ -76,9 +73,12 @@ class AuthMiddleware
       return $handler->handle($request);
     }
     catch (Exception $e) {
+      $code = $e->getCode();
+      $status = (is_int($code) && $code >= 100 && $code <= 599) ? $code : 500;
+      
       $result = [
         'message' => $e->getMessage(),
-        'status'  => $this->helper->normalizeHttpStatus($e->getCode())
+        'status'  => $status
       ];
 
       $response = new Response();

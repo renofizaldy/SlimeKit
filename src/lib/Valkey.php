@@ -8,11 +8,21 @@ use Exception;
 
 class Valkey
 {
+  public const DOWN_COOLDOWN = 30; // seconds
+
   protected $client;
   protected $isConnected = false;
+  protected $circuitBreakerFile;
 
-  public function __construct(array $config, $testDate = null)
+  public function __construct(array $config, $testDate = null, ?string $circuitBreakerFile = null)
   {
+    $this->circuitBreakerFile = $circuitBreakerFile ?: sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'valkey_down.marker';
+
+    if ($this->isCircuitBreakerOpen()) {
+      $this->isConnected = false;
+      return;
+    }
+
     $date = $testDate ? new \DateTime($testDate) : new \DateTime();
     $day = (int)$date->format('j');
 
@@ -37,8 +47,61 @@ class Valkey
 
     }
     catch (Exception $e) {
-      $this->isConnected = false;
+      $this->markDown($e);
     }
+  }
+
+  /**
+   * Check if circuit breaker is open (Valkey is currently in cooldown period)
+   * 
+   * @return bool
+   */
+  public function isCircuitBreakerOpen(): bool
+  {
+    if ($this->circuitBreakerFile && file_exists($this->circuitBreakerFile)) {
+      $lastDownTime = @filemtime($this->circuitBreakerFile);
+      if ($lastDownTime !== false && (time() - $lastDownTime) < self::DOWN_COOLDOWN) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Mark Valkey as down and record timestamp in marker file
+   * 
+   * @param Exception|null $e
+   * @return void
+   */
+  public function markDown(?Exception $e = null): void
+  {
+    $this->isConnected = false;
+    if ($this->circuitBreakerFile) {
+      @touch($this->circuitBreakerFile);
+    }
+  }
+
+  /**
+   * Mark Valkey as up and remove marker file
+   * 
+   * @return void
+   */
+  public function markUp(): void
+  {
+    $this->isConnected = true;
+    if ($this->circuitBreakerFile && file_exists($this->circuitBreakerFile)) {
+      @unlink($this->circuitBreakerFile);
+    }
+  }
+
+  public function getCircuitBreakerFile(): ?string
+  {
+    return $this->circuitBreakerFile;
+  }
+
+  public function setCircuitBreakerFile(string $path): void
+  {
+    $this->circuitBreakerFile = $path;
   }
 
   /**
@@ -67,9 +130,10 @@ class Valkey
       if ($expireIn) {
         $this->client->expire($key, $expireIn);
       }
+      $this->markUp();
       return true;
     } catch (Exception $e) {
-      $this->isConnected = false;
+      $this->markDown($e);
       return false;
     }
   }
@@ -85,9 +149,11 @@ class Valkey
     if (!$this->isConnected) return null;
 
     try {
-      return $this->client->get($key);
+      $result = $this->client->get($key);
+      $this->markUp();
+      return $result;
     } catch (Exception $e) {
-      $this->isConnected = false;
+      $this->markDown($e);
       return null;
     }
   }
@@ -103,9 +169,11 @@ class Valkey
     if (!$this->isConnected) return false;
 
     try {
-      return $this->client->del([$key]);
+      $result = $this->client->del([$key]);
+      $this->markUp();
+      return $result;
     } catch (Exception $e) {
-      $this->isConnected = false;
+      $this->markDown($e);
       return false;
     }
   }
@@ -137,9 +205,10 @@ class Valkey
         }
       } while ($cursor != 0);
 
+      $this->markUp();
       return true;
     } catch (Exception $e) {
-      // Optional: log error here
+      $this->markDown($e);
       return false;
     }
   }
@@ -183,8 +252,10 @@ class Valkey
         }
       } while ($cursor != 0);
 
+      $this->markUp();
       return array_unique($allKeys);
     } catch (Exception $e) {
+      $this->markDown($e);
       return [];
     }
   }
@@ -200,8 +271,10 @@ class Valkey
 
     try {
       $this->client->flushdb();
+      $this->markUp();
       return true;
     } catch (Exception $e) {
+      $this->markDown($e);
       return false;
     }
   }
@@ -217,9 +290,11 @@ class Valkey
     if (!$this->isConnected) return false;
 
     try {
-      return $this->client->exists($key) > 0;
+      $result = $this->client->exists($key) > 0;
+      $this->markUp();
+      return $result;
     } catch (Exception $e) {
-      $this->isConnected = false;
+      $this->markDown($e);
       return false;
     }
   }
@@ -235,9 +310,11 @@ class Valkey
     if (!$this->isConnected) return false;
 
     try {
-      return $this->client->lpush($key, [$value]);
+      $result = $this->client->lpush($key, [$value]);
+      $this->markUp();
+      return $result;
     } catch (Exception $e) {
-      $this->isConnected = false;
+      $this->markDown($e);
       return false;
     }
   }
@@ -252,9 +329,11 @@ class Valkey
     if (!$this->isConnected) return null;
 
     try {
-      return $this->client->rpop($key);
+      $result = $this->client->rpop($key);
+      $this->markUp();
+      return $result;
     } catch (Exception $e) {
-      $this->isConnected = false;
+      $this->markDown($e);
       return null;
     }
   }
@@ -269,10 +348,23 @@ class Valkey
     if (!$this->isConnected) return false;
 
     try {
-      return $this->client->incr($key);
+      $result = $this->client->incr($key);
+      $this->markUp();
+      return $result;
     } catch (Exception $e) {
-      $this->isConnected = false;
+      $this->markDown($e);
       return false;
     }
+  }
+
+  /**
+   * Alias for increment
+   * 
+   * @param string $key
+   * @return int|false
+   */
+  public function incr($key)
+  {
+    return $this->increment($key);
   }
 }

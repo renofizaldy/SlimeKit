@@ -15,12 +15,16 @@ class Tokenize
     $this->key = $config['secret_key'];
   }
 
-  public function encode($data=[]) {
+  public function encode($data=[], ?int $customExp = null) {
     if (empty($data)) {
       return false;
     }
-    $keepLogin  = isset($data['keep_login']) && $data['keep_login'] === true;
-    $expiration = $keepLogin ? time() + (30 * 24 * 60 * 60) : time() + (24 * 60 * 60);
+    if ($customExp !== null) {
+      $expiration = time() + $customExp;
+    } else {
+      $keepLogin  = isset($data['keep_login']) && $data['keep_login'] === true;
+      $expiration = $keepLogin ? time() + (30 * 24 * 60 * 60) : time() + (24 * 60 * 60);
+    }
     $payload    = array_merge($data, ['exp' => $expiration]);
     return JWT::encode($payload, $this->key, 'HS256');
   }
@@ -30,9 +34,11 @@ class Tokenize
   }
 
   public function verify_time($token) {
-    $decode = $this->decode($token);
-    if ($decode->exp > time()) {
-      return true;
-    } return false;
+    try {
+      $decode = $this->decode($token);
+      return isset($decode->exp) && $decode->exp > time();
+    } catch (\Throwable $e) {
+      return false;
+    }
   }
 }

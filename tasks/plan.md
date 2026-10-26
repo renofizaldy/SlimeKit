@@ -41,13 +41,13 @@ Seluruh perbaikan generic akan diadopsi tanpa mengotori framework dengan kode do
 ## Task List
 
 ### Phase 1: Core Infrastructure Resilience & Security Hardening
-- [ ] **Task 1: Valkey Circuit Breaker & Connection Resilience** (`src/lib/Valkey.php`)
-- [ ] **Task 2: Database Connection & Pooler Hardening (PDO Emulate Prepares)** (`src/lib/Database.php`, `src/config/services.php`)
-- [ ] **Task 3: Auth & Token Hardening (Tokenize Custom Expiration & AuthMiddleware DI Fix)** (`src/lib/Tokenize.php`, `src/middlewares/AuthMiddleware.php`, `src/middlewares/TokenMiddleware.php`)
+- [x] **Task 1: Valkey Circuit Breaker & Connection Resilience** (`src/lib/Valkey.php`)
+- [x] **Task 2: Database Connection & Pooler Hardening (PDO Emulate Prepares)** (`src/lib/Database.php`, `src/config/services.php`)
+- [x] **Task 3: Auth & Token Hardening (Tokenize Custom Expiration & AuthMiddleware DI Fix)** (`src/lib/Tokenize.php`, `src/middlewares/AuthMiddleware.php`, `src/middlewares/TokenMiddleware.php`)
 
 ### Checkpoint 1: Core Infrastructure & Auth
-- [ ] Validasi syntax PHP (`php -l`)
-- [ ] Unit test `ValkeyTest` dan `TokenMiddlewareTest` lulus 100%
+- [x] Validasi syntax PHP (`php -l`)
+- [x] Unit test `ValkeyTest` dan `TokenMiddlewareTest` lulus 100%
 
 ---
 

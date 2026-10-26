@@ -169,12 +169,12 @@ Menghapus parameter `site` dari modul AI Article Agent dan Background Job. Pada 
 Menghapus file unit test yang secara spesifik menguji validasi multi-site yang kini tidak lagi ada: `tests/Unit/GeneralSiteValidationTest.php` dan `tests/Unit/BlokbacaCacheAndInvalidationWorkflowTest.php`. Menyesuaikan unit test yang sebelumnya menyertakan parameter `site`: `tests/Unit/GeneralRecentArticlesTest.php`, `tests/Unit/AdminArticleAgentServiceBrainstormTest.php`, `tests/Unit/AdminArticleCacheInvalidationTest.php`, `tests/Unit/AdminArticleCategoryCacheInvalidationTest.php`, dan `tests/Unit/ArticleLargeImageTest.php`.
 
 **Acceptance criteria:**
-- [ ] File `tests/Unit/GeneralSiteValidationTest.php` dan `tests/Unit/BlokbacaCacheAndInvalidationWorkflowTest.php` dihapus.
-- [ ] Seluruh unit test artikel, invalidasi cache, dan agent brainstorm disesuaikan dengan signature baru tanpa parameter site.
-- [ ] Seluruh unit test lulus: `composer test:unit`.
+- [x] File `tests/Unit/GeneralSiteValidationTest.php` dan `tests/Unit/BlokbacaCacheAndInvalidationWorkflowTest.php` dihapus.
+- [x] Seluruh unit test artikel, invalidasi cache, dan agent brainstorm disesuaikan dengan signature baru tanpa parameter site.
+- [x] Seluruh unit test lulus: `composer test:unit`.
 
 **Verification:**
-- [ ] Menjalankan test: `composer test:unit`
+- [x] Menjalankan test: `composer test:unit`
 
 **Dependencies:** Task 6
 **Files likely touched:**
@@ -195,13 +195,13 @@ Menghapus file unit test yang secara spesifik menguji validasi multi-site yang k
 Memperbarui seluruh Feature Test di direktori `tests/Feature/` yang sebelumnya mengirimkan parameter `site` pada request query atau body payload. Endpoint kini tidak lagi mengharapkan `'site'`, sehingga dummy request diuji secara murni dengan payload single-tenant. Jalankan keseluruhan test suite PHPUnit untuk memastikan seluruh endpoint bekerja sempurna tanpa regresi.
 
 **Acceptance criteria:**
-- [ ] Feature test `AdminArticleTest`, `ClientArticleTest`, `AdminArticleCategoryTest`, `ClientArticleCategoryTest`, `AdminStatsTest`, `AdminArticleAgentTest`, dan `JobTest` diperbarui tanpa parameter `site`.
-- [ ] Menjalankan `composer test:feature` menghasilkan status 100% Pass (hijau).
-- [ ] Menjalankan `composer test` menghasilkan status 100% Pass (hijau).
+- [x] Feature test `AdminArticleTest`, `ClientArticleTest`, `AdminArticleCategoryTest`, `ClientArticleCategoryTest`, `AdminStatsTest`, `AdminArticleAgentTest`, dan `JobTest` diperbarui tanpa parameter `site`.
+- [x] Menjalankan `composer test:feature` menghasilkan status 100% Pass (hijau).
+- [x] Menjalankan `composer test` menghasilkan status 100% Pass (hijau).
 
 **Verification:**
-- [ ] Menjalankan feature tests: `composer test:feature`
-- [ ] Menjalankan full suite: `composer test`
+- [x] Menjalankan feature tests: `composer test:feature`
+- [x] Menjalankan full suite: `composer test`
 
 **Dependencies:** Task 7
 **Files likely touched:**
@@ -217,6 +217,6 @@ Memperbarui seluruh Feature Test di direktori `tests/Feature/` yang sebelumnya m
 ---
 
 ### Checkpoint: Complete Verification
-- [ ] 8 Task selesai dan ditandai `[x]`
-- [ ] Seluruh unit dan feature tests berstatus hijau (`composer test`)
-- [ ] Repositori SlimeKit murni single-tenant dan bersih dari segala jejak multi-site
+- [x] 8 Task selesai dan ditandai `[x]`
+- [x] Seluruh unit dan feature tests berstatus hijau (`composer test`)
+- [x] Repositori SlimeKit murni single-tenant dan bersih dari segala jejak multi-site

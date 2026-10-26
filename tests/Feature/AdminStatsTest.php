@@ -158,7 +158,6 @@ class AdminStatsTest extends TestCase
 
     $request = $this->createRequest('GET', '/admin/stats/count_article');
     $request = $request->withQueryParams([
-      'site'   => 'site1',
       'status' => 'publish'
     ]);
     $response = $app->handle($request);
@@ -177,7 +176,6 @@ class AdminStatsTest extends TestCase
 
     $request = $this->createRequest('GET', '/admin/stats/count_article');
     $request = $request->withQueryParams([
-      'site'   => 'site1',
       'status' => 'publish'
     ]);
     $response = $app->handle($request);
@@ -191,7 +189,7 @@ class AdminStatsTest extends TestCase
   public function test_listCronArticle_fails_validation()
   {
     $app = $this->getAppInstance();
-    $request = $this->createRequest('GET', '/admin/stats/cron');
+    $request = $this->createRequest('GET', '/admin/stats/cron')->withQueryParams(['page' => 'invalid']);
     $response = $app->handle($request);
     $this->assertEquals(422, $response->getStatusCode());
   }
@@ -206,7 +204,6 @@ class AdminStatsTest extends TestCase
     $container->set(AdminStatsService::class, $mockService);
 
     $request = $this->createRequest('GET', '/admin/stats/cron');
-    $request = $request->withQueryParams(['site' => 'site1']);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -220,7 +217,7 @@ class AdminStatsTest extends TestCase
     $mockService = $this->createMock(AdminStatsService::class);
     $mockService->method('listCronArticle')->willReturn([
       'items' => [
-        ['id' => 1, 'title' => 'Article 1', 'site' => 'site1'],
+        ['id' => 1, 'title' => 'Article 1'],
       ],
       'pagination' => [
         'page'       => 1,
@@ -232,7 +229,6 @@ class AdminStatsTest extends TestCase
     $container->set(AdminStatsService::class, $mockService);
 
     $request = $this->createRequest('GET', '/admin/stats/cron');
-    $request = $request->withQueryParams(['site' => 'site1']);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -251,7 +247,7 @@ class AdminStatsTest extends TestCase
     $mockService->expects($this->once())
       ->method('listCronArticle')
       ->with($this->callback(function ($input) {
-        return $input['site'] === 'site1' && $input['page'] === '2' && $input['pageSize'] === '5';
+        return $input['page'] === '2' && $input['pageSize'] === '5';
       }))
       ->willReturn([
         'items' => [],
@@ -265,7 +261,6 @@ class AdminStatsTest extends TestCase
     $container->set(AdminStatsService::class, $mockService);
 
     $request = $this->createRequest('GET', '/admin/stats/cron')->withQueryParams([
-      'site'     => 'site1',
       'page'     => '2',
       'pageSize' => '5',
     ]);
@@ -296,7 +291,6 @@ class AdminStatsTest extends TestCase
 
     $request = $this->createRequest('GET', '/admin/stats/article_visits');
     $request = $request->withQueryParams([
-      'site'  => 'site1',
       'start' => '2023-01-01',
       'end'   => '2023-01-31'
     ]);
@@ -316,7 +310,6 @@ class AdminStatsTest extends TestCase
 
     $request = $this->createRequest('GET', '/admin/stats/article_visits');
     $request = $request->withQueryParams([
-      'site'  => 'site1',
       'start' => '2023-01-01',
       'end'   => '2023-01-31'
     ]);
@@ -345,7 +338,6 @@ class AdminStatsTest extends TestCase
 
     $request = $this->createRequest('GET', '/admin/stats/article_visits_by_slug');
     $request = $request->withQueryParams([
-      'site'  => 'site1',
       'start' => '2023-01-01',
       'end'   => '2023-01-31'
     ]);
@@ -365,7 +357,6 @@ class AdminStatsTest extends TestCase
 
     $request = $this->createRequest('GET', '/admin/stats/article_visits_by_slug');
     $request = $request->withQueryParams([
-      'site'  => 'site1',
       'start' => '2023-01-01',
       'end'   => '2023-01-31'
     ]);

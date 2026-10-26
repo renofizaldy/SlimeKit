@@ -12,7 +12,7 @@ class ClientArticleTest extends TestCase
   public function test_list_fails_validation()
   {
     $app = $this->getAppInstance();
-    $request = $this->createRequest('GET', '/client/article/list');
+    $request = $this->createRequest('GET', '/client/article/list')->withQueryParams(['page' => 'invalid']);
     $response = $app->handle($request);
     $this->assertEquals(422, $response->getStatusCode());
   }
@@ -27,7 +27,6 @@ class ClientArticleTest extends TestCase
     $container->set(ClientArticleService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article/list');
-    $request = $request->withQueryParams(['site' => 'site1']);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -41,7 +40,7 @@ class ClientArticleTest extends TestCase
     $mockService = $this->createMock(ClientArticleService::class);
     $mockService->method('list')->willReturn([
       'items' => [
-        ['slug' => 'test-article', 'title' => 'Test Article', 'site' => 'site1'],
+        ['slug' => 'test-article', 'title' => 'Test Article'],
       ],
       'pagination' => [
         'page'       => 1,
@@ -53,7 +52,6 @@ class ClientArticleTest extends TestCase
     $container->set(ClientArticleService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article/list');
-    $request = $request->withQueryParams(['site' => 'site1']);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -72,7 +70,7 @@ class ClientArticleTest extends TestCase
     $mockService->expects($this->once())
       ->method('list')
       ->with($this->callback(function ($input) {
-        return $input['site'] === 'site1' && $input['page'] === '2' && $input['pageSize'] === '5';
+        return $input['page'] === '2' && $input['pageSize'] === '5';
       }))
       ->willReturn([
         'items' => [],
@@ -86,7 +84,6 @@ class ClientArticleTest extends TestCase
     $container->set(ClientArticleService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article/list')->withQueryParams([
-      'site'     => 'site1',
       'page'     => '2',
       'pageSize' => '5',
     ]);
@@ -116,7 +113,7 @@ class ClientArticleTest extends TestCase
     $container->set(ClientArticleService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article/similar');
-    $request = $request->withQueryParams(['site' => 'site1', 'slug' => 'test-article']);
+    $request = $request->withQueryParams(['slug' => 'test-article']);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -132,7 +129,7 @@ class ClientArticleTest extends TestCase
     $container->set(ClientArticleService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article/similar');
-    $request = $request->withQueryParams(['site' => 'site1', 'slug' => 'test-article']);
+    $request = $request->withQueryParams(['slug' => 'test-article']);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -157,7 +154,7 @@ class ClientArticleTest extends TestCase
     $container->set(ClientArticleService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article/detail');
-    $request = $request->withQueryParams(['site' => 'site1', 'slug' => 'test-article']);
+    $request = $request->withQueryParams(['slug' => 'test-article']);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -173,7 +170,7 @@ class ClientArticleTest extends TestCase
     $container->set(ClientArticleService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article/detail');
-    $request = $request->withQueryParams(['site' => 'site1', 'slug' => 'test-article']);
+    $request = $request->withQueryParams(['slug' => 'test-article']);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());

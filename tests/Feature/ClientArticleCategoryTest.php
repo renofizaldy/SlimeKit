@@ -12,7 +12,7 @@ class ClientArticleCategoryTest extends TestCase
   public function test_list_fails_validation()
   {
     $app = $this->getAppInstance();
-    $request = $this->createRequest('GET', '/client/article_category/list');
+    $request = $this->createRequest('GET', '/client/article_category/list')->withQueryParams(['page' => 'invalid']);
     $response = $app->handle($request);
     $this->assertEquals(422, $response->getStatusCode());
   }
@@ -27,7 +27,6 @@ class ClientArticleCategoryTest extends TestCase
     $container->set(ClientArticleCategoryService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article_category/list');
-    $request = $request->withQueryParams(['site' => 'site1']);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -41,7 +40,7 @@ class ClientArticleCategoryTest extends TestCase
     $mockService = $this->createMock(ClientArticleCategoryService::class);
     $mockService->method('list')->willReturn([
       'items' => [
-        ['slug' => 'test-cat', 'title' => 'Test Cat', 'site' => 'site1'],
+        ['slug' => 'test-cat', 'title' => 'Test Cat'],
       ],
       'pagination' => [
         'page'       => 1,
@@ -53,7 +52,6 @@ class ClientArticleCategoryTest extends TestCase
     $container->set(ClientArticleCategoryService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article_category/list');
-    $request = $request->withQueryParams(['site' => 'site1']);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -72,7 +70,7 @@ class ClientArticleCategoryTest extends TestCase
     $mockService->expects($this->once())
       ->method('list')
       ->with($this->callback(function ($input) {
-        return $input['site'] === 'site1' && $input['page'] === '2' && $input['pageSize'] === '5';
+        return $input['page'] === '2' && $input['pageSize'] === '5';
       }))
       ->willReturn([
         'items' => [],
@@ -86,7 +84,6 @@ class ClientArticleCategoryTest extends TestCase
     $container->set(ClientArticleCategoryService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article_category/list')->withQueryParams([
-      'site'     => 'site1',
       'page'     => '2',
       'pageSize' => '5',
     ]);
@@ -116,7 +113,7 @@ class ClientArticleCategoryTest extends TestCase
     $container->set(ClientArticleCategoryService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article_category/detail');
-    $request = $request->withQueryParams(['site' => 'site1', 'slug' => 'test-category']);
+    $request = $request->withQueryParams(['slug' => 'test-category']);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -132,7 +129,7 @@ class ClientArticleCategoryTest extends TestCase
     $container->set(ClientArticleCategoryService::class, $mockService);
 
     $request = $this->createRequest('GET', '/client/article_category/detail');
-    $request = $request->withQueryParams(['site' => 'site1', 'slug' => 'test-category']);
+    $request = $request->withQueryParams(['slug' => 'test-category']);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());

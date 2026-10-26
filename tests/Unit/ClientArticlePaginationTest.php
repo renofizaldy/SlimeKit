@@ -21,7 +21,7 @@ class ClientArticlePaginationTest extends TestCase
 
     $cachedPayload = [
       'items' => [
-        ['slug' => 'test-article-1', 'title' => 'Article 1', 'site' => 'slimego'],
+        ['slug' => 'test-article-1', 'title' => 'Article 1'],
       ],
       'pagination' => [
         'page'       => 2,
@@ -31,7 +31,7 @@ class ClientArticlePaginationTest extends TestCase
       ],
     ];
 
-    $expectedCacheKey = 'article:list:site=slimego:order_by=publish:order_type=DESC:page=2:pageSize=5:search=:category=:featured=';
+    $expectedCacheKey = 'article:list:order_by=publish:order_type=DESC:page=2:pageSize=5:search=:category=:featured=';
 
     $mockValkey->expects($this->once())
       ->method('get')
@@ -41,7 +41,6 @@ class ClientArticlePaginationTest extends TestCase
     $service = new ClientArticleService($helper, $mockCloudinary, $mockValkey, $mockCronhooks);
 
     $result = $service->list([
-      'site'     => 'slimego',
       'page'     => 2,
       'pageSize' => 5,
     ]);
@@ -60,7 +59,7 @@ class ClientArticlePaginationTest extends TestCase
 
     $cachedPayload = [
       'items' => [
-        ['slug' => 'category-1', 'title' => 'Category 1', 'site' => 'slimego'],
+        ['slug' => 'category-1', 'title' => 'Category 1'],
       ],
       'pagination' => [
         'page'       => 1,
@@ -70,7 +69,7 @@ class ClientArticlePaginationTest extends TestCase
       ],
     ];
 
-    $expectedCacheKey = 'article_category:list:site=slimego:page=1:pageSize=10';
+    $expectedCacheKey = 'article_category:list:page=1:pageSize=10';
 
     $mockValkey->expects($this->once())
       ->method('get')
@@ -80,7 +79,6 @@ class ClientArticlePaginationTest extends TestCase
     $service = new ClientArticleCategoryService($helper, $mockCloudinary, $mockValkey);
 
     $result = $service->list([
-      'site'     => 'slimego',
       'page'     => 1,
       'pageSize' => 10,
     ]);

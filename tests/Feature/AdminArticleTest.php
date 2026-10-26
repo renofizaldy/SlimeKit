@@ -31,7 +31,7 @@ class AdminArticleTest extends TestCase
     $mockService->method('list')->willThrowException(new Exception('Service Error', 500));
     $container->set(AdminArticleService::class, $mockService);
 
-    $request = $this->createRequest('GET', '/admin/article/list')->withQueryParams(['status' => 'active', 'site' => 1, 'featured' => 1, 'category' => 1]);
+    $request = $this->createRequest('GET', '/admin/article/list')->withQueryParams(['status' => 'active', 'featured' => 1, 'category' => 1]);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -59,7 +59,7 @@ class AdminArticleTest extends TestCase
     ]);
     $container->set(AdminArticleService::class, $mockService);
 
-    $request = $this->createRequest('GET', '/admin/article/list')->withQueryParams(['status' => 'active', 'site' => 1, 'featured' => 1, 'category' => 1]);
+    $request = $this->createRequest('GET', '/admin/article/list')->withQueryParams(['status' => 'active', 'featured' => 1, 'category' => 1]);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -95,7 +95,6 @@ class AdminArticleTest extends TestCase
 
     $request = $this->createRequest('GET', '/admin/article/list')->withQueryParams([
       'status'   => 'all',
-      'site'     => 'all',
       'featured' => 'all',
       'category' => 'all',
       'page'     => '2',
@@ -115,7 +114,6 @@ class AdminArticleTest extends TestCase
     $app = $this->getAppInstance();
     $request = $this->createRequest('GET', '/admin/article/list')->withQueryParams([
       'status'   => 'all',
-      'site'     => 'all',
       'featured' => 'all',
       'category' => 'all',
       'page'     => -1,
@@ -150,7 +148,6 @@ class AdminArticleTest extends TestCase
 
     $request = $this->createRequest('GET', '/admin/article/list')->withQueryParams([
       'status'   => 'all',
-      'site'     => 'all',
       'featured' => 'all',
       'category' => 'all',
       'page'     => 1,
@@ -172,7 +169,6 @@ class AdminArticleTest extends TestCase
     $app = $this->getAppInstance();
     $request = $this->createRequest('GET', '/admin/article/list')->withQueryParams([
       'status'   => 'all',
-      'site'     => 'all',
       'featured' => 'all',
       'category' => 'all',
       'orderBy'  => 'malicious_column; DROP TABLE articles;',
@@ -463,7 +459,7 @@ class AdminArticleTest extends TestCase
     $container->set(AdminArticleService::class, $mockService);
 
     $request = $this->createRequest('POST', '/admin/article/check_slug');
-    $request = $request->withParsedBody(['slug' => 'test-slug', 'site' => 'example.com']);
+    $request = $request->withParsedBody(['slug' => 'test-slug']);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -479,7 +475,7 @@ class AdminArticleTest extends TestCase
     $container->set(AdminArticleService::class, $mockService);
 
     $request = $this->createRequest('POST', '/admin/article/check_slug');
-    $request = $request->withParsedBody(['slug' => 'test-slug', 'site' => 'example.com']);
+    $request = $request->withParsedBody(['slug' => 'test-slug']);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());

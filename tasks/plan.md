@@ -60,12 +60,12 @@ Rencana implementasi ini bertujuan untuk menghapus seluruh konsep multi-site (`s
 ---
 
 ### Phase 3: Test Suite Alignment & Full Green Verification
-- [ ] **Task 7: Obsolete Multi-Site Test Files Removal & Unit Tests Alignment** (`tests/Unit/`)
-- [ ] **Task 8: Feature Test Suite Alignment & Full Pass (`composer test`)** (`tests/Feature/`)
+- [x] **Task 7: Obsolete Multi-Site Test Files Removal & Unit Tests Alignment** (`tests/Unit/`)
+- [x] **Task 8: Feature Test Suite Alignment & Full Pass (`composer test`)** (`tests/Feature/`)
 
 ### Checkpoint 3: End-to-End Single-Tenant Test Suite Green
-- [ ] Perintah `composer test` lulus 100% (semua feature dan unit test hijau)
-- [ ] Tidak ada lagi sisa referensi `site` pada request payload pengujian
+- [x] Perintah `composer test` lulus 100% (semua feature dan unit test hijau)
+- [x] Tidak ada lagi sisa referensi `site` pada request payload pengujian
 
 ---
 

@@ -39,48 +39,11 @@ class AdminArticleCacheInvalidationTest extends TestCase
 
     $reflection = new ReflectionMethod($service, 'invalidateArticleCache');
     $reflection->setAccessible(true);
-    $reflection->invoke($service, 'blokbaca');
+    $reflection->invoke($service);
 
-    $this->assertContains('article:list:site=blokbaca:', $deletedPrefixes);
-    $this->assertContains('article:detail:site=blokbaca:', $deletedPrefixes);
-    $this->assertContains('article:similar:site=blokbaca:', $deletedPrefixes);
-    $this->assertContains('article:admin', $deletedPrefixes);
-  }
-
-  public function test_invalidate_article_cache_cleans_both_new_and_old_site()
-  {
-    $mockValkey = $this->createMock(Valkey::class);
-    $mockGeneral = $this->createMock(General::class);
-    $mockCloudinary = $this->createMock(Cloudinary::class);
-    $mockCronhooks = $this->createMock(Cronhooks::class);
-    $mockNextRevalidator = $this->createMock(NextRevalidator::class);
-
-    $deletedPrefixes = [];
-    $mockValkey->expects($this->exactly(7))
-      ->method('deleteByPrefix')
-      ->willReturnCallback(function ($prefix) use (&$deletedPrefixes) {
-        $deletedPrefixes[] = $prefix;
-        return true;
-      });
-
-    $service = new AdminArticleService(
-      $mockGeneral,
-      $mockCloudinary,
-      $mockValkey,
-      $mockCronhooks,
-      $mockNextRevalidator
-    );
-
-    $reflection = new ReflectionMethod($service, 'invalidateArticleCache');
-    $reflection->setAccessible(true);
-    $reflection->invoke($service, 'lolitamakeup', 'blokbaca');
-
-    $this->assertContains('article:list:site=lolitamakeup:', $deletedPrefixes);
-    $this->assertContains('article:detail:site=lolitamakeup:', $deletedPrefixes);
-    $this->assertContains('article:similar:site=lolitamakeup:', $deletedPrefixes);
-    $this->assertContains('article:list:site=blokbaca:', $deletedPrefixes);
-    $this->assertContains('article:detail:site=blokbaca:', $deletedPrefixes);
-    $this->assertContains('article:similar:site=blokbaca:', $deletedPrefixes);
+    $this->assertContains('article:list:', $deletedPrefixes);
+    $this->assertContains('article:detail:', $deletedPrefixes);
+    $this->assertContains('article:similar:', $deletedPrefixes);
     $this->assertContains('article:admin', $deletedPrefixes);
   }
 }

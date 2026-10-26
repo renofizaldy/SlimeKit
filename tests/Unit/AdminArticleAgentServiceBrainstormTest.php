@@ -40,19 +40,16 @@ class AdminArticleAgentServiceBrainstormTest extends TestCase
     $mockTavily = $this->createMock(TavilyClient::class);
     $mockOpenai = $this->createMock(OpenAIClient::class);
 
-    $site = 'blokbaca';
-
     $mockHelper->expects($this->once())
-      ->method('getCategoriesBySite')
-      ->with($site)
+      ->method('getCategories')
       ->willReturn([
         ['title' => 'Teknologi', 'description' => 'Seputar gadget dan software'],
         ['title' => 'Bisnis', 'description' => 'Strategi dan tips bisnis']
       ]);
 
     $mockHelper->expects($this->once())
-      ->method('getRecentArticlesBySite')
-      ->with($site, 75)
+      ->method('getRecentArticles')
+      ->with(75)
       ->willReturn([
         ['title' => 'Panduan Belajar PHP 8 Modern', 'keyword' => 'belajar php 8'],
         ['title' => 'Review Framework AI Terbaik', 'keyword' => 'framework ai']
@@ -78,8 +75,7 @@ class AdminArticleAgentServiceBrainstormTest extends TestCase
 
     $result = $service->step1_inputTopic([
       'topic_mode' => 'auto',
-      'strategy'   => 'free',
-      'site'       => $site
+      'strategy'   => 'free'
     ]);
 
     // 1. Verifikasi hasil dan penyimpanan DB
@@ -99,11 +95,11 @@ class AdminArticleAgentServiceBrainstormTest extends TestCase
     $this->assertStringContainsString('DILARANG KERAS membuat ide topik yang mengangkat tema, judul, atau target kata kunci yang serupa', $capturedPrompt);
 
     // 3. Verifikasi Dynamic Angles & Categories
-    $this->assertStringContainsString('DAFTAR KATEGORI ARTIKEL DI SITE INI:', $capturedPrompt);
+    $this->assertStringContainsString('DAFTAR KATEGORI ARTIKEL:', $capturedPrompt);
     $this->assertStringContainsString('Teknologi — Seputar gadget dan software', $capturedPrompt);
     $this->assertStringContainsString('EKSPLORASI SUDUT PANDANG (DYNAMIC ANGLES):', $capturedPrompt);
 
-    // 4. Verifikasi Options LLM (Opsi kosong [] karena modelOpenaiBrainstorm tidak mendukung kustomisasi temperature/penalties)
+    // 4. Verifikasi Options LLM
     $this->assertIsArray($capturedOptions);
     $this->assertEmpty($capturedOptions);
   }
@@ -115,19 +111,16 @@ class AdminArticleAgentServiceBrainstormTest extends TestCase
     $mockTavily = $this->createMock(TavilyClient::class);
     $mockOpenai = $this->createMock(OpenAIClient::class);
 
-    $site = 'newsite';
-
     $mockHelper->expects($this->once())
-      ->method('getCategoriesBySite')
-      ->with($site)
+      ->method('getCategories')
       ->willReturn([
         ['title' => 'Gaya Hidup', 'description' => '-']
       ]);
 
     // Database artikel masih kosong untuk situs ini
     $mockHelper->expects($this->once())
-      ->method('getRecentArticlesBySite')
-      ->with($site, 75)
+      ->method('getRecentArticles')
+      ->with(75)
       ->willReturn([]);
 
     $capturedPrompt = null;
@@ -147,8 +140,7 @@ class AdminArticleAgentServiceBrainstormTest extends TestCase
 
     $result = $service->step1_inputTopic([
       'topic_mode' => 'auto',
-      'strategy'   => 'free',
-      'site'       => $site
+      'strategy'   => 'free'
     ]);
 
     $this->assertArrayHasKey('uuid', $result);
@@ -158,7 +150,7 @@ class AdminArticleAgentServiceBrainstormTest extends TestCase
     $this->assertStringNotContainsString('DAFTAR ARTIKEL YANG SUDAH DITULIS DI SITUS INI', $capturedPrompt);
 
     // Kategori dan dynamic angles tetap harus ada
-    $this->assertStringContainsString('DAFTAR KATEGORI ARTIKEL DI SITE INI:', $capturedPrompt);
+    $this->assertStringContainsString('DAFTAR KATEGORI ARTIKEL:', $capturedPrompt);
     $this->assertStringContainsString('EKSPLORASI SUDUT PANDANG (DYNAMIC ANGLES):', $capturedPrompt);
 
     // Options kosong sesuai batasan model
@@ -173,8 +165,8 @@ class AdminArticleAgentServiceBrainstormTest extends TestCase
     $mockTavily = $this->createMock(TavilyClient::class);
     $mockOpenai = $this->createMock(OpenAIClient::class);
 
-    $mockHelper->method('getCategoriesBySite')->willReturn([]);
-    $mockHelper->method('getRecentArticlesBySite')->willReturn([]);
+    $mockHelper->method('getCategories')->willReturn([]);
+    $mockHelper->method('getRecentArticles')->willReturn([]);
 
     $mockOpenai->expects($this->once())
       ->method('generateContent')
@@ -187,8 +179,7 @@ class AdminArticleAgentServiceBrainstormTest extends TestCase
 
     $service->step1_inputTopic([
       'topic_mode' => 'auto',
-      'strategy'   => 'free',
-      'site'       => 'blokbaca'
+      'strategy'   => 'free'
     ]);
   }
 }

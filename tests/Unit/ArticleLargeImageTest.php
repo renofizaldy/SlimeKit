@@ -67,7 +67,7 @@ class ArticleLargeImageTest extends TestCase
     $mockValkey->method('get')->willReturn(json_encode($cachedPayload));
 
     $service = new ClientArticleService($this->general, $mockCloudinary, $mockValkey, $mockCronhooks);
-    $result = $service->list(['site' => 'lolitamakeup']);
+    $result = $service->list([]);
 
     $this->assertArrayHasKey('items', $result);
     $this->assertArrayHasKey('picture', $result['items'][0]);

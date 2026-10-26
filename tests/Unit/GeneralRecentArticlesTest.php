@@ -18,18 +18,15 @@ class GeneralRecentArticlesTest extends TestCase
     $this->general = new General($mockValkey);
   }
 
-  public function test_get_recent_articles_by_site_method_signature_and_contract()
+  public function test_get_recent_articles_method_signature_and_contract()
   {
-    $this->assertTrue(method_exists($this->general, 'getRecentArticlesBySite'));
+    $this->assertTrue(method_exists($this->general, 'getRecentArticles'));
 
-    $ref = new ReflectionMethod($this->general, 'getRecentArticlesBySite');
+    $ref = new ReflectionMethod($this->general, 'getRecentArticles');
     $params = $ref->getParameters();
 
-    $this->assertCount(2, $params);
-    $this->assertSame('site', $params[0]->getName());
-    $this->assertSame('all', $params[0]->getDefaultValue());
-
-    $this->assertSame('limit', $params[1]->getName());
-    $this->assertSame(75, $params[1]->getDefaultValue());
+    $this->assertCount(1, $params);
+    $this->assertSame('limit', $params[0]->getName());
+    $this->assertSame(75, $params[0]->getDefaultValue());
   }
 }

@@ -31,7 +31,7 @@ class AdminArticleCategoryTest extends TestCase
     $mockService->method('list')->willThrowException(new Exception('Service Error', 500));
     $container->set(AdminArticleCategoryService::class, $mockService);
 
-    $request = $this->createRequest('GET', '/admin/article_category/list')->withQueryParams(['status' => 'active', 'site' => 'example.com']);
+    $request = $this->createRequest('GET', '/admin/article_category/list')->withQueryParams(['status' => 'active']);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -59,7 +59,7 @@ class AdminArticleCategoryTest extends TestCase
     ]);
     $container->set(AdminArticleCategoryService::class, $mockService);
 
-    $request = $this->createRequest('GET', '/admin/article_category/list')->withQueryParams(['status' => 'active', 'site' => 'example.com']);
+    $request = $this->createRequest('GET', '/admin/article_category/list')->withQueryParams(['status' => 'active']);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -95,7 +95,6 @@ class AdminArticleCategoryTest extends TestCase
 
     $request = $this->createRequest('GET', '/admin/article_category/list')->withQueryParams([
       'status'   => 'all',
-      'site'     => 'example.com',
       'page'     => '2',
       'pageSize' => '5',
     ]);
@@ -113,7 +112,6 @@ class AdminArticleCategoryTest extends TestCase
     $app = $this->getAppInstance();
     $request = $this->createRequest('GET', '/admin/article_category/list')->withQueryParams([
       'status'   => 'all',
-      'site'     => 'example.com',
       'page'     => 0,
     ]);
 
@@ -197,7 +195,6 @@ class AdminArticleCategoryTest extends TestCase
       'meta_title' => 'Test Meta',
       'meta_description' => 'Test Meta Desc',
       'meta_robots' => 'index,follow',
-      'site' => 'example.com',
       'status' => 'active'
     ]);
     $response = $app->handle($request);
@@ -222,7 +219,6 @@ class AdminArticleCategoryTest extends TestCase
       'meta_title' => 'Test Meta',
       'meta_description' => 'Test Meta Desc',
       'meta_robots' => 'index,follow',
-      'site' => 'example.com',
       'status' => 'active'
     ]);
     $response = $app->handle($request);
@@ -260,8 +256,7 @@ class AdminArticleCategoryTest extends TestCase
       'meta_title' => 'Test Meta',
       'meta_description' => 'Test Meta Desc',
       'meta_robots' => 'index,follow',
-      'status' => 'active',
-      'site' => 'example.com'
+      'status' => 'active'
     ]);
     $response = $app->handle($request);
 
@@ -286,8 +281,7 @@ class AdminArticleCategoryTest extends TestCase
       'meta_title' => 'Test Meta',
       'meta_description' => 'Test Meta Desc',
       'meta_robots' => 'index,follow',
-      'status' => 'active',
-      'site' => 'example.com'
+      'status' => 'active'
     ]);
     $response = $app->handle($request);
 
@@ -356,7 +350,7 @@ class AdminArticleCategoryTest extends TestCase
     $container->set(AdminArticleCategoryService::class, $mockService);
 
     $request = $this->createRequest('POST', '/admin/article_category/check_slug');
-    $request = $request->withParsedBody(['slug' => 'test-slug', 'site' => 'example.com']);
+    $request = $request->withParsedBody(['slug' => 'test-slug']);
     $response = $app->handle($request);
 
     $this->assertEquals(500, $response->getStatusCode());
@@ -372,7 +366,7 @@ class AdminArticleCategoryTest extends TestCase
     $container->set(AdminArticleCategoryService::class, $mockService);
 
     $request = $this->createRequest('POST', '/admin/article_category/check_slug');
-    $request = $request->withParsedBody(['slug' => 'test-slug', 'site' => 'example.com']);
+    $request = $request->withParsedBody(['slug' => 'test-slug']);
     $response = $app->handle($request);
 
     $this->assertEquals(200, $response->getStatusCode());

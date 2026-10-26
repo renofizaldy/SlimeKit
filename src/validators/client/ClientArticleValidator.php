@@ -28,10 +28,7 @@ class ClientArticleValidator
         break;
       case 'similar':
         $rules = [
-          // 'order_by'   => 'required',
-          // 'order_type' => 'required',
-          // 'limit'      => 'required|integer',
-          // 'slug'       => 'required',
+          'slug' => 'required',
         ];
         break;
       case 'detail':

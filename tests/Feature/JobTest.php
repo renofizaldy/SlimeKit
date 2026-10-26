@@ -39,7 +39,6 @@ class JobTest extends TestCase
 
     $request = $this->createRequest('POST', '/job/article_publish');
     $request = $request->withParsedBody([
-      'site' => 'example.com',
       'slug' => 'my-article'
     ]);
 
@@ -65,7 +64,6 @@ class JobTest extends TestCase
 
     $request = $this->createRequest('POST', '/job/article_publish');
     $request = $request->withParsedBody([
-      'site' => 'example.com',
       'slug' => 'my-article'
     ]);
 
@@ -151,7 +149,6 @@ class JobTest extends TestCase
 
     $request = $this->createRequest('POST', '/job/article_track_stats');
     $request = $request->withParsedBody([
-      'site' => 'example.com',
       'slug' => 'track-slug'
     ]);
 
@@ -177,7 +174,6 @@ class JobTest extends TestCase
 
     $request = $this->createRequest('POST', '/job/article_track_stats');
     $request = $request->withParsedBody([
-      'site' => 'example.com',
       'slug' => 'track-slug'
     ]);
 

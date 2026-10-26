@@ -37,28 +37,20 @@ class AdminArticleCategoryService
     return Article::where('id_category', (int) $input['id'])->exists();
   }
 
-  private function invalidateCategoryAndArticleCache(?string $site, ?string $oldSite = null): void
+  private function invalidateCategoryAndArticleCache(): void
   {
-    $sites = array_values(array_filter(array_unique([$site, $oldSite])));
+    $this->valkey->deleteByPrefix("{$this->cacheKey}:list:");
+    $this->valkey->deleteByPrefix("{$this->cacheKey}:detail:");
 
-    foreach ($sites as $s) {
-      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s:", $s));
-      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s:", $s));
-
-      $this->valkey->deleteByPrefix(sprintf("article:list:site=%s:", $s));
-      $this->valkey->deleteByPrefix(sprintf("article:detail:site=%s:", $s));
-      $this->valkey->deleteByPrefix(sprintf("article:similar:site=%s:", $s));
-    }
-
+    $this->valkey->deleteByPrefix("article:list:");
+    $this->valkey->deleteByPrefix("article:detail:");
+    $this->valkey->deleteByPrefix("article:similar:");
     $this->valkey->deleteByPrefix("article:admin");
   }
 
   public function checkSlug(array $input)
   {
-    $query = ArticleCategory::where([
-      'slug' => $input['slug'],
-      'site' => $input['site']
-    ]);
+    $query = ArticleCategory::where('slug', $input['slug']);
     if (!empty($input['id'])) {
       $check = $query->first();
       if ($check && $check->id !== (int) $input['id']) {
@@ -78,17 +70,10 @@ class AdminArticleCategoryService
     $pageSize = max(1, (int) ($input['pageSize'] ?? 10));
 
     $query = ArticleCategory::with('seoMeta')
-      ->withCount(['articles as total_article' => function ($query) use ($input) {
-        if ($input['site'] !== 'all') {
-          $query->where('site', $input['site']);
-        }
-      }]);
+      ->withCount('articles as total_article');
 
     if ($input['status'] !== 'all') {
       $query->where('status', $input['status']);
-    }
-    if ($input['site'] !== 'all') {
-      $query->where('site', $input['site']);
     }
     $query->orderBy('id', 'desc');
 
@@ -100,7 +85,6 @@ class AdminArticleCategoryService
         'id'               => $row->id,
         'title'            => $row->title,
         'status'           => $row->status,
-        'site'             => $row->site,
         'slug'             => $row->slug,
         'description'      => $row->description,
         'meta_title'       => $row->seoMeta->meta_title ?? null,
@@ -133,7 +117,6 @@ class AdminArticleCategoryService
       //? INSERT TO tableMain
         $category = ArticleCategory::create([
           'status'      => $input['status'],
-          'site'        => $input['site'],
           'title'       => $input['title'],
           'description' => $input['description'],
           'slug'        => $input['slug'],
@@ -158,7 +141,7 @@ class AdminArticleCategoryService
       DB::commit();
 
       //? DELETE CACHE
-        $this->invalidateCategoryAndArticleCache($input['site'] ?? null);
+        $this->invalidateCategoryAndArticleCache();
       //? DELETE CACHE
     }
     catch (Exception $e) {
@@ -180,7 +163,6 @@ class AdminArticleCategoryService
           'slug'        => $input['slug'],
           'description' => $input['description'],
           'status'      => $input['status'],
-          'site'        => $input['site'],
           'updated_at'  => date('Y-m-d H:i:s')
         ];
         ArticleCategory::where('id', (int) $input['id'])->update($updateData);
@@ -205,7 +187,7 @@ class AdminArticleCategoryService
       DB::commit();
 
       //? DELETE CACHE
-        $this->invalidateCategoryAndArticleCache($input['site'] ?? null, $check->site ?? null);
+        $this->invalidateCategoryAndArticleCache();
       //? DELETE CACHE
     }
     catch (Exception $e) {
@@ -242,7 +224,7 @@ class AdminArticleCategoryService
       DB::commit();
 
       //? DELETE CACHE
-        $this->invalidateCategoryAndArticleCache($check->site ?? ($check['site'] ?? null));
+        $this->invalidateCategoryAndArticleCache();
       //? DELETE CACHE
     }
     catch (Exception $e) {

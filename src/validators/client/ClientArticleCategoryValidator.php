@@ -17,13 +17,10 @@ class ClientArticleCategoryValidator
   {
     switch ($type) {
       case 'list':
-        $rules = $this->helper->paginationRules([
-          'site' => 'required',
-        ]);
+        $rules = $this->helper->paginationRules([]);
         break;
       case 'detail':
         $rules = [
-          'site' => 'required',
           'slug' => 'required',
         ];
         break;

@@ -34,7 +34,6 @@ class AdminArticleAgentService
     $topic     = trim($input['topic'] ?? '');
     $topicMode = $input['topic_mode'] ?? 'manual';
     $strategy  = $input['strategy'] ?? 'free';
-    $site      = $input['site'] ?? 'all';
 
     $isAutoMode = ($topicMode === 'auto');
     $isAutoFree = $isAutoMode && $strategy === 'free';
@@ -44,12 +43,12 @@ class AdminArticleAgentService
     $categories     = [];
     $recentArticles = [];
     if ($isAutoFree) {
-      //? Auto + Free: gunakan kategori site sebagai referensi dan recent articles sebagai negative context
-      $categories     = $this->helper->getCategoriesBySite($site);
-      $recentArticles = $this->helper->getRecentArticlesBySite($site, 75);
+      //? Auto + Free: gunakan kategori sebagai referensi dan recent articles sebagai negative context
+      $categories     = $this->helper->getCategories();
+      $recentArticles = $this->helper->getRecentArticles(75);
     } elseif ($isAutoMode || $strategy !== 'free') {
       //? Auto + strategy lain / Manual + non-free: gunakan top articles
-      $topArticles = $this->helper->getTopArticles($site, 50);
+      $topArticles = $this->helper->getTopArticles(50);
     }
 
     //* 1. Susun Base Prompt & Inject Referensi/Strategi
@@ -58,15 +57,15 @@ class AdminArticleAgentService
       $prompt = "Kamu adalah seorang ahli strategi konten SEO. Berdasarkan analisis data website, berikan 10 rekomendasi ide topik dan artikel baru yang berpotensi memiliki trafik tinggi.\n\n";
 
       if ($isAutoFree) {
-        //! AUTO + FREE: Gunakan kategori site sebagai referensi
+        //! AUTO + FREE: Gunakan kategori sebagai referensi
         if (!empty($categories)) {
-          $prompt .= "DAFTAR KATEGORI ARTIKEL DI SITE INI:\n";
+          $prompt .= "DAFTAR KATEGORI ARTIKEL:\n";
           foreach ($categories as $index => $category) {
             $num     = $index + 1;
             $desc    = $category['description'] !== '-' ? " — {$category['description']}" : '';
             $prompt .= "{$num}. {$category['title']}{$desc}\n";
           }
-          $prompt .= "\nBerdasarkan kategori-kategori di atas, buatlah 10 rekomendasi ide artikel yang relevan dengan fokus dan niche site ini. Pastikan ide-ide tersebut tren, menarik, dan berpotensi meraih trafik tinggi. Sebarkan ide secara merata di berbagai kategori yang tersedia.\n\n";
+          $prompt .= "\nBerdasarkan kategori-kategori di atas, buatlah 10 rekomendasi ide artikel yang relevan dengan fokus dan niche website ini. Pastikan ide-ide tersebut tren, menarik, dan berpotensi meraih trafik tinggi. Sebarkan ide secara merata di berbagai kategori yang tersedia.\n\n";
         } else {
           $prompt .= "Buatlah 10 rekomendasi ide artikel umum yang populer, tren, dan berpotensi meraih trafik tinggi.\n\n";
         }

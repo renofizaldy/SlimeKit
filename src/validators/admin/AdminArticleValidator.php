@@ -19,10 +19,9 @@ class AdminArticleValidator
       case 'list':
         $rules = $this->helper->paginationRules([
           'status'   => 'required',
-          'site'     => 'required',
           'featured' => 'required',
           'category' => 'required',
-          'orderBy'  => 'in:publish,id,title,status,site,author,created_at',
+          'orderBy'  => 'in:publish,id,title,status,author,created_at',
           'orderDir' => 'in:asc,desc,ASC,DESC',
         ]);
         break;
@@ -42,7 +41,6 @@ class AdminArticleValidator
             'excerpt'          => 'required',
             'content'          => 'required',
             'picture'          => 'required',
-            'site'             => 'required',
             'category'         => 'required|numeric',
             'author'           => 'required',
             'publish'          => 'required',
@@ -63,7 +61,6 @@ class AdminArticleValidator
             'id'               => 'required|numeric',
             'excerpt'          => 'required',
             'content'          => 'required',
-            'site'             => 'required',
             'category'         => 'required|numeric',
             'author'           => 'required',
             'publish'          => 'required',
@@ -93,7 +90,6 @@ class AdminArticleValidator
       case 'check_slug':
         $rules = [
           'slug' => 'required',
-          'site' => 'required'
         ];
         break;
       case 'add_picture':

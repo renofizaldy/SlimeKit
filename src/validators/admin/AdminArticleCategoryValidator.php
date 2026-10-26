@@ -19,7 +19,6 @@ class AdminArticleCategoryValidator
       case 'list':
         $rules = $this->helper->paginationRules([
           'status' => 'required',
-          'site'   => 'required'
         ]);
         break;
       case 'detail':
@@ -36,7 +35,6 @@ class AdminArticleCategoryValidator
           'meta_title'       => 'required',
           'meta_description' => 'required',
           'meta_robots'      => 'required',
-          'site'             => 'required',
           'status'           => 'required',
         ];
         break;
@@ -50,7 +48,6 @@ class AdminArticleCategoryValidator
           'meta_description' => 'required',
           'meta_robots'      => 'required',
           'status'           => 'required',
-          'site'             => 'required',
         ];
         break;
       case 'drop':
@@ -61,7 +58,6 @@ class AdminArticleCategoryValidator
       case 'check_slug':
         $rules = [
           'slug' => 'required',
-          'site' => 'required'
         ];
         break;
       default:

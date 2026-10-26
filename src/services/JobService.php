@@ -28,23 +28,20 @@ class JobService
 
   private function checkArticleExist(array $input)
   {
-    $check = Article::where([
-      'slug' => $input['slug'],
-      'site' => $input['site']
-    ])->first();
+    $check = Article::where('slug', $input['slug'])->first();
     if (!$check) {
       throw new Exception('Not Found', 404);
     }
     return $check;
   }
 
-  private function invalidateArticleCache(string $site): void
+  private function invalidateArticleCache(): void
   {
     $cacheKey = 'article';
-    $this->valkey->deleteByPrefix(sprintf("{$cacheKey}:list:site=%s:", $site));
-    $this->valkey->deleteByPrefix(sprintf("{$cacheKey}:detail:site=%s:", $site));
-    $this->valkey->deleteByPrefix(sprintf("{$cacheKey}:similar:site=%s:", $site));
-    $this->valkey->deleteByPrefix(sprintf("{$cacheKey}:admin"));
+    $this->valkey->deleteByPrefix("{$cacheKey}:list:");
+    $this->valkey->deleteByPrefix("{$cacheKey}:detail:");
+    $this->valkey->deleteByPrefix("{$cacheKey}:similar:");
+    $this->valkey->deleteByPrefix("{$cacheKey}:admin");
   }
 
   public function articlePublish(array $input, array $user)
@@ -70,13 +67,10 @@ class JobService
       DB::commit();
 
       //? DELETE CACHE
-        $site = $check->site ?? ($input['site'] ?? '');
-        if (!empty($site)) {
-          $this->invalidateArticleCache($site);
-        }
+        $this->invalidateArticleCache();
       //? DELETE CACHE
 
-      $this->nextRevalidator->revalidateArticle($check->site, $check->slug);
+      $this->nextRevalidator->revalidateArticle($check->slug);
 
       //? CHANGE CRONJOB
         $this->helper->reCron($this->cronhooks);
@@ -96,18 +90,12 @@ class JobService
       throw new Exception("Redis is not connected.", 500);
     }
 
-    $queueKeys      = $this->valkey->getKeysByPrefix('queue:article:visit:*');
+    $queueKeys      = $this->valkey->getKeysByPrefix('queue:article:visit*');
     $totalProcessed = 0;
     $chunkSize      = 1000;
-    $processedSites = [];
 
     foreach ($queueKeys as $queueKey) {
       $batchData = [];
-      $keyParts  = explode(':', $queueKey);
-      $site      = end($keyParts);
-      if (!in_array($site, $processedSites)) {
-        $processedSites[] = $site;
-      }
 
       //* Kuras isi antrean menggunakan RPOP
       while ($item = $this->valkey->rpop($queueKey)) {
@@ -118,7 +106,6 @@ class JobService
         $geoIp     = $this->helper->getGeoIp($ipAddress);
 
         $batchData[] = [
-          'site'         => $site,
           'slug'         => $data['slug'],
           'ip_address'   => $ipAddress,
           'user_agent'   => $data['user_agent'] ?? null,
@@ -153,7 +140,6 @@ class JobService
     }
 
     return [
-      'processed_sites' => $processedSites,
       'total_inserted'  => $totalProcessed
     ];
   }
@@ -161,8 +147,7 @@ class JobService
   public function articleTrackStats(array $input, array $user)
   {
     $slug = $input['slug'] ?? null;
-    $site = $input['site'] ?? null;
-    if (!$slug || !$site) {
+    if (!$slug) {
       throw new Exception('Invalid input.', 400);
     }
 
@@ -183,7 +168,7 @@ class JobService
     ];
 
     if ($this->valkey->isConnected()) {
-      $this->valkey->lpush("queue:article:visit:{$site}", json_encode($visitData));
+      $this->valkey->lpush("queue:article:visit", json_encode($visitData));
     }
 
     return true;

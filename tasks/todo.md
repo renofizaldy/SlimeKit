@@ -87,13 +87,13 @@ Menyederhanakan library `NextRevalidator` agar langsung menembak single URL tuju
 Menghilangkan parameter `site` dari lapisan validasi dan service artikel. Pada `AdminArticleValidator` dan `ClientArticleValidator`, hapus aturan `'site' => 'required'` dan hapus `'site'` dari opsi `orderBy`. Pada `AdminArticleService`, hapus parameter `site` dari method `checkSlug`, `list`, `detail`, `add`, `edit`, dan `drop`. Sederhanakan pola cache key Valkey tanpa segmen `site=%s:`, serta perbarui pemanggilan `revalidateArticle($slug, $oldSlug)`. Pada `ClientArticleService`, hapus klausa `where('site', ...)` pada query `list`, `detail`, dan `similar`, serta sederhanakan cache key Valkey.
 
 **Acceptance criteria:**
-- [ ] `AdminArticleValidator.php` dan `ClientArticleValidator.php` tidak lagi mewajibkan parameter `site`.
-- [ ] `AdminArticleService.php` memvalidasi keunikan slug secara global di `tb_article` (`where('slug', $input['slug'])` tanpa filter site).
-- [ ] Cache key `article:list:`, `article:detail:`, dan `article:similar:` tidak lagi memuat format `site=%s:`.
-- [ ] `ClientArticleService.php` melayani list, detail, dan similar artikel tanpa memerlukan input `site`.
+- [x] `AdminArticleValidator.php` dan `ClientArticleValidator.php` tidak lagi mewajibkan parameter `site`.
+- [x] `AdminArticleService.php` memvalidasi keunikan slug secara global di `tb_article` (`where('slug', $input['slug'])` tanpa filter site).
+- [x] Cache key `article:list:`, `article:detail:`, dan `article:similar:` tidak lagi memuat format `site=%s:`.
+- [x] `ClientArticleService.php` melayani list, detail, dan similar artikel tanpa memerlukan input `site`.
 
 **Verification:**
-- [ ] Pemeriksaan sintaks: `php -l src/validators/admin/AdminArticleValidator.php`, `php -l src/validators/client/ClientArticleValidator.php`, `php -l src/services/admin/AdminArticleService.php`, `php -l src/services/client/ClientArticleService.php`
+- [x] Pemeriksaan sintaks: `php -l src/validators/admin/AdminArticleValidator.php`, `php -l src/validators/client/ClientArticleValidator.php`, `php -l src/services/admin/AdminArticleService.php`, `php -l src/services/client/ClientArticleService.php`
 
 **Dependencies:** Task 3
 **Files likely touched:**
@@ -111,13 +111,13 @@ Menghilangkan parameter `site` dari lapisan validasi dan service artikel. Pada `
 Menghilangkan dependensi parameter `site` pada modul kategori artikel dan statistik dashboard. Hapus aturan `'site' => 'required'` pada `AdminArticleCategoryValidator`, `ClientArticleCategoryValidator`, dan `AdminStatsValidator`. Pada `AdminArticleCategoryService` dan `ClientArticleCategoryService`, hapus filter dan input `site` serta format cache key `site=%s:`. Pada `AdminStatsService`, hapus filter `where('site', ...)` pada query `totalArticle`, `listCronArticle`, `listArticleVisits`, dan `listArticleVisitsBySlug`.
 
 **Acceptance criteria:**
-- [ ] Validator kategori (`AdminArticleCategoryValidator`, `ClientArticleCategoryValidator`) dan `AdminStatsValidator` tidak lagi mewajibkan parameter `site`.
-- [ ] Keunikan slug kategori di `AdminArticleCategoryService::checkSlug()` bersifat global.
-- [ ] Cache key kategori `article_category:list:` bersih dari parameter site.
-- [ ] Method statistik di `AdminStatsService` menghitung metrik secara global tanpa pemisahan site.
+- [x] Validator kategori (`AdminArticleCategoryValidator`, `ClientArticleCategoryValidator`) dan `AdminStatsValidator` tidak lagi mewajibkan parameter `site`.
+- [x] Keunikan slug kategori di `AdminArticleCategoryService::checkSlug()` bersifat global.
+- [x] Cache key kategori `article_category:list:` bersih dari parameter site.
+- [x] Method statistik di `AdminStatsService` menghitung metrik secara global tanpa pemisahan site.
 
 **Verification:**
-- [ ] Pemeriksaan sintaks: `php -l src/validators/admin/AdminArticleCategoryValidator.php`, `php -l src/validators/client/ClientArticleCategoryValidator.php`, `php -l src/validators/admin/AdminStatsValidator.php`, `php -l src/services/admin/AdminArticleCategoryService.php`, `php -l src/services/client/ClientArticleCategoryService.php`, `php -l src/services/admin/AdminStatsService.php`
+- [x] Pemeriksaan sintaks: `php -l src/validators/admin/AdminArticleCategoryValidator.php`, `php -l src/validators/client/ClientArticleCategoryValidator.php`, `php -l src/validators/admin/AdminStatsValidator.php`, `php -l src/services/admin/AdminArticleCategoryService.php`, `php -l src/services/client/ClientArticleCategoryService.php`, `php -l src/services/admin/AdminStatsService.php`
 
 **Dependencies:** Task 4
 **Files likely touched:**
@@ -137,13 +137,13 @@ Menghilangkan dependensi parameter `site` pada modul kategori artikel dan statis
 Menghapus parameter `site` dari modul AI Article Agent dan Background Job. Pada `AdminArticleAgentValidator` dan `JobValidator`, hapus aturan `'site' => 'required'`. Pada `AdminArticleAgentService::brainstorm()`, hapus penerimaan `$input['site']`, panggil `$this->helper->getCategories()` dan `$this->helper->getRecentArticles(75)` tanpa argumen site. Pada `JobService`, hapus penanganan `site` pada `articlePublish()` dan `articleTrackStats()`, sederhanakan method `invalidateArticleCache()` untuk membersihkan cache global, dan panggil `revalidateArticle($check->slug)` tanpa parameter site.
 
 **Acceptance criteria:**
-- [ ] `AdminArticleAgentValidator.php` dan `JobValidator.php` tidak lagi mewajibkan parameter `site`.
-- [ ] `AdminArticleAgentService::brainstorm()` berjalan secara global untuk konten situs tanpa filter site.
-- [ ] `JobService::articlePublish()` dan `JobService::articleTrackStats()` berhasil memproses publikasi dan pencatatan statistik tanpa parameter `site`.
-- [ ] `JobService::invalidateArticleCache()` menghapus cache prefix `article:list:`, `article:detail:`, `article:similar:`, dan `article:admin`.
+- [x] `AdminArticleAgentValidator.php` dan `JobValidator.php` tidak lagi mewajibkan parameter `site`.
+- [x] `AdminArticleAgentService::brainstorm()` berjalan secara global untuk konten situs tanpa filter site.
+- [x] `JobService::articlePublish()` dan `JobService::articleTrackStats()` berhasil memproses publikasi dan pencatatan statistik tanpa parameter `site`.
+- [x] `JobService::invalidateArticleCache()` menghapus cache prefix `article:list:`, `article:detail:`, `article:similar:`, dan `article:admin`.
 
 **Verification:**
-- [ ] Pemeriksaan sintaks: `php -l src/validators/admin/AdminArticleAgentValidator.php`, `php -l src/validators/JobValidator.php`, `php -l src/services/admin/AdminArticleAgentService.php`, `php -l src/services/JobService.php`
+- [x] Pemeriksaan sintaks: `php -l src/validators/admin/AdminArticleAgentValidator.php`, `php -l src/validators/JobValidator.php`, `php -l src/services/admin/AdminArticleAgentService.php`, `php -l src/services/JobService.php`
 
 **Dependencies:** Task 5
 **Files likely touched:**
@@ -156,8 +156,8 @@ Menghapus parameter `site` dari modul AI Article Agent dan Background Job. Pada 
 ---
 
 ### Checkpoint: Business Layer & Endpoints (Tasks 4-6)
-- [ ] Seluruh controller, service, dan validator bebas dari parameter dan logika `site`
-- [ ] Seluruh file PHP valid sintaks tanpa exception
+- [x] Seluruh controller, service, dan validator bebas dari parameter dan logika `site`
+- [x] Seluruh file PHP valid sintaks tanpa exception
 
 ---
 

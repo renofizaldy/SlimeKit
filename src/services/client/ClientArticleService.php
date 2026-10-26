@@ -26,10 +26,7 @@ class ClientArticleService
 
   private function checkExist(array $input)
   {
-    $check = Article::where([
-      'slug' => $input['slug'],
-      'site' => $input['site']
-    ])->first();
+    $check = Article::where('slug', $input['slug'])->first();
     if (!$check) {
       throw new Exception('Not Found', 404);
     }
@@ -46,8 +43,7 @@ class ClientArticleService
 
     //* GENERATE CACHE KEY
       $cacheKey = sprintf(
-        "{$this->cacheKey}:list:site=%s:order_by=%s:order_type=%s:page=%d:pageSize=%d:search=%s:category=%s:featured=%s",
-        $input['site'],
+        "{$this->cacheKey}:list:order_by=%s:order_type=%s:page=%d:pageSize=%d:search=%s:category=%s:featured=%s",
         $input['order_by'] ?? 'publish',
         $input['order_type'] ?? 'DESC',
         $page,
@@ -65,8 +61,7 @@ class ClientArticleService
     //* GENERATE CACHE KEY
 
     //* NEW
-      $baseQuery = Article::where('status', 'active')
-        ->where('site', $input['site']);
+      $baseQuery = Article::where('status', 'active');
 
       //? FEATURED
         if (!empty($input['featured'])) {
@@ -77,8 +72,7 @@ class ClientArticleService
         if (!empty($input['category'])) {
           $baseQuery->whereHas('category', function ($q) use ($input) {
             $q->where('slug', $input['category'])
-              ->where('status', 'active')
-              ->where('site', $input['site']);
+              ->where('status', 'active');
           });
         }
       //? CATEGORY
@@ -93,7 +87,7 @@ class ClientArticleService
 
       //* ORDER BY
         if (!empty($input['order_by']) && !empty($input['order_type'])) {
-          $allowedOrderBy = ['id', 'status', 'site', 'slug', 'title', 'content', 'excerpt', 'author', 'publish', 'featured', 'read_time', 'created_at', 'updated_at'];
+          $allowedOrderBy = ['id', 'status', 'slug', 'title', 'content', 'excerpt', 'author', 'publish', 'featured', 'read_time', 'created_at', 'updated_at'];
 
           if (!in_array($input['order_by'], $allowedOrderBy)) {
             throw new Exception('Invalid order by field.', 400);
@@ -119,7 +113,6 @@ class ClientArticleService
         $page,
         $pageSize,
         fn ($row) => [
-          'site'        => $row->site,
           'slug'        => $row->slug,
           'title'       => $row->title,
           'description' => strip_tags($row->excerpt),
@@ -164,8 +157,7 @@ class ClientArticleService
 
     //* GENERATE CACHE KEY
       $cacheKey   = sprintf(
-        "{$this->cacheKey}:detail:site=%s:slug=%s",
-        $input['site'],
+        "{$this->cacheKey}:detail:slug=%s",
         $input['slug']
       );
       $cachedData = $this->valkey->get($cacheKey);
@@ -182,10 +174,8 @@ class ClientArticleService
       'category' => fn($q) =>
         $q->select('id', 'slug', 'title', 'description')
           ->where('status', 'active')
-          ->where('site', $input['site'])
     ])->where([
       'status' => 'active',
-      'site'   => $input['site'],
       'slug'   => $input['slug']
     ])->first();
 
@@ -194,7 +184,6 @@ class ClientArticleService
     }
 
     $data['detail'] = [
-      'site'      => $query->site,
       'slug'      => $query->slug,
       'title'     => $query->title,
       'excerpt'   => $query->excerpt,
@@ -236,8 +225,7 @@ class ClientArticleService
 
     //* GENERATE CACHE KEY
       $cacheKey   = sprintf(
-        "{$this->cacheKey}:similar:site=%s:slug=%s:order_by=%s:order_type=%s:limit=%d",
-        $input['site'],
+        "{$this->cacheKey}:similar:slug=%s:order_by=%s:order_type=%s:limit=%d",
         $input['slug'],
         $input['order_by'] ?? 'publish',
         $input['order_type'] ?? 'DESC',
@@ -252,8 +240,7 @@ class ClientArticleService
     //* GENERATE CACHE KEY
 
     //* GET TITLE
-      $article = Article::where('site', $input['site'])
-        ->where('slug', $input['slug'])
+      $article = Article::where('slug', $input['slug'])
         ->where('status', 'active')
         ->first();
       if (!$article || empty($article->title)) {
@@ -268,14 +255,13 @@ class ClientArticleService
 
     //* BASE QUERY
       $baseQuery = Article::where('status', 'active')
-        ->where('site', $input['site'])
         ->where('slug', '!=', $input['slug'])
         ->whereRaw("(title % ? OR similarity(title, ?) > 0.2)", [$title, $title]);
     //* BASE QUERY
 
     //* ORDER BY
       if (!empty($input['order_by']) && !empty($input['order_type'])) {
-        $allowedOrderBy = ['id', 'status', 'site', 'slug', 'title', 'content', 'excerpt', 'author', 'publish', 'featured', 'read_time', 'created_at', 'updated_at'];
+        $allowedOrderBy = ['id', 'status', 'slug', 'title', 'content', 'excerpt', 'author', 'publish', 'featured', 'read_time', 'created_at', 'updated_at'];
 
         if (!in_array($input['order_by'], $allowedOrderBy)) {
           throw new Exception('Invalid order by field.', 400);
@@ -295,10 +281,9 @@ class ClientArticleService
         ->with([
           'picture:id,original,thumbnail,caption',
           'seoMeta:id,id_parent,seo_keyphrase,meta_title,meta_description,meta_robots',
-          'category' => function ($q) use ($input) {
+          'category' => function ($q) {
             $q->select('id', 'slug', 'title', 'description')
-              ->where('status', 'active')
-              ->where('site', $input['site']);
+              ->where('status', 'active');
           }
         ])
         ->limit($limit)
@@ -308,7 +293,6 @@ class ClientArticleService
     //* RESULT LOOP
       foreach ($rows as $row) {
         $data['list'][] = [
-          'site'        => $row->site,
           'slug'        => $row->slug,
           'title'       => $row->title,
           'description' => strip_tags($row->excerpt),

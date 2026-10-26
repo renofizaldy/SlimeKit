@@ -14,13 +14,11 @@ class JobValidator
     switch ($type) {
       case 'article_publish':
         $rules = [
-          'site' => 'required',
           'slug' => 'required',
         ];
         break;
       case 'article_track_stats':
         $rules = [
-          'site' => 'required',
           'slug' => 'required',
         ];
         break;

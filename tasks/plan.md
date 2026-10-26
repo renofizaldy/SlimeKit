@@ -49,13 +49,13 @@ Rencana implementasi ini bertujuan untuk menghapus seluruh konsep multi-site (`s
 ---
 
 ### Phase 2: Article & Category Modules Purge (Admin & Client)
-- [ ] **Task 4: Admin & Client Article Validators & Services Cleanup** (`src/validators/`, `src/services/`)
-- [ ] **Task 5: Category & Stats Services & Validators Cleanup** (`src/validators/`, `src/services/`)
-- [ ] **Task 6: AI Article Agent & Job Background Services Cleanup** (`src/validators/`, `src/services/`)
+- [x] **Task 4: Admin & Client Article Validators & Services Cleanup** (`src/validators/`, `src/services/`)
+- [x] **Task 5: Category & Stats Services & Validators Cleanup** (`src/validators/`, `src/services/`)
+- [x] **Task 6: AI Article Agent & Job Background Services Cleanup** (`src/validators/`, `src/services/`)
 
 ### Checkpoint 2: Business Layer & Endpoints Purged of Multi-Site
-- [ ] Parameter `site` tidak lagi diterima/dibutuhkan pada seluruh endpoint
-- [ ] Cache invalidation berjalan global tanpa prefix site
+- [x] Parameter `site` tidak lagi diterima/dibutuhkan pada seluruh endpoint
+- [x] Cache invalidation berjalan global tanpa prefix site
 
 ---
 

@@ -18,7 +18,6 @@ class ClientArticleValidator
     switch ($type) {
       case 'list':
         $rules = $this->helper->paginationRules([
-          'site'       => 'required',
           // 'order_by'   => 'required',
           // 'order_type' => 'required',
           // 'limit'      => 'required|integer',
@@ -29,7 +28,6 @@ class ClientArticleValidator
         break;
       case 'similar':
         $rules = [
-          'site'       => 'required',
           // 'order_by'   => 'required',
           // 'order_type' => 'required',
           // 'limit'      => 'required|integer',
@@ -38,13 +36,11 @@ class ClientArticleValidator
         break;
       case 'detail':
         $rules = [
-          'site' => 'required',
           'slug' => 'required',
         ];
         break;
       case 'publish':
         $rules = [
-          'site' => 'required',
           'slug' => 'required',
         ];
         break;

@@ -36,26 +36,21 @@ class AdminArticleService
       && strtotime((string) $publish) <= time();
   }
 
-  private function revalidateArticle(?string $site, ?string $slug, ?string $oldSlug = null): void
+  private function revalidateArticle(?string $slug, ?string $oldSlug = null): void
   {
-    if (empty($site) || empty($slug)) {
+    if (empty($slug)) {
       return;
     }
 
-    $this->nextRevalidator->revalidateArticle($site, $slug, $oldSlug);
+    $this->nextRevalidator->revalidateArticle($slug, $oldSlug);
   }
 
-  private function invalidateArticleCache(?string $site, ?string $oldSite = null): void
+  private function invalidateArticleCache(): void
   {
-    $sites = array_values(array_filter(array_unique([$site, $oldSite])));
-
-    foreach ($sites as $s) {
-      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:list:site=%s:", $s));
-      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:detail:site=%s:", $s));
-      $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:similar:site=%s:", $s));
-    }
-
-    $this->valkey->deleteByPrefix(sprintf("{$this->cacheKey}:admin"));
+    $this->valkey->deleteByPrefix("{$this->cacheKey}:list:");
+    $this->valkey->deleteByPrefix("{$this->cacheKey}:detail:");
+    $this->valkey->deleteByPrefix("{$this->cacheKey}:similar:");
+    $this->valkey->deleteByPrefix("{$this->cacheKey}:admin");
   }
 
   private function checkExist(array $input)
@@ -81,10 +76,7 @@ class AdminArticleService
 
   public function checkSlug(array $input)
   {
-    $query = Article::where([
-      'slug' => $input['slug'],
-      'site' => $input['site'],
-    ]);
+    $query = Article::where('slug', $input['slug']);
     if (!empty($input['id'])) {
       $query->where('id', '!=', (int) $input['id']);
     }
@@ -98,15 +90,14 @@ class AdminArticleService
   {
     $page           = max(1, (int) ($input['page'] ?? 1));
     $pageSize       = max(1, (int) ($input['pageSize'] ?? 10));
-    $allowedOrderBy = ['publish', 'id', 'title', 'status', 'site', 'author', 'created_at'];
+    $allowedOrderBy = ['publish', 'id', 'title', 'status', 'author', 'created_at'];
     $orderBy        = in_array($input['orderBy'] ?? '', $allowedOrderBy, true) ? $input['orderBy'] : 'publish';
     $orderDir       = strtolower($input['orderDir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
     //* GENERATE CACHE KEY
       $cacheKey   = sprintf(
-        "{$this->cacheKey}:admin:list:status=%s:site=%s:featured=%s:category=%s:search=%s:page=%d:pageSize=%d:orderBy=%s:orderDir=%s",
+        "{$this->cacheKey}:admin:list:status=%s:featured=%s:category=%s:search=%s:page=%d:pageSize=%d:orderBy=%s:orderDir=%s",
         $input['status'],
-        $input['site'],
         $input['featured'],
         $input['category'],
         $input['search'] ?? '',
@@ -126,10 +117,6 @@ class AdminArticleService
       //? IF FILTER: STATUS
       if ($input['status'] !== 'all') {
         $query->where('status', $input['status']);
-      }
-      //? IF FILTER: SITE
-      if ($input['site'] !== 'all') {
-        $query->where('site', $input['site']);
       }
       //? IF FILTER: FEATURED
       if ($input['featured'] !== 'all') {
@@ -163,7 +150,6 @@ class AdminArticleService
           'category'        => $row->category ? $row->category->title : null,
           'featured'        => $row->featured ?? [],
           'status'          => $row->status,
-          'site'            => $row->site,
           'slug'            => $row->slug,
           'author'          => $row->author,
           'seo_keyphrase'   => $row->seoMeta ? $row->seoMeta->seo_keyphrase : null,
@@ -196,7 +182,6 @@ class AdminArticleService
         'author'      => $detail->author,
         'publish'     => $detail->publish ? date('Y-m-d H:i:s', strtotime($detail->publish)) : null,
         'status'      => $detail->status,
-        'site'        => $detail->site,
         'featured'    => $detail->featured ?? [], // Auto-cast dari Model
         'read_time'   => $detail->read_time ?? 0,
         'created_at'  => $detail->created_at ? $detail->created_at->format('Y-m-d H:i:s') : null,
@@ -249,7 +234,6 @@ class AdminArticleService
           'excerpt'     => $input['excerpt'] ?? null,
           'content'     => $input['content'] ?? null,
           'id_picture'  => $picture_id['id'] ?? null,
-          'site'        => $input['site'] ?? null,
           'id_category' => !empty($input['category']) ? (int)$input['category'] : null,
           'author'      => $input['author'] ?? null,
           'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
@@ -289,12 +273,12 @@ class AdminArticleService
       DB::commit();
 
       //? DELETE CACHE
-        $this->invalidateArticleCache($input['site'] ?? null);
+        $this->invalidateArticleCache();
       //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
         if ($this->shouldRevalidateArticle($input['status'], $input['publish'] ?? null)) {
-          $this->revalidateArticle($input['site'], $input['slug']);
+          $this->revalidateArticle($input['slug']);
         }
       //? REVALIDATE ARTICLE
 
@@ -340,7 +324,6 @@ class AdminArticleService
           'slug'        => $input['slug'],
           'excerpt'     => $input['excerpt'] ?? null,
           'content'     => $input['content'] ?? null,
-          'site'        => $input['site'] ?? null,
           'id_category' => !empty($input['category']) ? (int) $input['category'] : null,
           'author'      => $input['author'] ?? null,
           'publish'     => !empty($input['publish']) ? date('Y-m-d H:i:s', strtotime($input['publish'])) : null,
@@ -394,7 +377,7 @@ class AdminArticleService
       DB::commit();
 
       //? DELETE CACHE
-        $this->invalidateArticleCache($input['site'] ?? null, $check->site ?? null);
+        $this->invalidateArticleCache();
       //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
@@ -403,7 +386,7 @@ class AdminArticleService
           || $this->shouldRevalidateArticle($check->status, $check->publish)
         ) {
           $oldSlug = ($check->slug !== $input['slug']) ? $check->slug : null;
-          $this->revalidateArticle($input['site'], $input['slug'], $oldSlug);
+          $this->revalidateArticle($input['slug'], $oldSlug);
         }
       //? REVALIDATE ARTICLE
 
@@ -496,12 +479,12 @@ class AdminArticleService
       }
 
       //? DELETE CACHE
-        $this->invalidateArticleCache($check->site ?? ($check['site'] ?? null));
+        $this->invalidateArticleCache();
       //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
         if ($this->shouldRevalidateArticle($check['status'], $check['publish'])) {
-          $this->revalidateArticle($check['site'], $check['slug']);
+          $this->revalidateArticle($check['slug']);
         }
       //? REVALIDATE ARTICLE
 
@@ -528,7 +511,6 @@ class AdminArticleService
           empty($checkMain->excerpt) ||
           empty($checkMain->content) ||
           empty($checkMain->id_picture) ||
-          empty($checkMain->site) ||
           empty($checkMain->id_category) ||
           empty($checkMain->author) ||
           empty($checkMain->publish) ||
@@ -560,7 +542,7 @@ class AdminArticleService
       DB::commit();
 
       //? DELETE CACHE
-        $this->invalidateArticleCache($checkMain->site ?? ($input['site'] ?? null));
+        $this->invalidateArticleCache();
       //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
@@ -568,7 +550,7 @@ class AdminArticleService
           $this->shouldRevalidateArticle($input['status'], $checkMain['publish'])
           || $this->shouldRevalidateArticle($checkMain['status'], $checkMain['publish'])
         ) {
-          $this->revalidateArticle($checkMain['site'], $checkMain['slug']);
+          $this->revalidateArticle($checkMain['slug']);
         }
       //? REVALIDATE ARTICLE
 
@@ -614,7 +596,7 @@ class AdminArticleService
       DB::commit();
 
       //? DELETE CACHE
-        $this->invalidateArticleCache($check->site ?? ($input['site'] ?? null));
+        $this->invalidateArticleCache();
       //? DELETE CACHE
 
       //? REVALIDATE ARTICLE
@@ -622,7 +604,7 @@ class AdminArticleService
           $this->shouldRevalidateArticle($check['status'], $input['publish'] ?? null)
           || $this->shouldRevalidateArticle($check['status'], $check['publish'])
         ) {
-          $this->revalidateArticle($check['site'], $check['slug']);
+          $this->revalidateArticle($check['slug']);
         }
       //? REVALIDATE ARTICLE
 

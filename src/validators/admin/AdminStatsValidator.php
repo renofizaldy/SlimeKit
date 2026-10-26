@@ -25,9 +25,7 @@ class AdminStatsValidator
         ]);
         break;
       case 'list_cron':
-        $rules = $this->helper->paginationRules([
-          'site'   => 'required'
-        ]);
+        $rules = $this->helper->paginationRules([]);
         break;
       case 'drop_log':
         $rules = [
@@ -36,20 +34,17 @@ class AdminStatsValidator
         break;
       case 'total_article':
         $rules = [
-          'site'   => 'required',
           'status' => 'required'
         ];
         break;
       case 'list_visits':
         $rules = [
-          'site'  => 'required',
           'start' => 'required|date:Y-m-d',
           'end'   => 'required|date:Y-m-d'
         ];
         break;
       case 'list_visits_slug':
         $rules = [
-          'site'  => 'required',
           'start' => 'required|date:Y-m-d',
           'end'   => 'required|date:Y-m-d'
         ];

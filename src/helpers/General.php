@@ -304,14 +304,13 @@ class General
           $cronData = $cronhooks->createSchedule(
             $article->publish,
             [
-              'title'    => 'Publish Artikel #' . $article->site .':'. $article->id,
+              'title'    => 'Publish Artikel #' . $article->id,
               'timezone' => 'Asia/Jakarta',
               'method'   => 'POST',
               'headers'  => [
                 'Authorization' => 'Bearer ' . ($_ENV['JOB_STATIC_TOKEN'] ?? getenv('JOB_STATIC_TOKEN') ?? ''),
               ],
               'payload'  => [
-                'site' => $article->site,
                 'slug' => $article->slug
               ]
             ]
@@ -763,14 +762,6 @@ class General
   }
 
   /**
-   * Alias untuk backward compatibility jika masih ada pemanggilan lama
-   */
-  public function getCategoriesBySite($site = 'all')
-  {
-    return $this->getCategories();
-  }
-
-  /**
    * Ambil daftar artikel terbaru untuk negative context (anti-duplikasi AI)
    *
    * @param int $limit
@@ -805,14 +796,6 @@ class General
     }
 
     return $recentArticles;
-  }
-
-  /**
-   * Alias untuk backward compatibility
-   */
-  public function getRecentArticlesBySite(string $site = 'all', int $limit = 75): array
-  {
-    return $this->getRecentArticles($limit);
   }
 
   /**

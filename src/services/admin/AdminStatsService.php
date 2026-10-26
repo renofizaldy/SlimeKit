@@ -125,9 +125,7 @@ class AdminStatsService
 
   public function totalArticle(array $input)
   {
-    $query = Article::where('status', $input['status'])
-      ->when($input['site'] !== 'all', fn ($q) => $q->where('site', $input['site']))
-      ->count();
+    $query = Article::where('status', $input['status'])->count();
     $data['total'] = $query;
     return $data;
   }
@@ -140,7 +138,6 @@ class AdminStatsService
     $query = Article::with(['cronhooks:id,id_parent,id_cronhooks'])
       ->where('status', 'inactive')
       ->where('publish', '>', date('Y-m-d H:i:s'))
-      ->when(($input['site'] ?? 'all') !== 'all', fn ($q) => $q->where('site', $input['site']))
       ->orderBy('publish', 'ASC');
 
     return $this->helper->paginateQuery(
@@ -153,7 +150,6 @@ class AdminStatsService
         'status'       => $row->status,
         'title'        => $row->title,
         'publish'      => $row->publish,
-        'site'         => $row->site,
       ]
     );
   }
@@ -178,7 +174,6 @@ class AdminStatsService
   {
     $startDate = $input['start'];
     $endDate   = $input['end'];
-    $site      = $input['site'] ?? 'all';
 
     // 1. ZERO FILLING: Buat array dasar dengan nilai 0 untuk setiap hari dalam rentang waktu
     $chartData = [];
@@ -204,9 +199,6 @@ class AdminStatsService
       ->whereDate('created_at', '>=', $startDate)
       ->whereDate('created_at', '<=', $endDate)
       ->where('country_code', 'ID')
-      ->when($site !== 'all', function ($q) use ($site) {
-        $q->where('site', $site);
-      })
       ->groupBy(DB::raw('DATE(created_at)'))
       ->orderBy('date', 'ASC')
       ->get();
@@ -226,7 +218,6 @@ class AdminStatsService
   {
     $startDate = $input['start'];
     $endDate   = $input['end'];
-    $site      = $input['site'] ?? 'all';
 
     $query = ArticleStats::select([
         'slug',
@@ -235,9 +226,6 @@ class AdminStatsService
       ->whereDate('created_at', '>=', $startDate)
       ->whereDate('created_at', '<=', $endDate)
       ->where('country_code', 'ID')
-      ->when($site !== 'all', function ($q) use ($site) {
-        $q->where('site', $site);
-      })
       ->groupBy('slug')
       ->orderBy('visits', 'DESC')
       ->get();
@@ -246,9 +234,6 @@ class AdminStatsService
     $titles = [];
     if (!empty($slugs)) {
       $titles = Article::whereIn('slug', $slugs)
-        ->when($site !== 'all', function ($q) use ($site) {
-          $q->where('site', $site);
-        })
         ->pluck('title', 'slug') 
         ->toArray();
     }

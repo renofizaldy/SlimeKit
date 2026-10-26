@@ -27,7 +27,7 @@ class ClientArticleCategoryService
     $pageSize = max(1, (int) ($input['pageSize'] ?? ($input['limit'] ?? 10)));
 
     //* GENERATE CACHE KEY
-      $cacheKey   = sprintf("{$this->cacheKey}:list:site=%s:page=%d:pageSize=%d", $input['site'], $page, $pageSize);
+      $cacheKey   = sprintf("{$this->cacheKey}:list:page=%d:pageSize=%d", $page, $pageSize);
       $cachedData = $this->valkey->get($cacheKey);
       if ($cachedData) {
         $data = json_decode($cachedData, true);
@@ -38,7 +38,6 @@ class ClientArticleCategoryService
 
     $query = ArticleCategory::with(['seoMeta:id,id_parent,meta_title,meta_description,meta_robots'])
       ->where('status', 'active')
-      ->where('site', $input['site'])
       ->orderBy('id', 'asc');
 
     $data = $this->helper->paginateQuery(
@@ -47,7 +46,6 @@ class ClientArticleCategoryService
       $pageSize,
       fn ($row) => [
         'id'          => $row->id,
-        'site'        => $row->site,
         'slug'        => $row->slug,
         'title'       => $row->title,
         'description' => $row->description,
@@ -74,7 +72,7 @@ class ClientArticleCategoryService
     $data  = [];
 
     //* GENERATE CACHE KEY
-      $cacheKey   = sprintf("{$this->cacheKey}:detail:site=%s:slug=%s", $input['site'], $input['slug']);
+      $cacheKey   = sprintf("{$this->cacheKey}:detail:slug=%s", $input['slug']);
       $cachedData = $this->valkey->get($cacheKey);
       if ($cachedData) {
         $data = json_decode($cachedData, true);
@@ -85,7 +83,6 @@ class ClientArticleCategoryService
 
     $query = ArticleCategory::with(['seoMeta:id,id_parent,meta_title,meta_description,meta_robots'])
       ->where('status', 'active')
-      ->where('site', $input['site'])
       ->where('slug', $input['slug'])
       ->first();
 
@@ -95,7 +92,6 @@ class ClientArticleCategoryService
 
     $data = [
       'id'          => $query->id,
-      'site'        => $query->site,
       'slug'        => $query->slug,
       'title'       => $query->title,
       'description' => $query->description,
